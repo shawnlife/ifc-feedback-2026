@@ -8,6 +8,10 @@ backend, so you can test end to end without touching the real Sheet.
 /exec?action=sessions   returns the sample CSV as JSON, like the real backend
 POST /exec              stores the response in memory; GET /_received lists them
 POST /_fail?on=1        makes /exec fail (simulates no signal); ?on=0 to recover
+POST /exec {"action":"dashboard","key":"test-password"}   dashboard data (password: test-password)
+
+    MOCK_SESSIONS=sessions-ifc2026.csv MOCK_FAKE=900 python3 tools/mock_server.py 8767
+        real programme + 900 made-up responses, for working on the dashboard
 """
 
 import csv
@@ -22,6 +26,57 @@ from urllib.parse import urlparse, parse_qs
 ROOT = Path(__file__).parent.parent
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 received, state = [], {"fail": False}
+DASH_KEY = "test-password"
+
+
+def load_sessions():
+    with (ROOT / os.environ.get("MOCK_SESSIONS", "sample-data/sessions-sample.csv")).open(encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def to_row(item, when=None):
+    """Shape a posted response the way the Apps Script stores it (one row per response)."""
+    s = item["session"]
+    row = {"Timestamp": when or item.get("sentAt"), "Session ID": s.get("id", ""), "Session": s.get("title", ""),
+           "Speakers": s.get("speakers", ""), "Room": s.get("room", ""), "Date": s.get("date", ""),
+           "Time": "–".join(x for x in [s.get("start", ""), s.get("end", "")] if x), "Track": s.get("track", ""),
+           "Note": "Typed in by attendee" if s.get("id") == "NOT LISTED" else ""}
+    row.update(item["answers"])
+    return row
+
+
+def fake_rows(n):
+    """Believable made-up responses so the dashboard can be designed before the event."""
+    import random
+    from datetime import datetime, timedelta
+    rnd = random.Random(7)
+    sess = [x for x in load_sessions() if x.get("Start")]
+    take = ["Test small before scaling", "Ask donors what they want, then listen", "The 70/20/10 budget split",
+            "Retention beats acquisition", "Bring finance into the room early", "Stories need consent first",
+            "Use first-party data properly", "Legacy conversations start earlier than we think", ""]
+    better = ["More time for questions", "Room was too warm", "Slides were hard to read from the back",
+              "Fewer slides, more examples", "", "", "", "Could have been longer"]
+    rows = []
+    for s in sess:
+        quality = rnd.uniform(3.2, 4.8)
+        for _ in range(rnd.randint(0, 2 * n // len(sess))):
+            o = max(1, min(5, round(rnd.gauss(quality, 0.8))))
+            start = datetime.fromisoformat(f"{s['Date']}T{s['End'] or s['Start']}") + timedelta(minutes=rnd.randint(-10, 90))
+            rows.append(to_row({"session": {"id": s["ID"], "title": s["Title"], "speakers": s["Speakers"], "room": s["Room"],
+                                            "date": s["Date"], "start": s["Start"], "end": s["End"], "track": s["Track"]},
+                                "answers": {"Overall (1-5)": o, "Speakers (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 0, 1]))),
+                                            "Relevance (1-5)": rnd.choice(["", max(1, min(5, o + rnd.choice([-1, 0, 1])))]),
+                                            "Will apply": rnd.choices(["Yes, definitely", "Maybe", "No", ""], [o, 2, 0.5, 1])[0],
+                                            "Key takeaway": rnd.choice(take), "Suggestions": rnd.choice(better),
+                                            "Came from": rnd.choices(["QR code", "Link", "Home screen"], [7, 2, 1])[0]}},
+                               start.isoformat()))
+    for t in ["Evening keynote", "the one about legacies in the big room", "Matt Derby session"]:
+        rows.append(to_row({"session": {"id": "NOT LISTED", "title": t}, "answers": {"Overall (1-5)": 4, "Came from": "QR code"}},
+                           "2026-10-22T12:00:00"))
+    return rows
+
+
+FAKE = fake_rows(int(os.environ.get("MOCK_FAKE", "0"))) if os.environ.get("MOCK_FAKE") else []
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -54,8 +109,7 @@ class Handler(SimpleHTTPRequestHandler):
         elif u.path == "/exec":
             if state["fail"]:
                 return self.send_json({"ok": False}, 503)
-            with (ROOT / os.environ.get("MOCK_SESSIONS", "sample-data/sessions-sample.csv")).open(encoding="utf-8") as f:
-                self.send_json({"ok": True, "sessions": list(csv.DictReader(f))})
+            self.send_json({"ok": True, "sessions": load_sessions()})
         elif u.path == "/_received":
             self.send_json(received)
         else:
@@ -72,6 +126,11 @@ class Handler(SimpleHTTPRequestHandler):
                 self.connection.close()  # like losing signal mid-request
                 return
             item = json.loads(body)
+            if item.get("action") == "dashboard":
+                if item.get("key") != DASH_KEY:
+                    return self.send_json({"ok": False, "error": "wrong password"})
+                rows = FAKE + [to_row(r) for r in received if bool(r.get("test")) == bool(item.get("test"))]
+                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows})
             if any(r["rid"] == item["rid"] for r in received):
                 return self.send_json({"ok": True, "duplicate": True})
             received.append(item)

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IFC 2026 Feedback Dashboard</title>
+<!-- Private: not for search engines -->
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#f18500">
+<link rel="icon" href="../assets/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="dashboard.css">
+<script src="../config.js" defer></script>
+<script src="dashboard.js" defer></script>
+</head>
+<body>
+<div class="brandbar">
+  <div class="brandbar-inner dash-inner">
+    <a href="https://www.resource-alliance.org/" target="_blank" rel="noopener noreferrer"><img id="logoLeft" src="../assets/brand/ifc-2026-logo-white.webp" alt="IFC 2026"></a>
+    <a href="https://www.resource-alliance.org/" target="_blank" rel="noopener noreferrer"><img class="logo-event" src="../assets/brand/presented-by-resource-alliance-white.webp" alt="Presented by the Resource Alliance"></a>
+  </div>
+</div>
+
+<main class="dash">
+  <header class="top">
+    <h1>Feedback dashboard</h1>
+  </header>
+
+  <!-- Login -->
+  <form id="login" class="login" hidden>
+    <label for="pw">Dashboard password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <label class="check"><input type="checkbox" id="remember"> Keep me signed in on this device</label>
+    <p class="form-error" id="loginError" role="alert"></p>
+    <button type="submit" class="primary" id="loginBtn">Open dashboard</button>
+  </form>
+
+  <section id="app" hidden>
+    <div class="statusbar">
+      <span class="live" id="liveDot" aria-hidden="true"></span>
+      <span id="updated" role="status">Loading…</span>
+      <span class="spacer"></span>
+      <label class="toggle"><input type="checkbox" id="showTest"> Show test responses</label>
+      <button type="button" class="secondary small" id="refreshBtn">Refresh</button>
+      <button type="button" class="link" id="logoutBtn">Sign out</button>
+    </div>
+    <p class="banner" id="alert" hidden></p>
+
+    <div class="filters" role="group" aria-label="Filters">
+      <label>Day <select id="fDay"><option value="">All days</option></select></label>
+      <label>Type / track <select id="fTrack"><option value="">All</option></select></label>
+      <label>Room <select id="fRoom"><option value="">All rooms</option></select></label>
+      <label class="grow">Search <input id="fText" type="search" placeholder="Session, speaker, comment…"></label>
+    </div>
+
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+      <button role="tab" data-tab="rankings">Session rankings</button>
+      <button role="tab" data-tab="comments">Comments</button>
+      <button role="tab" data-tab="scorecards">Scorecards</button>
+      <button role="tab" data-tab="typed">Typed in <span class="count" id="typedCount"></span></button>
+    </nav>
+
+    <div class="panel" id="tab-overview" role="tabpanel"></div>
+    <div class="panel" id="tab-rankings" role="tabpanel" hidden></div>
+    <div class="panel" id="tab-comments" role="tabpanel" hidden></div>
+    <div class="panel" id="tab-scorecards" role="tabpanel" hidden></div>
+    <div class="panel" id="tab-typed" role="tabpanel" hidden></div>
+  </section>
+
+  <footer class="foot">
+    <p>Tool made using AI vibe-coding by <a href="https://shawnlife.com" target="_blank" rel="noopener noreferrer nofollow">ShawnLife</a></p>
+  </footer>
+</main>
+<div class="tooltip" id="tip" role="tooltip" hidden></div>
+</body>
+</html>

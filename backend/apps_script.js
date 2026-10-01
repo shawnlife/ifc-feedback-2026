@@ -10,6 +10,15 @@
  *   Responses       : one row per feedback submission. Do not edit the header row.
  *   Test responses  : anything sent from the form with ?test on the end of the URL.
  *   Summary         : per-session averages, rebuilt from the "IFC Feedback" menu.
+ *   Raw log         : (hidden) every response exactly as it arrived, as a safety copy.
+ *                     Never edit it; it is what we rebuild from if Responses gets damaged.
+ *
+ * Backups: "IFC Feedback > Turn on hourly backups" copies the whole spreadsheet to a
+ * separate file in your Google Drive every hour (keeps the last 48).
+ *
+ * Dashboard: reads everything through doPost with action "dashboard" and the
+ * password set with "IFC Feedback > Set dashboard password". The password is checked
+ * here, on Google's side, never in the web page.
  *
  * What it deliberately does NOT store: names, emails, IP addresses, device info.
  */
@@ -18,6 +27,9 @@ var SESSIONS = 'Sessions';
 var RESPONSES = 'Responses';
 var TEST_RESPONSES = 'Test responses';
 var SUMMARY = 'Summary';
+var RAW_LOG = 'Raw log';
+var BACKUP_FOLDER = 'IFC 2026 Feedback backups';
+var BACKUPS_TO_KEEP = 48;
 
 var SESSION_HEADERS = ['ID', 'Title', 'Speakers', 'Room', 'Date', 'Start', 'End', 'Track'];
 var BASE_COLUMNS = ['Timestamp', 'Session ID', 'Session', 'Speakers', 'Room', 'Date', 'Time', 'Track', 'Note'];
@@ -34,6 +46,10 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('IFC Feedback')
     .addItem('Check the session list for problems', 'checkSessions')
     .addItem('Update the Summary tab', 'buildSummary')
+    .addSeparator()
+    .addItem('Set dashboard password', 'setDashboardPassword')
+    .addItem('Turn on hourly backups', 'turnOnBackups')
+    .addItem('Back up now', 'backupNow')
     .addSeparator()
     .addItem('First-time setup (creates the tabs)', 'setup')
     .addToUi();
@@ -131,6 +147,7 @@ function doPost(e) {
     if (!e || !e.postData || !e.postData.contents) return json_({ ok: false, error: 'empty' });
     if (e.postData.contents.length > 20000) return json_({ ok: false, error: 'too large' });
     var p = JSON.parse(e.postData.contents);
+    if (p.action === 'dashboard') return dashboard_(p);
     var rid = String(p.rid || '').slice(0, 64);
     var s = p.session || {};
     var answers = p.answers || {};
@@ -186,6 +203,7 @@ function doPost(e) {
         return '';
       });
       sh.appendRow(row);
+      rawLog_(rid, p);
       cache.put('rid_' + rid, '1', 21600);
     } finally {
       lock.releaseLock();
@@ -226,6 +244,93 @@ function safe_(v) {
 
 function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
+
+// Untouched copy of every response, so nothing is lost if the Responses tab is
+// sorted, edited or cleared by accident.
+function rawLog_(rid, p) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(RAW_LOG);
+  if (!sh) {
+    sh = ss.insertSheet(RAW_LOG);
+    sh.getRange(1, 1, 1, 4).setValues([['Received', 'Response ID', 'Test?', 'Everything sent (JSON)']]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    sh.hideSheet();
+  }
+  sh.appendRow([new Date(), rid, p.test === true ? 'test' : '', JSON.stringify(p).slice(0, 45000)]);
+}
+
+
+/* ---------- dashboard data (password protected) ---------- */
+
+function dashboard_(p) {
+  var cache = CacheService.getScriptCache();
+  var fails = Number(cache.get('dash_fails') || 0);
+  if (fails >= 20) return json_({ ok: false, error: 'locked', message: 'Too many wrong passwords. Try again in 15 minutes.' });
+  var real = PropertiesService.getScriptProperties().getProperty('DASHBOARD_PASSWORD');
+  if (!real) return json_({ ok: false, error: 'no password', message: 'Set a password first: IFC Feedback > Set dashboard password.' });
+  if (String(p.key || '') !== real) {
+    cache.put('dash_fails', String(fails + 1), 900);
+    Utilities.sleep(800);                               // slows down guessing
+    return json_({ ok: false, error: 'wrong password' });
+  }
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(p.test === true ? TEST_RESPONSES : RESPONSES);
+  var responses = [];
+  var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+  if (sh && sh.getLastRow() > 1) {
+    var data = sh.getDataRange().getValues();
+    var head = data[0].map(String);
+    for (var r = 1; r < data.length; r++) {
+      var o = {};
+      for (var c = 0; c < head.length; c++) {
+        if (!head[c]) continue;
+        var v = data[r][c];
+        if (v instanceof Date) {
+          // Session dates come back as plain days in conference time; timestamps as exact moments
+          v = head[c] === 'Date' ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : v.toISOString();
+        }
+        o[head[c]] = v;
+      }
+      responses.push(o);
+    }
+  }
+  return json_({ ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses });
+}
+
+function setDashboardPassword() {
+  var ui = SpreadsheetApp.getUi();
+  var res = ui.prompt('Dashboard password', 'Type the password the team will use to open the dashboard (at least 8 characters):', ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  var pw = res.getResponseText().trim();
+  if (pw.length < 8) { ui.alert('Too short: use at least 8 characters.'); return; }
+  PropertiesService.getScriptProperties().setProperty('DASHBOARD_PASSWORD', pw);
+  ui.alert('Saved. Share it with the team privately (not by email to a big list).');
+}
+
+
+/* ---------- backups ---------- */
+
+function turnOnBackups() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'backupNow') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('backupNow').timeBased().everyHours(1).create();
+  backupNow();
+  SpreadsheetApp.getUi().alert('Hourly backups are on. Copies go to the "' + BACKUP_FOLDER + '" folder in your Google Drive.');
+}
+
+function backupNow() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var folders = DriveApp.getFoldersByName(BACKUP_FOLDER);
+  var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(BACKUP_FOLDER);
+  var name = ss.getName() + ' backup ' + Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm');
+  DriveApp.getFileById(ss.getId()).makeCopy(name, folder);
+  // keep only the newest copies
+  var files = [], it = folder.getFiles();
+  while (it.hasNext()) files.push(it.next());
+  files.sort(function (a, b) { return b.getDateCreated() - a.getDateCreated(); });
+  files.slice(BACKUPS_TO_KEEP).forEach(function (f) { f.setTrashed(true); });
 }
 
 
