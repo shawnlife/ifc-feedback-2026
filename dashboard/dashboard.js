@@ -29,9 +29,7 @@
   var L_OVERALL = L_RATINGS[0] ? col(L_RATINGS[0]) : null;
 
   var $ = function (id) { return document.getElementById(id); };
-  var qs = new URLSearchParams(location.search);
-  if (qs.has('analytics')) store('local', 'ifc26-analytics', qs.get('analytics') === 'off' ? null : '1');
-  var ANALYTICS = store('local', 'ifc26-analytics') === '1';
+  var ANALYTICS = true;    // last tab: how people use the tool (not front and centre)
   var state = {
     key: null, data: null, lastOk: 0, tab: 'overview',
     sortBy: 'avg0', sortDir: -1, minN: 3, scorecard: '', commentsShown: 100
@@ -636,7 +634,6 @@
   }
 
   function init() {
-    $('analyticsTab').hidden = !ANALYTICS;
     if (!API) { $('login').hidden = false; $('loginError').textContent = 'No Google Sheet address in config.js yet.'; return; }
     // A sign-in link carries the password after #, which never leaves the browser.
     // It is remembered on this device and then tidied out of the address bar.
