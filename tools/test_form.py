@@ -185,6 +185,23 @@ with sync_playwright() as p:
     page.wait_for_selector("#stepDone:not([hidden])")
     check(received()[-1]["answers"].get("Came from") == "QR code", "second rating in the same visit still counts as QR")
 
+    print("Help + home screen tip")
+    href = page.get_attribute("#helpLink", "href") or ""
+    check(href.startswith("mailto:shawnlifebiz@gmail.com?subject="), "help link opens an email to Shawn with a subject")
+    check(page.is_visible("#homeTip") and page.is_visible("#tipOther"), "thank-you screen shows the home-screen tip")
+
+    print("Backup session list")
+    set_fail(True)
+    ctx3 = b.new_context(viewport={"width": 375, "height": 740})        # new phone: nothing saved yet
+    p3 = ctx3.new_page()
+    p3.goto(BASE + "?test")
+    p3.wait_for_timeout(1500)
+    p3.fill("#q", "bequest"); p3.wait_for_timeout(200)
+    check(p3.locator(".result").count() > 0 and p3.is_hidden("#banner") is False or p3.locator(".result").count() > 0,
+          f"Google down + nothing saved: sessions still load from the website copy ({p3.locator('.result').count()} found)")
+    set_fail(False)
+    ctx3.close()
+
     print("Logos")
     check(page.locator(".brandbar a[href='https://www.resource-alliance.org/']").count() == 2, "both logos link to resource-alliance.org")
 

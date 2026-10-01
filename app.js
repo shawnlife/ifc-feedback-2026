@@ -21,13 +21,13 @@
   // QR codes point at the address with ?qr on the end. Remember that for this visit,
   // then tidy it out of the address bar so a copied/shared link counts as a link.
   var SOURCE = (function () {
-    var src = params.has('qr') ? 'QR code' : null;
+    var src = params.has('qr') ? 'QR code' : params.has('app') ? 'Home screen' : null;
     try {
       if (src) sessionStorage.setItem('ifc26-src', src);
       else src = sessionStorage.getItem('ifc26-src');
     } catch (e) { /* private browsing: fine */ }
-    if (params.has('qr')) {
-      params.delete('qr');
+    if (params.has('qr') || params.has('app')) {
+      params.delete('qr'); params.delete('app');
       var qs = params.toString();
       history.replaceState(null, '', location.pathname + (qs ? '?' + qs.replace(/=(?=&|$)/g, '') : '') + location.hash);
     }
@@ -254,10 +254,15 @@
       els.status.textContent = 'Loading sessions…';
     }
     return fetchSessions().then(render).catch(function () {
-      if (!sessions.length) {
-        els.status.innerHTML = '';
-        banner('Could not load the session list. Check your connection and reload the page, or tap "My session isn\'t listed" below.');
-      }
+      if (sessions.length) return;            // already showing the copy saved on this phone
+      // Backup: the copy of the programme published with the website itself
+      return fetch(DEMO_CSV, { cache: 'no-cache' })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+        .then(function (text) { setSessions(parseCSV(text)); render(); })
+        .catch(function () {
+          els.status.innerHTML = '';
+          banner('Could not load the session list. Check your connection and reload the page, or tap "My session isn\'t listed" below.');
+        });
     });
   }
 
@@ -731,6 +736,7 @@
       demo: 'Demo mode: nothing was saved. Connect the Google Sheet in config.js to go live.'
     }[state];
     $('doneTitle').textContent = state === 'rejected' ? 'Not sent' : 'Thank you!';
+    if (state !== 'rejected') showHomeTip();
     showStep('done');
     history.replaceState({ step: 'done' }, '');
     $('stepDone').focus();
@@ -758,7 +764,33 @@
     show('bannerImg', b.banner, '');
   }
 
+  // Help link: the address is put together here so it is not sitting in the page for spam bots
+  function setupHelp() {
+    var addr = ['shawnlifebiz', 'gmail.com'].join('@');
+    var link = $('helpLink');
+    link.href = 'mailto:' + addr + '?subject=' + encodeURIComponent('IFC 2026 feedback form: help') +
+      '&body=' + encodeURIComponent('What happened?\n\n\nWhich session were you trying to rate (if any)?\n\n');
+    link.textContent = addr;
+  }
+
+  // "Add to home screen" tip on the thank-you screen
+  var installPrompt = null;
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installPrompt = e; });
+  function showHomeTip() {
+    var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
+    if (standalone) return;                                  // already on the home screen
+    var ua = navigator.userAgent;
+    var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var android = /Android/.test(ua);
+    $('installBtn').hidden = !installPrompt;
+    $('tipIos').hidden = !ios;
+    $('tipAndroid').hidden = !android || !!installPrompt;
+    $('tipOther').hidden = ios || android;
+    $('homeTip').hidden = false;
+  }
+
   function init() {
+    setupHelp();
     els.eventName.textContent = CFG.eventName || 'IFC 2026';
     applyBrand();
     if (DEMO) banner('Demo mode: nothing is saved.');
@@ -807,6 +839,11 @@
       if (e.target.id === 'changeBtn') history.back();
     });
     els.stepForm.addEventListener('submit', submit);
+    $('installBtn').addEventListener('click', function () {
+      if (!installPrompt) return;
+      installPrompt.prompt();
+      installPrompt.userChoice.then(function () { installPrompt = null; $('homeTip').hidden = true; });
+    });
     els.againBtn.addEventListener('click', function () {
       els.q.value = ''; browsing = false; render(); backToFind();
     });

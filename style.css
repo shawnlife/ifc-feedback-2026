@@ -208,6 +208,21 @@ mark { background: rgba(241, 133, 0, .28); color: inherit; padding: 0 1px; }
 #stepDone h2 { margin: 0 0 6px; font-size: 28px; text-transform: uppercase; }
 #stepDone p { margin: 0 0 28px; color: var(--muted); }
 
+.ico { width: 1.1em; height: 1.1em; vertical-align: -0.2em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.help { margin: 0 0 10px; font-size: 14px; color: var(--ink); }
+.help a { color: var(--ink); font-weight: 700; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+/* Home screen tip on the thank-you screen */
+.tip { margin: 36px 0 0; padding: 18px 18px 6px; text-align: left; background: var(--surface); border-left: 5px solid var(--accent); }
+.tip h3 { margin: 0 0 4px; font-size: 18px; }
+#stepDone .tip p { margin: 0 0 12px; color: var(--ink); }
+.tip .tip-steps { font-size: 15px; }
+.secondary {
+  margin: 4px 0 14px; padding: 0 18px; height: 46px; background: var(--bg); color: var(--ink);
+  border: 2px solid var(--ink); box-shadow: -3px 4px 0 var(--ink); font-weight: 700;
+}
+.secondary:hover { background: var(--accent); }
+
 .foot { margin-top: auto; padding-top: 36px; text-align: center; font-size: 12px; color: var(--muted); }
 .foot a { color: var(--muted); }
 .noscript { padding: 16px; text-align: center; }
