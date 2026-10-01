@@ -40,6 +40,8 @@ var SESSION_HEADERS = ['ID', 'Title', 'Speakers', 'Room', 'Date', 'Start', 'End'
 var BASE_COLUMNS = ['Timestamp', 'Session ID', 'Session', 'Speakers', 'Room', 'Date', 'Time', 'Track', 'Note'];
 
 var CACHE_KEY = 'sessions_v1';
+var TIME_BUDGET_MS = 4 * 60 * 1000;     // stop well before Google's 6-minute limit; the next run carries on
+var MAX_ROWS_PER_RUN = 1500;
 var CACHE_SECONDS = 60;
 var MAX_ANSWERS = 20;
 var MAX_TEXT = 1000;
@@ -226,8 +228,9 @@ function rawSheet_() {
  * processQueue carries on as normal. Reads use your own Google login, so Firebase
  * needs no public read access at all.
  */
-function syncFirestore_() {
+function syncFirestore_(started) {
   if (!FIREBASE_PROJECT_ID) return 0;
+  started = started || Date.now();
   var props = PropertiesService.getScriptProperties();
   var url = 'https://firestore.googleapis.com/v1/projects/' + FIREBASE_PROJECT_ID + '/databases/(default)/documents:runQuery';
   var since = props.getProperty('FS_SYNCED_UNTIL') || '2026-01-01T00:00:00Z';
@@ -263,7 +266,7 @@ function syncFirestore_() {
       });
       if (rows.length) {
         var lock = LockService.getScriptLock();      // same lock as phones writing directly: never two writers at once
-        lock.waitLock(30000);
+        if (!lock.tryLock(20000)) break;               // phones are busy writing; pick these up next minute
         try {
           raw.getRange(raw.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
           SpreadsheetApp.flush();
@@ -271,7 +274,7 @@ function syncFirestore_() {
         added += rows.length;
       }
       if (newest > since) { since = newest; props.setProperty('FS_SYNCED_UNTIL', since); }
-      if (docs.length < 500) break;
+      if (docs.length < 500 || Date.now() - started > TIME_BUDGET_MS / 2) break;
       from = newest;
     }
     props.setProperty('FS_LAST_SYNC', new Date().toISOString());
@@ -307,7 +310,8 @@ function processQueue() {
   var lock = LockService.getDocumentLock();   // separate from the intake lock, so phones are never kept waiting by this
   if (!lock || !lock.tryLock(1000)) return 0; // another run is already doing it
   try {
-    syncFirestore_();                         // bring in anything that arrived through Firebase first
+    var started = Date.now();
+    syncFirestore_(started);                  // bring in anything that arrived through Firebase first
     var raw = rawSheet_();
     var props = PropertiesService.getScriptProperties();
     var last = raw.getLastRow();
@@ -319,6 +323,7 @@ function processQueue() {
     if (from > 2) {
       raw.getRange(2, 2, from - 2, 4).getValues().forEach(function (r) { if (r[3] === 'saved') saved[r[0]] = 1; });
     }
+    last = Math.min(last, from + MAX_ROWS_PER_RUN - 1);   // big backlog: do it in slices, one per minute
     var block = raw.getRange(from, 1, last - from + 1, 5).getValues();
     var out = { RESPONSE: [], TEST: [], EVENT: [] }, status = [];
     var ids = sessionIds_();                    // looked up once for the whole batch
@@ -561,7 +566,11 @@ function clearTestResponses() {
   var ui = SpreadsheetApp.getUi();
   if (ui.alert('Clear test responses?', 'Deletes every row in the "Test responses" tab (the real Responses tab is not touched).', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TEST_RESPONSES);
-  if (sh && sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
+  if (sh && sh.getLastRow() > 1) {
+    var last = sh.getLastRow();
+    sh.insertRowAfter(last);            // Sheets won't delete every row under the header, so keep one blank row
+    sh.deleteRows(2, last - 1);
+  }
   var ev = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Events');
   if (ev && ev.getLastRow() > 1) {
     var keep = ev.getRange(2, 1, ev.getLastRow() - 1, 3).getValues().filter(function (r) { return r[2] !== 'test'; });
