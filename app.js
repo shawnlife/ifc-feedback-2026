@@ -17,6 +17,22 @@
   var params = new URLSearchParams(location.search);
   var TEST = params.has('test');
   var NOW_OVERRIDE = params.get('now'); // e.g. ?now=2026-10-14T11:00 to test the "just finished" list
+
+  // QR codes point at the address with ?qr on the end. Remember that for this visit,
+  // then tidy it out of the address bar so a copied/shared link counts as a link.
+  var SOURCE = (function () {
+    var src = params.has('qr') ? 'QR code' : null;
+    try {
+      if (src) sessionStorage.setItem('ifc26-src', src);
+      else src = sessionStorage.getItem('ifc26-src');
+    } catch (e) { /* private browsing: fine */ }
+    if (params.has('qr')) {
+      params.delete('qr');
+      var qs = params.toString();
+      history.replaceState(null, '', location.pathname + (qs ? '?' + qs.replace(/=(?=&|$)/g, '') : '') + location.hash);
+    }
+    return src || 'Link';
+  })();
   var TZ = CFG.timezone || 'Europe/Amsterdam';
 
   var SESSIONS_KEY = 'ifc26-sessions-v1';
@@ -379,7 +395,8 @@
     out.sort(function (a, b) {
       return b.hits - a.hits || b.score - a.score || sortKey(a.s).localeCompare(sortKey(b.s));
     });
-    return out.map(function (x) { return x.s; });
+    var ranked = out.map(function (x) { return x.s; });
+    return ranked.filter(isOpen).concat(ranked.filter(function (s) { return !isOpen(s); }));
   }
 
   // During the conference, sessions that just ended are the likeliest answer.
@@ -398,16 +415,33 @@
 
   function sortKey(s) { return (s.date || '9') + (s.start || '99') + s.room + s.title; }
 
-  // The latest time slot that is on now or just finished (all its parallel sessions).
-  function recentSessions() {
+  function byRoom(a, b) { return a.room.localeCompare(b.room, undefined, { numeric: true }); }
+
+  // The block that most recently ENDED (up to 2.5 hours ago): where most people rating right now were.
+  function justFinished() {
     var now = nowMinutes();
     var list = sessions.filter(function (s) {
-      var start = toMinutes(s.date, s.start), end = toMinutes(s.date, s.end || s.start);
-      return !isNaN(start) && start - 10 <= now && now - end <= RECENT_WINDOW_MIN;
+      var end = toMinutes(s.date, s.end || s.start);
+      return !isNaN(end) && end <= now && now - end <= RECENT_WINDOW_MIN;
     });
-    var latest = list.reduce(function (m, s) { return s.date + s.start > m ? s.date + s.start : m; }, '');
-    return list.filter(function (s) { return s.date + s.start === latest; })
-      .sort(function (a, b) { return a.room.localeCompare(b.room, undefined, { numeric: true }); });
+    var latest = list.reduce(function (m, s) { var k = s.date + (s.end || s.start); return k > m ? k : m; }, '');
+    return list.filter(function (s) { return s.date + (s.end || s.start) === latest; }).sort(byRoom);
+  }
+
+  // Sessions running right now (for people who leave early or rate during the session).
+  function inProgress() {
+    var now = nowMinutes();
+    return sessions.filter(function (s) {
+      var start = toMinutes(s.date, s.start), end = toMinutes(s.date, s.end || s.start);
+      return !isNaN(start) && start <= now && now < end;
+    }).sort(byRoom);
+  }
+
+  // A session can be rated once it has started. ?test (without ?now) unlocks everything for testing.
+  function isOpen(s) {
+    if (TEST && !NOW_OVERRIDE) return true;
+    var start = toMinutes(s.date, s.start);
+    return isNaN(start) || start <= nowMinutes();
   }
 
 
@@ -431,7 +465,9 @@
   function card(s, qt) {
     qt = qt || [];
     var done = rated().indexOf(s.id) > -1;
-    return '<li><button type="button" class="result" data-id="' + esc(s.id) + '">' +
+    var open = isOpen(s);
+    return '<li><button type="button" class="result' + (open ? '' : ' locked') + '" data-id="' + esc(s.id) + '"' +
+      (open ? '' : ' disabled') + '>' +
       '<span class="r-title">' + highlight(s.title, qt) + '</span>' +
       (s.speakers ? '<span class="r-speakers">' + highlight(s.speakers, qt) + '</span>' : '') +
       '<span class="r-meta">' +
@@ -439,6 +475,7 @@
         (s.date ? '<span>' + esc(dayLabel(s.date)) + (s.start ? ', ' + esc(timeLabel(s)) : '') + '</span>' : '') +
         (s.track ? '<span>' + highlight(s.track, qt) + '</span>' : '') +
         (done ? '<span class="r-done">✓ You rated this</span>' : '') +
+        (open ? '' : '<span class="r-locked">Opens for feedback when it starts</span>') +
       '</span></button></li>';
   }
 
@@ -451,11 +488,14 @@
     if (!sessions.length) return;
 
     if (!raw.trim()) {
-      var recent = recentSessions();
-      els.listHeading.hidden = !recent.length;
-      els.listHeading.textContent = 'Just finished or in progress';
-      els.results.innerHTML = recent.map(function (s) { return card(s); }).join('');
-      els.status.textContent = recent.length ? '' : sessions.length + ' sessions loaded. Start typing to find yours.';
+      var fin = justFinished(), live = inProgress();
+      var group = function (title, list) {
+        return list.length ? '<li class="group"><h2 class="list-heading">' + title + '</h2></li>' +
+          list.map(function (s) { return card(s); }).join('') : '';
+      };
+      els.listHeading.hidden = true;
+      els.results.innerHTML = group('Just finished', fin) + group('In progress now', live);
+      els.status.textContent = fin.length || live.length ? '' : 'Each session opens for feedback when it starts. Type above or browse to find yours.';
       return;
     }
 
@@ -474,7 +514,7 @@
   function renderBrowse() {
     els.listHeading.hidden = true;
     els.status.textContent = 'All ' + sessions.length + ' sessions, by day and time.';
-    var recent = recentSessions()[0];
+    var recent = justFinished()[0] || inProgress()[0];
     var openKey = recent ? recent.date + recent.start : '';
     var byDay = {};
     sessions.slice().sort(function (a, b) { return sortKey(a).localeCompare(sortKey(b)); }).forEach(function (s) {
@@ -489,8 +529,9 @@
       Object.keys(byDay[d]).forEach(function (slot) {
         var list = byDay[d][slot];
         var open = list[0].date + list[0].start === openKey;
-        html += '<details class="slot"' + (open ? ' open' : '') + '><summary>' + esc(slot) +
-          '<span class="slot-count">' + list.length + ' sessions</span></summary><ul class="results">' +
+        var started = isOpen(list[0]);
+        html += '<details class="slot' + (started ? '' : ' slot-locked') + '"' + (open ? ' open' : '') + '><summary>' + esc(slot) +
+          '<span class="slot-count">' + (started ? list.length + ' sessions' : 'Not started yet') + '</span></summary><ul class="results">' +
           list.map(function (s) { return card(s); }).join('') + '</ul></details>';
       });
       html += '</li>';
@@ -658,7 +699,7 @@
       session: s.manual
         ? { id: 'NOT LISTED', title: c.manualName }
         : { id: s.id, title: s.title, speakers: s.speakers, room: s.room, date: s.date, start: s.start, end: s.end, track: s.track },
-      answers: c.answers
+      answers: Object.assign({}, c.answers, { 'Came from': SOURCE })
     };
 
     if (!s.manual) {

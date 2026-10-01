@@ -44,6 +44,7 @@ button { cursor: pointer; }
   max-width: 560px; margin: 0 auto; padding: max(10px, env(safe-area-inset-top)) 16px 10px;
   display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 60px;
 }
+.brandbar a { display: contents; }
 .brandbar img { display: block; width: auto; max-width: 50%; object-fit: contain; object-position: left center; }
 #logoLeft { height: 26px; }                                  /* IFC 2026 */
 .brandbar .logo-event { height: 34px; object-position: right center; } /* Presented by the Resource Alliance */
@@ -108,6 +109,11 @@ h2 { font-weight: 700; }
 .r-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 14px; color: var(--muted); }
 .r-room { color: var(--accent-text); font-weight: 700; }
 .r-done { color: var(--ok); font-weight: 700; }
+.result.locked { opacity: .55; cursor: not-allowed; border-left-color: transparent; background: var(--surface); }
+.r-locked { flex-basis: 100%; color: var(--ink); font-weight: 600; }
+.slot-locked > summary { color: var(--muted); }
+.group .list-heading { margin-top: 10px; }
+.group + .group { margin-top: 0; }
 mark { background: rgba(241, 133, 0, .28); color: inherit; padding: 0 1px; }
 
 .day-group { margin-top: 18px; }

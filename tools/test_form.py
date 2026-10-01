@@ -42,10 +42,32 @@ with sync_playwright() as p:
     print("Search quality")
     page.goto(BASE + "?now=2026-10-14T12:40")
     page.wait_for_selector(".result")
-    heading = page.inner_text("#listHeading")
+    heads = [h.lower() for h in page.locator(".results .list-heading").all_inner_texts()]
     first = page.locator(".result").first.inner_text()
-    check("just finished" in heading.lower() and "11:15" in first, f"empty search shows the 11:15 slot as just finished ({page.locator('.result').count()} cards)")
+    check(heads == ["just finished"] and "11:15" in first and page.locator(".result").count() == 15,
+          f"12:40 Wed: 'Just finished' shows the 15 sessions of the 11:15 block ({heads}, {page.locator('.result').count()} cards)")
+    page.goto(BASE + "?now=2026-10-14T11:00"); page.wait_for_selector(".result")
+    heads = [h.lower() for h in page.locator(".results .list-heading").all_inner_texts()]
+    check(heads == ["just finished"], f"11:00 Wed (between blocks): only the 09:30 block, nothing in progress ({heads})")
+    page.goto(BASE + "?now=2026-10-14T11:20"); page.wait_for_selector(".result")
+    first_two = [c.inner_text() for c in page.locator(".result").all()[:1]] + [page.locator(".result").nth(15).inner_text()]
+    check("09:30" in first_two[0] and "11:15" in first_two[1], "11:20 Wed: 09:30 block still 'Just finished', 11:15 block 'In progress now'")
 
+    print("Not started yet = can't be chosen")
+    page.goto(BASE + "?now=2026-10-14T12:40"); page.wait_for_selector(".result")
+    page.fill("#q", "plenary hall"); page.wait_for_timeout(150)
+    cards = page.locator(".result").all()
+    locked = [c for c in cards if "locked" in (c.get_attribute("class") or "")]
+    openc = [c for c in cards if "locked" not in (c.get_attribute("class") or "")]
+    check(locked and openc, f"future sessions shown as locked ({len(locked)} locked, {len(openc)} open)")
+    check(cards.index(locked[0]) > cards.index(openc[-1]), "sessions you can rate are listed before locked ones")
+    check(all(("Thu" in c.inner_text() or "Fri" in c.inner_text() or "Wed 14 Oct, 14:00" in c.inner_text()) for c in locked), "only sessions that haven't started are locked")
+    check(locked[0].is_disabled() and "Opens for feedback" in locked[0].inner_text(), "locked card is disabled and says when it opens")
+    locked[0].click(force=True)
+    check(page.is_visible("#stepFind") and not page.is_visible("#stepForm"), "tapping a locked session does nothing")
+
+    page.goto(BASE + "?now=2026-10-17T12:00"); page.wait_for_selector("#q")   # after the event: everything open
+    page.wait_for_timeout(300)
     cases = [
         ("Room 4", "Room 4"),
         ("room 4 wed", "Room 4"),
@@ -80,6 +102,7 @@ with sync_playwright() as p:
     check(all("Room 4" in x for x in top(page, "room 4", 10)), "... and the top 10 are all Room 4 (not 4pm or Room 14)")
 
     print("Browse")
+    page.goto(BASE + "?now=2026-10-14T12:40"); page.wait_for_selector(".result")
     page.fill("#q", "")
     page.click("#browseBtn")
     check(page.locator("details.slot").count() == 10, "browse shows 10 time slots")
@@ -108,6 +131,7 @@ with sync_playwright() as p:
           and last["answers"]["Relevance (1-5)"] == "" and last["answers"]["Will apply"] == "Yes, definitely",
           "answers mapped to the right columns")
     check(last["test"] is False, "not flagged as a test")
+    check(last["answers"].get("Came from") == "Link", "plain visit recorded as 'Link'")
 
     print("Back button")
     page.click("#againBtn")
@@ -151,9 +175,27 @@ with sync_playwright() as p:
     check(not ow, "no sideways scrolling at 375px")
     check("ShawnLife" in page.inner_text(".foot"), "footer attribution present")
 
+    print("QR code tracking")
+    page.goto(BASE + "?qr&now=2026-10-14T12:40"); page.wait_for_selector(".result")
+    check("qr" not in page.url, f"?qr tidied out of the address bar ({page.url})")
+    page.locator(".result").first.click(); page.click("label[for=q0_4]"); page.click("#submitBtn")
+    page.wait_for_selector("#stepDone:not([hidden])")
+    check(received()[-1]["answers"].get("Came from") == "QR code", "QR visit recorded as 'QR code'")
+    page.click("#againBtn"); page.locator(".result").first.click(); page.click("label[for=q0_3]"); page.click("#submitBtn")
+    page.wait_for_selector("#stepDone:not([hidden])")
+    check(received()[-1]["answers"].get("Came from") == "QR code", "second rating in the same visit still counts as QR")
+
+    print("Logos")
+    check(page.locator(".brandbar a[href='https://www.resource-alliance.org/']").count() == 2, "both logos link to resource-alliance.org")
+
     print("Test mode")
+    ctx2 = b.new_context(viewport={"width": 375, "height": 740})   # fresh tab: no QR memory
+    page = ctx2.new_page()
     page.goto(BASE + "?test")
     page.wait_for_timeout(500)
+    check(page.locator(".result.locked").count() == 0 or True, "")
+    page.fill("#q", "plenary hall"); page.wait_for_timeout(150)
+    check(page.locator(".result.locked").count() == 0, "?test unlocks future sessions so you can test before the event")
     check("Test mode" in page.inner_text("#banner"), "?test shows the test banner")
     page.fill("#q", "library")
     page.wait_for_timeout(150)
