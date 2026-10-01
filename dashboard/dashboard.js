@@ -100,8 +100,10 @@
     });
   }
 
+  var quickRetry = 0, quickTimer = null;
   function load() {
     $('updated').textContent = 'Updating…';
+    clearTimeout(quickTimer);
     return fetchData().then(function (d) {
       if (d.stale) return;                      // a newer request is on its way; ignore this answer
       if (!d.ok) {
@@ -110,12 +112,21 @@
         } else showAlert('The Sheet answered with an error: ' + (d.message || d.error) + '. Showing the last data received.');
         return;
       }
-      state.data = d; state.lastOk = Date.now();
+      state.data = d; state.lastOk = Date.now(); quickRetry = 0;
       showAlert(healthMessage(d.health));
       prepare();
       renderAll();
     }).catch(function () {
-      showAlert('Could not reach the Google Sheet just now. Will try again in a minute. Showing the last data received.');
+      // Blips happen (Google occasionally drops a request): retry quickly twice before worrying anyone
+      if (quickRetry < 2) {
+        quickRetry++;
+        $('updated').textContent = 'Retrying…';
+        quickTimer = setTimeout(load, quickRetry === 1 ? 5000 : 15000);
+        return;
+      }
+      quickRetry = 0;
+      showAlert('Could not reach the Google Sheet (tried 3 times). Will keep trying every minute' +
+        (state.data ? '; showing the last data received.' : '.') + ' Responses are still being saved.');
     }).then(updateStatus);
   }
 
