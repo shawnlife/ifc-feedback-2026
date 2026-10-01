@@ -113,3 +113,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 15px; }
 p.issue { color: var(--danger); }
 p.issue .k { color: var(--danger); }
 tr.has-issue td:first-child { box-shadow: inset 4px 0 0 var(--danger); }
+.assign .link { margin-left: 10px; min-height: 0; padding: 0; font-size: 14px; }
+.dismissed { margin-top: 18px; }
+.dismissed summary { cursor: pointer; color: var(--muted); padding: 6px 0; }
+.dist.timing { grid-template-columns: 130px 1fr 44px; max-width: 640px; margin-top: 14px; font-size: 14px; }
+.dist.timing .b { height: 16px; }
+.subhead { font-size: 15px; text-transform: uppercase; letter-spacing: .04em; margin: 22px 0 8px; color: var(--muted); }

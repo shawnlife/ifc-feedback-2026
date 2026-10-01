@@ -239,5 +239,25 @@ for (let m = 0; m < 60; m++) tick(env);                                     // 0
 check(rowsOf(env, 'Responses') === 21, `by 07:30 the one sent at 02:30 is in too (${rowsOf(env, 'Responses')})`);
 check(env.calls.fsQueries - q0 <= 10, `whole night cost ${env.calls.fsQueries - q0} Firebase checks`);
 
+console.log('12. Two Session Leaders report on the same session');
+env = makeEnv();
+fsDoc(env, { test: false, form: 'leader', sessionId: '1WS1' }); fsDoc(env, { test: false, form: 'leader', sessionId: '1WS1' });
+tick(env);
+const two = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+check(rowsOf(env, 'Session leader feedback') === 2 && two.leaders.filter((l) => l['Session ID'] === '1WS1').length === 2, 'both reports kept and returned for that session');
+
+console.log('13. Typed-in: No match keeps the row, Restore brings it back');
+env = makeEnv();
+env.ctx.doPost({ postData: { contents: JSON.stringify({ rid: 'typed1', test: false, session: { id: 'NOT LISTED', title: 'Evening drinks talk' }, answers: { 'Overall (1-5)': 4 } }) } });
+tick(env);
+const dsh = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+const typedRow = dsh.responses.find((r) => r['Session ID'] === 'NOT LISTED');
+const nm = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'assign', key: 'pw12345678', row: typedRow._row, timestamp: typedRow.Timestamp, sessionId: '__NO_MATCH__' }) } }).text);
+const after = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text).responses.find((r) => r.Session === 'Evening drinks talk');
+check(nm.ok && after && /no match/.test(after.Note) && rowsOf(env, 'Responses') === 1, 'marked "no match", still in the Sheet');
+env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'assign', key: 'pw12345678', row: typedRow._row, timestamp: typedRow.Timestamp, sessionId: '__RESTORE__' }) } });
+const back = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text).responses.find((r) => r.Session === 'Evening drinks talk');
+check(back && back.Note === 'Typed in by attendee', 'Restore puts it back in the to-be-matched list');
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);

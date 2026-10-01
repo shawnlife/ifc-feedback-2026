@@ -578,6 +578,13 @@ function assign_(p) {
     var get = function (h) { return vals[head.indexOf(h)]; };
     var ts = get('Timestamp');
     if (!(ts instanceof Date) || ts.toISOString() !== p.timestamp) return json_({ ok: false, error: 'row changed, refresh and try again' });
+    // "No match" / "Restore" only change the Note: the response itself stays in the Sheet
+    if (p.sessionId === '__NO_MATCH__' || p.sessionId === '__RESTORE__') {
+      if (get('Session ID') !== 'NOT LISTED') return json_({ ok: false, error: 'not a typed-in response' });
+      sh.getRange(row, head.indexOf('Note') + 1).setValue(p.sessionId === '__NO_MATCH__'
+        ? 'Typed in, no match (dismissed on dashboard)' : 'Typed in by attendee');
+      return json_({ ok: true });
+    }
     var s = readSessions_().filter(function (x) { return String(x.ID) === String(p.sessionId); })[0];
     if (!s) return json_({ ok: false, error: 'session not found' });
     var typed = String(get('Note')).indexOf('Typed in') === 0 && get('Session ID') === 'NOT LISTED' ? get('Session') : '';

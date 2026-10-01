@@ -32,7 +32,8 @@
   var ANALYTICS = true;    // last tab: how people use the tool (not front and centre)
   var state = {
     key: null, data: null, lastOk: 0, tab: 'overview',
-    sortBy: 'avg0', sortDir: -1, minN: 3, scorecard: '', commentsShown: 100
+    sortBy: 'avg0', sortDir: -1, minN: 3, scorecard: '', commentsShown: 100,
+    lSortBy: 'when', lSortDir: 1
   };
   var sessions = [], byId = {}, rows = [], leaders = [];
 
@@ -247,6 +248,60 @@
     $('tab-overview').innerHTML = html;
   }
 
+  // Minutes between a session's end (conference local time) and when the response arrived.
+  // Negative = sent before the session ended.
+  function wallMinutes(iso) {
+    var dt = new Date(iso);
+    if (isNaN(dt)) return null;
+    try {
+      var p = {};
+      new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+        .formatToParts(dt).forEach(function (x) { p[x.type] = x.value; });
+      return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) / 60000;
+    } catch (e) { return null; }
+  }
+  function delayOf(r, endTime) {
+    if (!r.date || !endTime) return null;
+    var w = wallMinutes(r.when);
+    if (w == null) return null;
+    var d = r.date.split('-'), t = endTime.split(':');
+    return w - Date.UTC(+d[0], +d[1] - 1, +d[2], +t[0], +t[1]) / 60000;
+  }
+  function median(list) {
+    if (!list.length) return null;
+    var s = list.slice().sort(function (a, b) { return a - b; }), m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  }
+  function fmtDelay(m) {
+    if (m == null) return '–';
+    var a = Math.abs(Math.round(m)), txt = a < 60 ? a + ' min' : (a < 1440 ? Math.floor(a / 60) + ' h ' + (a % 60 ? a % 60 + ' min' : '') : Math.round(a / 1440) + ' days');
+    return (m < 0 ? txt.trim() + ' before the end' : txt.trim() + ' after');
+  }
+  var DELAY_BUCKETS = [
+    ['Before it ended', -Infinity, 0], ['0–5 min after', 0, 5], ['5–15 min', 5, 15], ['15–30 min', 15, 30],
+    ['30–60 min', 30, 60], ['1–2 hours', 60, 120], ['2–6 hours', 120, 360], ['Later', 360, Infinity]];
+
+  function timingSection(list, label) {
+    var delays = list.map(function (r) {
+      var s = byId[r.id];
+      return delayOf(r, s ? s.end || s.start : null);
+    }).filter(function (v) { return v != null; });
+    if (!delays.length) return '<p class="empty">No ' + label + ' with a session time yet.</p>';
+    var before = delays.filter(function (v) { return v < 0; }).length;
+    var counts = DELAY_BUCKETS.map(function (b) { return delays.filter(function (v) { return v >= b[1] && v < b[2]; }).length; });
+    var mx = Math.max.apply(null, counts.concat(1));
+    return '<div class="tiles">' +
+      tile('Median', fmtDelay(median(delays)), 'Half of ' + label + ' came in sooner than this') +
+      tile('Average', fmtDelay(mean(delays)), 'Very late responses pull this up') +
+      tile('Before the session ended', String(before), pct(before, delays.length) + ' of ' + delays.length) +
+      tile('After it ended', String(delays.length - before), pct(delays.length - before, delays.length) + ' of ' + delays.length) +
+      '</div><div class="dist timing" role="img" aria-label="How soon after the session ' + label + ' came in">' +
+      DELAY_BUCKETS.map(function (b, i) {
+        return '<span>' + esc(b[0]) + '</span><span class="b" data-tip="' + esc(b[0] + ': ' + counts[i] + ' ' + label + ' (' + pct(counts[i], delays.length) + ')') + '">' +
+          '<i style="width:' + (counts[i] / mx * 100) + '%"></i></span><span class="n">' + counts[i] + '</span>';
+      }).join('') + '</div>';
+  }
+
   // Analytics: how people use the tool (for Shawn)
   function renderAnalytics() {
     if (!ANALYTICS) return;
@@ -264,6 +319,9 @@
       tile('Saw the home-screen tip', String(ev['tip-shown'] || 0), 'Shown on the thank-you screen') +
       tile('Added to home screen', String(ev.installed || 0), 'Android installs') +
       '</div>' +
+      '<h2 class="section">Review timing</h2><p class="sub">How long after each session ended people sent their feedback (conference time). With the filters above applied.</p>' +
+      timingSection(list.filter(function (r) { return !r.typed; }), 'responses') +
+      (leaders.length ? '<h3 class="subhead">Session Leaders</h3>' + timingSection(leaders.filter(function (l) { return matches(l); }), 'leader reports') : '') +
       '<h2 class="section">Google limits today</h2><p class="sub">Free-plan daily allowances. An email goes to Shawn well before either runs out.</p><div class="tiles">' +
       tile('Background script time', (u.runMinutes == null ? '–' : u.runMinutes) + ' <small>of 90 min</small>', 'Resets daily') +
       tile('Firebase reads', (u.firebaseReads == null ? '–' : u.firebaseReads.toLocaleString()) + ' <small>of 50,000</small>', 'Resets 09:00 Netherlands time') +
@@ -458,9 +516,9 @@
   function leaderBlock(s) {
     var ls = leaders.filter(function (l) { return l.id === s.id; });
     if (!ls.length) return '';
-    return '<div class="leader-box"><div class="qname">Session leader report' + (ls.length > 1 ? 's' : '') + '</div>' +
+    return '<div class="leader-box"><div class="qname">Session Leader report' + (ls.length > 1 ? 's (' + ls.length + ')' : '') + '</div>' +
       ls.map(function (l) {
-        return '<div class="leader-one"><strong>' + esc(l.name || 'Session leader') + '</strong> · ' +
+        return '<div class="leader-one"><strong>' + esc(l.name || 'Session Leader') + '</strong> · ' +
           L_RATINGS.map(function (q) { return esc(q.label) + ' <strong>' + (num(l.raw[col(q)]) || '–') + '</strong>/5'; }).join(' · ') +
           L_TEXTS.map(function (q) {
             var v = l.raw[col(q)];
@@ -477,6 +535,17 @@
     var issues = list.filter(function (l) { return L_ISSUES && String(l.raw[L_ISSUES] || '').trim(); });
     $('issueCount').textContent = leaders.filter(function (l) { return L_ISSUES && String(l.raw[L_ISSUES] || '').trim(); }).length || '';
     var covered = {}; list.forEach(function (l) { covered[l.id] = 1; });
+    // sort by the chosen column (click a heading); ties keep day/time order
+    var lval = function (l) {
+      var k = state.lSortBy;
+      if (k === 'when') return l.date + l.start + l.room;
+      if (k === 'title') return l.title.toLowerCase();
+      if (k === 'name') return String(l.name).toLowerCase();
+      if (k === 'issue') return L_ISSUES && String(l.raw[L_ISSUES] || '').trim() ? 1 : 0;
+      var v = num(l.raw[k]); return v == null ? -1 : v;
+    };
+    var lsort = function (a, b) { var x = lval(a), y = lval(b); return (x > y ? 1 : x < y ? -1 : 0) * state.lSortDir || (a.date + a.start).localeCompare(b.date + b.start); };
+    list.sort(lsort); issues.sort(lsort);
     var html = '<div class="tiles">' +
       tile('Leader reports', String(list.length), Object.keys(covered).length + ' of ' + fSessions().length + ' sessions covered') +
       L_RATINGS.map(function (q) {
@@ -485,8 +554,8 @@
       }).join('') +
       tile('Key issues raised', String(issues.length), issues.length ? 'Listed first below' : 'None so far') + '</div>';
     var row = function (l) {
-      return '<tr' + (issues.indexOf(l) > -1 ? ' class="has-issue"' : '') + '><td><button type="button" class="linkish" data-card="' + esc(l.id) + '">' + esc(l.title) + '</button>' +
-        '<div class="t-sub">' + esc(dayLabel(l.date) + ', ' + l.start + ' · ' + l.room) + '</div></td>' +
+      return '<tr' + (issues.indexOf(l) > -1 ? ' class="has-issue"' : '') + '><td><button type="button" class="linkish" data-card="' + esc(l.id) + '">' + esc(l.title) + '</button></td>' +
+        '<td>' + esc(dayLabel(l.date) + ', ' + l.start) + '<div class="t-sub">' + esc(l.room) + '</div></td>' +
         '<td>' + esc(l.name) + '</td>' +
         L_RATINGS.map(function (q) { return '<td class="num">' + (num(l.raw[col(q)]) || '–') + '</td>'; }).join('') +
         '<td>' + L_TEXTS.map(function (q) {
@@ -494,11 +563,16 @@
           return v ? '<p class="' + (col(q) === L_ISSUES ? 'issue' : '') + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' : '';
         }).join('') + '</td></tr>';
     };
-    var head = '<thead><tr><th>Session</th><th>Leader</th>' + L_RATINGS.map(function (q) { return '<th class="num">' + esc(q.label) + '</th>'; }).join('') + '<th>Comments</th></tr></thead>';
+    var lth = function (k, label, numCol) {
+      var sorted = state.lSortBy === k ? ' aria-sort="' + (state.lSortDir > 0 ? 'ascending' : 'descending') + '"' : '';
+      return '<th class="' + (numCol ? 'num' : '') + '"><button type="button" data-lsort="' + esc(k) + '"' + sorted + '>' + esc(label) + '</button></th>';
+    };
+    var head = '<thead><tr>' + lth('title', 'Session') + lth('when', 'When') + lth('name', 'Leader') +
+      L_RATINGS.map(function (q) { return lth(col(q), q.label, 1); }).join('') + lth('issue', 'Comments') + '</tr></thead>';
     if (issues.length) html += '<h2 class="section">Key issues to look at</h2><div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + issues.map(row).join('') + '</tbody></table></div>';
     html += '<h2 class="section">All leader reports</h2>' + (list.length
       ? '<div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + list.map(row).join('') + '</tbody></table></div>'
-      : '<p class="empty">No session leader reports yet. The form is at <strong>/sessionleader</strong>.</p>');
+      : '<p class="empty">No Session Leader reports yet. The form is at <strong>/sessionleader</strong>.</p>');
     $('tab-leaders').innerHTML = html;
   }
 
@@ -526,8 +600,10 @@
   /* ---------- typed in ("My session isn't listed") ---------- */
 
   function renderTyped() {
-    var list = rows.filter(function (r) { return r.typed; })
+    var all = rows.filter(function (r) { return r.typed; })
       .sort(function (a, b) { return String(b.when).localeCompare(String(a.when)); });
+    var dismissed = all.filter(function (r) { return /no match/i.test(r.raw.Note || ''); });
+    var list = all.filter(function (r) { return dismissed.indexOf(r) === -1; });
     $('typedCount').textContent = list.length || '';
     var html = '<p class="sub">Answers from people who could not find their session and typed it in. ' +
       'Use these to spot a missing or misnamed session in the Sessions tab.</p>';
@@ -542,9 +618,17 @@
           '</td><td class="num">' + (num(r.raw[OVERALL]) || '–') + '</td>' +
           '<td class="assign"><select data-row="' + r.row + '" aria-label="Session for this response">' + sessionOptions(guess) + '</select> ' +
           '<button type="button" class="secondary small" data-assign="' + r.row + '" data-ts="' + esc(r.when) + '">Match</button>' +
+          '<button type="button" class="link" data-nomatch="' + r.row + '" data-ts="' + esc(r.when) + '">No match</button>' +
           (guess ? '<div class="t-sub">Best guess pre-selected. Check it before matching.</div>' : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>'
       : '<p class="empty">Nothing waiting to be matched.' + (matched ? '' : ' Good sign: the list is complete.') + '</p>';
+    if (dismissed.length) {
+      html += '<details class="dismissed"><summary>' + dismissed.length + ' marked "no match" (still kept in the Google Sheet)</summary>' +
+        '<div class="tbl-wrap"><table class="tbl"><tbody>' + dismissed.map(function (r) {
+          return '<tr><td>' + esc(localTime(r.when)) + '</td><td class="t-title">' + esc(r.title) + '</td><td class="num">' + (num(r.raw[OVERALL]) || '–') + '</td>' +
+            '<td><button type="button" class="link" data-restore="' + r.row + '" data-ts="' + esc(r.when) + '">Restore</button></td></tr>';
+        }).join('') + '</tbody></table></div></details>';
+    }
     $('tab-typed').innerHTML = html;
   }
 
@@ -584,19 +668,24 @@
     return score >= 8 ? best : '';     // ties are fine: same session often runs twice, we pick the first
   }
 
-  function assign(btn) {
-    var row = btn.dataset.assign, sel = document.querySelector('select[data-row="' + row + '"]');
-    if (!sel.value) { sel.focus(); return; }
-    var s = byId[sel.value];
-    if (!confirm('Match this response to "' + s.title + '" (' + s.room + ', ' + dayLabel(s.date) + ' ' + s.start + ')?\n\nThis updates the Google Sheet.')) return;
+  function assign(btn, special) {
+    var row = btn.dataset.assign || btn.dataset.nomatch || btn.dataset.restore, sessionId = special;
+    if (!special) {
+      var sel = document.querySelector('select[data-row="' + row + '"]');
+      if (!sel.value) { sel.focus(); return; }
+      var s = byId[sel.value];
+      if (!confirm('Match this response to "' + s.title + '" (' + s.room + ', ' + dayLabel(s.date) + ' ' + s.start + ')?\n\nThis updates the Google Sheet.')) return;
+      sessionId = sel.value;
+    }
+    var label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Saving…';
     fetch(API, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'assign', key: state.key, test: $('showTest').checked, row: +row, timestamp: btn.dataset.ts, sessionId: sel.value })
+      body: JSON.stringify({ action: 'assign', key: state.key, test: $('showTest').checked, row: +row, timestamp: btn.dataset.ts, sessionId: sessionId })
     }).then(function (r) { return r.json(); }).then(function (j) {
-      if (!j.ok) { alert('Not saved: ' + (j.error || 'unknown problem') + '.'); btn.disabled = false; btn.textContent = 'Match'; return; }
+      if (!j.ok) { alert('Not saved: ' + (j.error || 'unknown problem') + '.'); btn.disabled = false; btn.textContent = label; return; }
       load();
-    }).catch(function () { alert('Could not reach the Google Sheet. Try again.'); btn.disabled = false; btn.textContent = 'Match'; });
+    }).catch(function () { alert('Could not reach the Google Sheet. Try again.'); btn.disabled = false; btn.textContent = label; });
   }
 
 
@@ -707,7 +796,11 @@
     // Clicks inside the panels
     document.querySelector('#app').addEventListener('click', function (e) {
       var el = e.target;
-      if (el.dataset.sort) {
+      if (el.dataset.lsort) {
+        var k = el.dataset.lsort;
+        state.lSortDir = state.lSortBy === k ? -state.lSortDir : (k === 'when' || k === 'title' || k === 'name' ? 1 : -1);
+        state.lSortBy = k; renderLeaders();
+      } else if (el.dataset.sort) {
         state.sortDir = state.sortBy === el.dataset.sort ? -state.sortDir : (el.dataset.sort === 'title' || el.dataset.sort === 'when' ? 1 : -1);
         state.sortBy = el.dataset.sort; renderRankings();
       } else if (el.closest('[data-card]')) {
@@ -716,6 +809,8 @@
         var box = $(el.dataset.toggle); box.hidden = !box.hidden;
         el.textContent = box.hidden ? 'Show as a table' : 'Hide table';
       } else if (el.dataset.assign) assign(el);
+      else if (el.dataset.nomatch) assign(el, '__NO_MATCH__');
+      else if (el.dataset.restore) assign(el, '__RESTORE__');
       else if (el.id === 'exportBtn') exportCSV();
       else if (el.id === 'moreComments') { state.commentsShown += 100; renderComments(); }
       else if (el.id === 'printBtn') {

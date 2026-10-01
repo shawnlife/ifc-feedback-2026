@@ -25,7 +25,7 @@ from urllib.parse import urlparse, parse_qs
 
 ROOT = Path(__file__).parent.parent
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
-received, state, events, assigned = [], {"fail": False, "fsfail": False}, [], {}
+received, state, events, assigned, notes = [], {"fail": False, "fsfail": False}, [], {}, {}
 FIREBASE = os.environ.get("MOCK_FIREBASE", "1") == "1"     # pretend Firebase is set up (the normal case)
 via = {"firebase": 0, "sheet": 0}
 DASH_KEY = "test-password"
@@ -198,6 +198,8 @@ class Handler(SimpleHTTPRequestHandler):
                 leaders = FAKE_LEADERS + [to_row(r) for r in mine if r.get("form") == "leader"]
                 rows = [dict(r, _row=i + 2) for i, r in enumerate(rows)]
                 for i, r in enumerate(rows):
+                    if r["_row"] in notes:
+                        r["Note"] = notes[r["_row"]]
                     if r["_row"] in assigned:
                         s = assigned[r["_row"]]
                         r.update({"Session ID": s["ID"], "Session": s["Title"], "Room": s["Room"], "Date": s["Date"],
@@ -211,6 +213,9 @@ class Handler(SimpleHTTPRequestHandler):
             if item.get("action") == "assign":
                 if item.get("key") != DASH_KEY:
                     return self.send_json({"ok": False, "error": "wrong password"})
+                if item.get("sessionId") in ("__NO_MATCH__", "__RESTORE__"):
+                    notes[item["row"]] = "Typed in, no match (dismissed on dashboard)" if item["sessionId"] == "__NO_MATCH__" else "Typed in by attendee"
+                    return self.send_json({"ok": True})
                 s = next((x for x in load_sessions() if x["ID"] == item.get("sessionId")), None)
                 if not s:
                     return self.send_json({"ok": False, "error": "session not found"})
