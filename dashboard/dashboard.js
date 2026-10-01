@@ -321,7 +321,6 @@
       '</div>' +
       '<h2 class="section">Review timing</h2><p class="sub">How long after each session ended people sent their feedback (conference time). With the filters above applied.</p>' +
       timingSection(list.filter(function (r) { return !r.typed; }), 'responses') +
-      (leaders.length ? '<h3 class="subhead">Session Leaders</h3>' + timingSection(leaders.filter(function (l) { return matches(l); }), 'leader reports') : '') +
       '<h2 class="section">Google limits today</h2><p class="sub">Free-plan daily allowances. An email goes to Shawn well before either runs out.</p><div class="tiles">' +
       tile('Background script time', (u.runMinutes == null ? '–' : u.runMinutes) + ' <small>of 90 min</small>', 'Resets daily') +
       tile('Firebase reads', (u.firebaseReads == null ? '–' : u.firebaseReads.toLocaleString()) + ' <small>of 50,000</small>', 'Resets 09:00 Netherlands time') +
@@ -379,7 +378,8 @@
       var g = groups[s.id] || [], st = statsFor(g);
       var lr = leaders.filter(function (l) { return l.id === s.id; }).map(function (l) { return num(l.raw[L_OVERALL]); })
         .filter(function (v) { return v != null; });
-      return { s: s, st: st, rate: s.attendance ? st.n / s.attendance : null, leader: mean(lr) };
+      // each leader's own score (never averaged, so disagreement stays visible); sorting uses the highest
+      return { s: s, st: st, rate: s.attendance ? st.n / s.attendance : null, leader: lr.length ? Math.max.apply(null, lr) : null, leaderAll: lr };
     });
   }
 
@@ -414,7 +414,7 @@
     html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + th('title', 'Session') + th('when', 'When / room') + th('n', 'Responses', 1) +
       (hasRate ? th('rate', 'Response rate', 1) : '') +
       RATINGS.map(function (q, i) { return th('avg' + i, esc(col(q).replace(' (1-5)', '')), 1); }).join('') +
-      (PRACTICE ? th('practice', 'Will apply', 1) : '') + (L_OVERALL ? th('leader', 'Leader score', 1) : '') + '</tr></thead><tbody>';
+      (PRACTICE ? th('practice', 'Will apply', 1) : '') + (L_OVERALL ? th('leader', 'Leader scores', 1) : '') + '</tr></thead><tbody>';
     html += shown.map(function (d) {
       return '<tr><td><button type="button" class="linkish" data-card="' + esc(d.s.id) + '">' + esc(d.s.title) + '</button>' +
         (d.s.speakers ? '<div class="t-sub">' + esc(d.s.speakers) + '</div>' : '') + '</td>' +
@@ -425,7 +425,7 @@
           return '<td class="num">' + fmt1(a) + (i === 0 && a != null ? '<span class="scorebar" aria-hidden="true"><i style="width:' + (a / 5 * 100) + '%"></i></span>' : '') + '</td>';
         }).join('') +
         (PRACTICE ? '<td class="num">' + pct(d.st.practiceYes, d.st.practiceN) + '</td>' : '') +
-        (L_OVERALL ? '<td class="num">' + fmt1(d.leader) + '</td>' : '') + '</tr>';
+        (L_OVERALL ? '<td class="num">' + (d.leaderAll.length ? d.leaderAll.join(' · ') : '–') + '</td>' : '') + '</tr>';
     }).join('') + '</tbody></table></div>';
     if (!shown.length) html += '<p class="empty">No sessions have that many responses yet. Lower the minimum above.</p>';
     $('tab-rankings').innerHTML = html;
@@ -435,12 +435,12 @@
     var data = rankingData();
     var head = ['Session ID', 'Session', 'Speakers', 'Room', 'Day', 'Start', 'Track', 'Responses']
       .concat(RATINGS.map(function (q) { return 'Average ' + col(q); }))
-      .concat(PRACTICE ? ['% ' + PRACTICE.options[0]] : []).concat(L_OVERALL ? ['Leader score'] : []);
+      .concat(PRACTICE ? ['% ' + PRACTICE.options[0]] : []).concat(L_OVERALL ? ['Leader scores'] : []);
     var lines = [head].concat(data.map(function (d) {
       return [d.s.id, d.s.title, d.s.speakers, d.s.room, d.s.date, d.s.start, d.s.track, d.st.n]
         .concat(d.st.avgs.map(function (a) { return a == null ? '' : a.toFixed(2); }))
         .concat(PRACTICE ? [d.st.practiceN ? Math.round(100 * d.st.practiceYes / d.st.practiceN) : ''] : [])
-        .concat(L_OVERALL ? [d.leader == null ? '' : d.leader.toFixed(1)] : []);
+        .concat(L_OVERALL ? [d.leaderAll.join(' / ')] : []);
     }));
     var csv = lines.map(function (l) {
       return l.map(function (v) {
