@@ -64,6 +64,17 @@ python3 tools/make_qr.py https://your-final-address/
 
 This makes `qr/feedback-qr.png` (for slides), `qr/feedback-qr.svg` (for print) and an A5 room sign. Scan the printed one with two different phones before printing 150 copies.
 
+## Step 6: Dashboard and backups (after the script update on 1 Oct)
+
+1. Apps Script editor: select all, delete, paste the new `backend/apps_script.js`, **Save**.
+2. **Deploy > Manage deployments > pencil > Version: New version > Deploy.** (Not "New deployment".)
+3. Reload the Sheet. Then **IFC Feedback > Set dashboard password** (8+ characters). Google asks for permission again because backups need access to your Drive: allow it.
+4. **IFC Feedback > Turn on hourly backups.** Copies land in a Drive folder called "IFC 2026 Feedback backups" (last 48 kept).
+5. **File > Settings > Time zone: (GMT+01:00) Amsterdam.** Keeps timestamps in conference time.
+6. Open the dashboard: `<form address>/dashboard/` and sign in with the password.
+
+A hidden **Raw log** tab now keeps an untouched copy of every response. Never edit it.
+
 ## Changing the questions or colours
 
 - Questions: `config.js`. Each question's `column` is the heading it gets in the Sheet.
