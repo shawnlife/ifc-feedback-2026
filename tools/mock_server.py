@@ -25,7 +25,7 @@ from urllib.parse import urlparse, parse_qs
 
 ROOT = Path(__file__).parent.parent
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
-received, state = [], {"fail": False}
+received, state, events, assigned = [], {"fail": False}, [], {}
 DASH_KEY = "test-password"
 
 
@@ -106,6 +106,13 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+        elif u.path == "/sessions-ifc2026.csv":   # the "website copy" matches the mock's own list
+            body = (ROOT / os.environ.get("MOCK_SESSIONS", "sample-data/sessions-sample.csv")).read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
         elif u.path == "/exec":
             if state["fail"]:
                 return self.send_json({"ok": False}, 503)
@@ -121,6 +128,11 @@ class Handler(SimpleHTTPRequestHandler):
         if u.path == "/_fail":
             state["fail"] = parse_qs(u.query).get("on", ["1"])[0] == "1"
             return self.send_json({"fail": state["fail"]})
+        if u.path == "/_busy":                          # next N sends get a "busy" error reply
+            state["busy"] = int(parse_qs(u.query).get("n", ["1"])[0])
+            return self.send_json({"busy": state["busy"]})
+        if u.path == "/_events":
+            return self.send_json(events)
         if u.path == "/exec":
             if state["fail"]:
                 self.connection.close()  # like losing signal mid-request
@@ -130,7 +142,32 @@ class Handler(SimpleHTTPRequestHandler):
                 if item.get("key") != DASH_KEY:
                     return self.send_json({"ok": False, "error": "wrong password"})
                 rows = FAKE + [to_row(r) for r in received if bool(r.get("test")) == bool(item.get("test"))]
-                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows})
+                rows = [dict(r, _row=i + 2) for i, r in enumerate(rows)]
+                for i, r in enumerate(rows):
+                    if r["_row"] in assigned:
+                        s = assigned[r["_row"]]
+                        r.update({"Session ID": s["ID"], "Session": s["Title"], "Room": s["Room"], "Date": s["Date"],
+                                  "Note": f'Typed in as "{r["Session"]}", matched on dashboard'})
+                ev = {}
+                for e in events:
+                    if bool(e.get("test")) == bool(item.get("test")):
+                        ev[e["type"]] = ev.get(e["type"], 0) + 1
+                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows,
+                                       "events": ev, "health": {"automatic": True, "waiting": 0, "lastProcessed": None}})
+            if item.get("action") == "assign":
+                if item.get("key") != DASH_KEY:
+                    return self.send_json({"ok": False, "error": "wrong password"})
+                s = next((x for x in load_sessions() if x["ID"] == item.get("sessionId")), None)
+                if not s:
+                    return self.send_json({"ok": False, "error": "session not found"})
+                assigned[item["row"]] = s
+                return self.send_json({"ok": True})
+            if item.get("action") == "event":
+                events.append(item)
+                return self.send_json({"ok": True})
+            if state.get("busy"):                       # Google answering "busy" (not a dropped connection)
+                state["busy"] -= 1
+                return self.send_json({"ok": False, "error": "Exception: Service invoked too many times"})
             if any(r["rid"] == item["rid"] for r in received):
                 return self.send_json({"ok": True, "duplicate": True})
             received.append(item)

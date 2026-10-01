@@ -245,24 +245,30 @@
     });
   }
 
+  // 1. the copy saved on this phone, 2. the copy published with the website (instant,
+  // copes with any crowd), then 3. the live list from the Google Sheet in the
+  // background, a few seconds apart per phone so a whole room doesn't ask at once.
   function loadSessions() {
     var cached = store(SESSIONS_KEY);
+    var first;
     if (cached && cached.list && cached.list.length) {
       setSessions(cached.list);
       render();
+      first = Promise.resolve();
     } else {
       els.status.textContent = 'Loading sessions…';
-    }
-    return fetchSessions().then(render).catch(function () {
-      if (sessions.length) return;            // already showing the copy saved on this phone
-      // Backup: the copy of the programme published with the website itself
-      return fetch(DEMO_CSV, { cache: 'no-cache' })
+      first = DEMO ? Promise.resolve() : fetch(DEMO_CSV, { cache: 'no-cache' })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-        .then(function (text) { setSessions(parseCSV(text)); render(); })
-        .catch(function () {
-          els.status.innerHTML = '';
-          banner('Could not load the session list. Check your connection and reload the page, or tap "My session isn\'t listed" below.');
-        });
+        .then(function (text) { if (!sessions.length) { setSessions(parseCSV(text)); render(); } })
+        .catch(function () { /* fine, the live list is next */ });
+    }
+    return first.then(function () {
+      var wait = sessions.length ? Math.random() * 6000 : 0;
+      return new Promise(function (ok) { setTimeout(ok, wait); });
+    }).then(fetchSessions).then(render).catch(function () {
+      if (sessions.length) return;
+      els.status.innerHTML = '';
+      banner('Could not load the session list. Check your connection and reload the page, or tap "My session isn\'t listed" below.');
     });
   }
 
@@ -652,7 +658,7 @@
 
   function send(item) {
     var ctrl = window.AbortController ? new AbortController() : null;
-    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 20000);
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 45000);   // Google can be slow at peak, but it gets there
     // text/plain avoids a CORS preflight, which Apps Script cannot answer
     return fetch(API, {
       method: 'POST', body: JSON.stringify(item),
@@ -663,26 +669,44 @@
             function (e) { clearTimeout(timer); throw e; });
   }
 
-  var flushing = false;
+  // Only these answers from Google mean "this response itself is broken, stop trying".
+  // Anything else (busy, timeout, quota, outage) keeps it queued and retries.
+  var PERMANENT = ['invalid', 'too large', 'empty', 'no answers'];
+
+  var flushing = false, retryTimer = null, attempt = 0, waitingRid = null;
   // Returns a map of rid -> 'sent' | 'rejected' for the items it handled.
   function flush() {
     if (DEMO || flushing) return Promise.resolve({});
     var queue = outbox();
     if (!queue.length) return Promise.resolve({});
     flushing = true;
-    var results = {};
+    clearTimeout(retryTimer);
+    var results = {}, failed = false;
     var chain = Promise.resolve();
     queue.forEach(function (item) {
       chain = chain.then(function () {
+        if (failed) return;
         return send(item).then(function (j) {
-          // ok, or a permanent rejection from the server: either way stop retrying it
+          if (!(j && j.ok) && PERMANENT.indexOf(j && j.error) === -1) throw new Error((j && j.error) || 'busy');
           results[item.rid] = j && j.ok ? 'sent' : 'rejected';
           store(OUTBOX_KEY, outbox().filter(function (x) { return x.rid !== item.rid; }));
-        });
+        }).catch(function () { failed = true; });
       });
     });
-    return chain.catch(function () { /* offline: leave the rest queued */ })
-      .then(function () { flushing = false; return results; });
+    return chain.then(function () {
+      flushing = false;
+      if (failed) scheduleRetry(); else attempt = 0;
+      if (waitingRid && results[waitingRid] === 'sent') { done('sent'); waitingRid = null; }   // update the thank-you screen
+      return results;
+    });
+  }
+
+  // Retry quickly at first, then back off. The random part stops every phone in a
+  // room retrying in the same second.
+  function scheduleRetry() {
+    var base = [3, 6, 12, 20, 30, 45, 60][Math.min(attempt, 6)] * 1000;
+    attempt++;
+    retryTimer = setTimeout(flush, base * (0.6 + Math.random() * 0.8));
   }
 
   function submit(ev) {
@@ -724,7 +748,9 @@
     flush().then(function (res) {
       els.submitBtn.disabled = false;
       els.submitBtn.textContent = 'Send feedback';
-      done(res[item.rid] || 'queued');
+      var st = res[item.rid] || 'queued';
+      waitingRid = st === 'queued' ? item.rid : null;
+      done(st);
     });
   }
 
@@ -732,7 +758,7 @@
     els.doneText.textContent = {
       sent: 'Your feedback has been sent.',
       rejected: 'Sorry, that response could not be saved. Please try again, or tell the registration desk.',
-      queued: 'Your connection dropped, so your feedback is saved on this phone. It will send automatically next time you open this page with a connection.',
+      queued: 'Saved on this phone and still sending (the connection is busy). Keep this page open for a moment, or it will finish next time you open the form.',
       demo: 'Demo mode: nothing was saved. Connect the Google Sheet in config.js to go live.'
     }[state];
     $('doneTitle').textContent = state === 'rejected' ? 'Not sent' : 'Thank you!';
@@ -770,22 +796,46 @@
     var link = $('helpLink');
     link.href = 'mailto:' + addr + '?subject=' + encodeURIComponent('IFC 2026 feedback form: help') +
       '&body=' + encodeURIComponent('What happened?\n\n\nWhich session were you trying to rate (if any)?\n\n');
-    link.textContent = addr;
+    link.addEventListener('click', function () { track('help'); });
+    $('shawnLink').addEventListener('click', function () { track('shawnlife'); });
   }
+
+  // Anonymous counts for the dashboard (help clicks, ShawnLife clicks, home-screen
+  // installs). Just "it happened", nothing about who. Fire-and-forget.
+  function track(type) {
+    if (DEMO || !navigator.sendBeacon) return;
+    try { navigator.sendBeacon(API, JSON.stringify({ action: 'event', type: type, test: TEST })); } catch (e) { /* never matters */ }
+  }
+  window.addEventListener('appinstalled', function () { track('installed'); });
 
   // "Add to home screen" tip on the thank-you screen
   var installPrompt = null;
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installPrompt = e; });
+  // Steps for the browser this person is actually using
+  function homeSteps(b) {
+    var ua = navigator.userAgent;
+    var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (ios) {
+      if (/CriOS/.test(ua)) return 'In Chrome: tap the ' + b('Share') + ' button in the address bar at the top (or the ' + b('•••') + ' menu), then ' + b('Add to Home Screen') + '.';
+      if (/FxiOS/.test(ua)) return 'In Firefox: tap the ' + b('☰') + ' menu, then ' + b('Share') + ', then ' + b('Add to Home Screen') + '.';
+      if (/EdgiOS/.test(ua)) return 'In Edge: tap the ' + b('•••') + ' menu, then ' + b('Share') + ', then ' + b('Add to Home Screen') + '.';
+      return 'In Safari: tap the ' + b('Share') + ' button (or ' + b('•••') + ' then ' + b('Share') + '), then ' + b('Add to Home Screen') + '.';
+    }
+    if (/Android/.test(ua)) {
+      if (/SamsungBrowser/.test(ua)) return 'In Samsung Internet: tap the ' + b('☰') + ' menu, then ' + b('Add page to') + ', then ' + b('Home screen') + '.';
+      if (/Firefox/.test(ua)) return 'In Firefox: tap the ' + b('⋮') + ' menu, then ' + b('Add app to Home screen') + '.';
+      return 'In Chrome: tap the ' + b('⋮') + ' menu (top right), then ' + b('Add to Home screen') + ' or ' + b('Install app') + '.';
+    }
+    return 'On a phone, open the browser menu and choose ' + b('Add to Home Screen') + '. On a computer, bookmark this page.';
+  }
+
   function showHomeTip() {
     var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
     if (standalone) return;                                  // already on the home screen
-    var ua = navigator.userAgent;
-    var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    var android = /Android/.test(ua);
+    var b = function (t) { return '<strong>' + t + '</strong>'; };
+    $('tipSteps').innerHTML = installPrompt ? 'Or tap the button above.' : homeSteps(b);
     $('installBtn').hidden = !installPrompt;
-    $('tipIos').hidden = !ios;
-    $('tipAndroid').hidden = !android || !!installPrompt;
-    $('tipOther').hidden = ios || android;
+    if ($('homeTip').hidden) track('tip-shown');
     $('homeTip').hidden = false;
   }
 

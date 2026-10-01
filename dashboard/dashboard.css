@@ -103,3 +103,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 15px; }
   body { font-size: 12pt; }
 }
 .controls .spacer { flex: 1; }
+
+.assign select { max-width: 320px; height: 38px; border: 2px solid var(--ink); background: var(--bg); }
+.assign .secondary.small { margin-left: 6px; }

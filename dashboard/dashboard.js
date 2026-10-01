@@ -95,7 +95,7 @@
         return;
       }
       state.data = d; state.lastOk = Date.now();
-      showAlert('');
+      showAlert(healthMessage(d.health));
       prepare();
       renderAll();
     }).catch(function () {
@@ -119,7 +119,7 @@
       var s = byId[id];
       var t = String(r.Time || '').split(/[–-]/);
       return {
-        raw: r, id: id, typed: id === 'NOT LISTED', when: r.Timestamp,
+        raw: r, row: r._row, id: id, typed: id === 'NOT LISTED', when: r.Timestamp,
         title: s ? s.title : r.Session || '', speakers: s ? s.speakers : r.Speakers || '',
         room: s ? s.room : r.Room || '', date: s ? s.date : String(r.Date || '').slice(0, 10),
         start: s ? s.start : (t[0] || '').trim(), track: s ? s.track : r.Track || '', type: s ? s.type : '',
@@ -197,6 +197,15 @@
       tile('Average overall', st.avgs[0] == null ? '–' : fmt1(st.avgs[0]) + ' <small>/ 5</small>', 'From ' + list.filter(function (r) { return num(r.raw[OVERALL]) != null; }).length + ' ratings') +
       (PRACTICE ? tile('Will put into practice', pct(st.practiceYes, st.practiceN), '“' + esc(PRACTICE.options[0]) + '”, of ' + st.practiceN + ' who answered') : '') +
       tile('How people got here', '', srcTxt) +
+      '</div>';
+    var ev = state.data.events || {};
+    html += '<h2 class="section">Clicks and installs</h2><p class="sub">Anonymous counts. Installs can only be counted on Android; ' +
+      'iPhones show up as "Home screen" opens instead.</p><div class="tiles">' +
+      tile('“Contact us” clicks', String(ev.help || 0), 'People who tapped the help link') +
+      tile('ShawnLife clicks', String(ev.shawnlife || 0), 'Footer credit link') +
+      tile('Saw the home-screen tip', String(ev['tip-shown'] || 0), 'Shown on the thank-you screen') +
+      tile('Added to home screen', String(ev.installed || 0), 'Android installs') +
+      tile('Opened from home screen', String(src['Home screen'] || 0), 'Responses sent from the home-screen icon') +
       '</div>';
 
     // responses per time block
@@ -421,14 +430,72 @@
     $('typedCount').textContent = list.length || '';
     var html = '<p class="sub">Answers from people who could not find their session and typed it in. ' +
       'Use these to spot a missing or misnamed session in the Sessions tab.</p>';
+    var matched = rows.filter(function (r) { return /matched on dashboard/.test(r.raw.Note || ''); }).length;
+    if (matched) html += '<p class="sub">' + matched + ' already matched to a session (they now count in that session\'s results).</p>';
     html += list.length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>When</th><th>What they typed</th><th class="num">Overall</th>' +
-      TEXTS.map(function (q) { return '<th>' + esc(col(q)) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      '<th>Match to session</th></tr></thead><tbody>' +
       list.map(function (r) {
-        return '<tr><td>' + esc(localTime(r.when)) + '</td><td class="t-title">' + esc(r.title) + '</td><td class="num">' + (num(r.raw[OVERALL]) || '–') + '</td>' +
-          TEXTS.map(function (q) { return '<td>' + esc(r.raw[col(q)] || '') + '</td>'; }).join('') + '</tr>';
+        var guess = bestGuess(r.title);
+        return '<tr><td>' + esc(localTime(r.when)) + '</td><td class="t-title">' + esc(r.title) +
+          TEXTS.map(function (q) { return r.raw[col(q)] ? '<div class="t-sub">' + esc(col(q)) + ': ' + esc(r.raw[col(q)]) + '</div>' : ''; }).join('') +
+          '</td><td class="num">' + (num(r.raw[OVERALL]) || '–') + '</td>' +
+          '<td class="assign"><select data-row="' + r.row + '" aria-label="Session for this response">' + sessionOptions(guess) + '</select> ' +
+          '<button type="button" class="secondary small" data-assign="' + r.row + '" data-ts="' + esc(r.when) + '">Match</button>' +
+          (guess ? '<div class="t-sub">Best guess pre-selected. Check it before matching.</div>' : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>'
-      : '<p class="empty">Nobody has needed to type in a session. Good sign: the list is complete.</p>';
+      : '<p class="empty">Nothing waiting to be matched.' + (matched ? '' : ' Good sign: the list is complete.') + '</p>';
     $('tab-typed').innerHTML = html;
+  }
+
+
+  // Session picker grouped by day and time
+  function sessionOptions(selectedId) {
+    var groups = {};
+    sessions.slice().sort(function (a, b) { return (a.date + a.start + a.room).localeCompare(b.date + b.start + b.room); })
+      .forEach(function (s) { var k = dayLabel(s.date) + ', ' + s.start; (groups[k] = groups[k] || []).push(s); });
+    return '<option value="">Choose a session…</option>' + Object.keys(groups).map(function (k) {
+      return '<optgroup label="' + esc(k) + '">' + groups[k].map(function (s) {
+        return '<option value="' + esc(s.id) + '"' + (s.id === selectedId ? ' selected' : '') + '>' + esc(s.title + ' · ' + s.room) + '</option>';
+      }).join('') + '</optgroup>';
+    }).join('');
+  }
+
+  // Simple word-overlap guess at which session someone meant
+  var GUESS_STOP = ['the', 'one', 'and', 'about', 'session', 'talk', 'workshop', 'room', 'big', 'with', 'from',
+                    'for', 'that', 'this', 'was', 'were', 'what', 'on', 'in', 'of', 'a', 'an'];
+  function words(t) {
+    return String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/)
+      .filter(function (w) { return w.length > 2 && GUESS_STOP.indexOf(w) === -1; });
+  }
+  function bestGuess(text) {
+    var typed = words(text);
+    var best = null, score = 0, tie = false;
+    sessions.forEach(function (s) {
+      var title = words(s.title), people = words(s.speakers), sc = 0;
+      typed.forEach(function (w) {
+        var hit = function (h) { return h === w || (w.length >= 4 && (h.indexOf(w) === 0 || w.indexOf(h) === 0) && h.length >= 4); };
+        if (title.some(hit)) sc += w.length * 2;          // title words count most
+        else if (people.some(hit)) sc += w.length * 2;    // then speaker names
+      });
+      if (sc > score) { score = sc; best = s.id; tie = false; }
+      else if (sc === score && sc > 0) tie = true;
+    });
+    return score >= 8 ? best : '';     // ties are fine: same session often runs twice, we pick the first
+  }
+
+  function assign(btn) {
+    var row = btn.dataset.assign, sel = document.querySelector('select[data-row="' + row + '"]');
+    if (!sel.value) { sel.focus(); return; }
+    var s = byId[sel.value];
+    if (!confirm('Match this response to "' + s.title + '" (' + s.room + ', ' + dayLabel(s.date) + ' ' + s.start + ')?\n\nThis updates the Google Sheet.')) return;
+    btn.disabled = true; btn.textContent = 'Saving…';
+    fetch(API, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'assign', key: state.key, test: $('showTest').checked, row: +row, timestamp: btn.dataset.ts, sessionId: sel.value })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.ok) { alert('Not saved: ' + (j.error || 'unknown problem') + '.'); btn.disabled = false; btn.textContent = 'Match'; return; }
+      load();
+    }).catch(function () { alert('Could not reach the Google Sheet. Try again.'); btn.disabled = false; btn.textContent = 'Match'; });
   }
 
 
@@ -445,6 +512,15 @@
       ? (fresh ? 'Live · ' : 'Not updating · ') + 'updated ' + ago(Date.now() - state.lastOk) +
         ($('showTest').checked ? ' · showing TEST responses' : '')
       : 'Loading…';
+  }
+
+  // Warn if responses are piling up in the Raw log instead of reaching the Sheet tabs
+  function healthMessage(h) {
+    if (!h) return '';
+    if (!h.automatic) return 'Automatic processing is OFF. In the Sheet: IFC Feedback > Turn on automatic processing + hourly backups. (Nothing is lost: responses wait safely in the Raw log.)';
+    var age = h.lastProcessed ? Date.now() - Date.parse(h.lastProcessed) : Infinity;
+    if (h.waiting > 0 && age > 5 * 60000) return h.waiting + ' responses are waiting in the Raw log and processing last ran ' + ago(age) + '. They are safe; check the script triggers.';
+    return '';
   }
 
   function showAlert(msg) { $('alert').textContent = msg; $('alert').hidden = !msg; }
@@ -473,7 +549,14 @@
 
   function init() {
     if (!API) { $('login').hidden = false; $('loginError').textContent = 'No Google Sheet address in config.js yet.'; return; }
-    state.key = store('session', KEY_STORE) || store('local', KEY_STORE);
+    // A sign-in link carries the password after #, which never leaves the browser.
+    // It is remembered on this device and then tidied out of the address bar.
+    if (location.hash.length > 1) {
+      try { state.key = decodeURIComponent(location.hash.slice(1)); } catch (e) { state.key = location.hash.slice(1); }
+      store('local', KEY_STORE, state.key);
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+    state.key = state.key || store('session', KEY_STORE) || store('local', KEY_STORE);
     if (state.key) start(); else $('login').hidden = false;
 
     $('login').addEventListener('submit', function (e) {
@@ -520,7 +603,8 @@
       } else if (el.dataset.toggle) {
         var box = $(el.dataset.toggle); box.hidden = !box.hidden;
         el.textContent = box.hidden ? 'Show as a table' : 'Hide table';
-      } else if (el.id === 'exportBtn') exportCSV();
+      } else if (el.dataset.assign) assign(el);
+      else if (el.id === 'exportBtn') exportCSV();
       else if (el.id === 'moreComments') { state.commentsShown += 100; renderComments(); }
       else if (el.id === 'printBtn') {
         var panel = $('tab-scorecards'); panel.classList.add('printing'); window.print(); panel.classList.remove('printing');

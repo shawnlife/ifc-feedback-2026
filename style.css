@@ -217,6 +217,9 @@ mark { background: rgba(241, 133, 0, .28); color: inherit; padding: 0 1px; }
 .tip h3 { margin: 0 0 4px; font-size: 18px; }
 #stepDone .tip p { margin: 0 0 12px; color: var(--ink); }
 .tip .tip-steps { font-size: 15px; }
+#stepDone .tip .tip-more { font-size: 13px; color: var(--muted); }
+.foot p { margin: 0 0 6px; }
+.foot a[href='privacy.html'] { color: var(--ink); }
 .secondary {
   margin: 4px 0 14px; padding: 0 18px; height: 46px; background: var(--bg); color: var(--ink);
   border: 2px solid var(--ink); box-shadow: -3px 4px 0 var(--ink); font-weight: 700;

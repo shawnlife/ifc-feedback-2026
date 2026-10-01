@@ -5,6 +5,7 @@ then run:  python3 tools/test_form.py
 """
 
 import json
+import sys
 import urllib.request
 from playwright.sync_api import sync_playwright
 
@@ -22,6 +23,14 @@ def received():
     return json.load(urllib.request.urlopen(BASE + "_received"))
 
 
+def events():
+    return json.load(urllib.request.urlopen(urllib.request.Request(BASE + "_events", method="POST", data=b"")))
+
+
+def set_busy(n):
+    urllib.request.urlopen(urllib.request.Request(BASE + f"_busy?n={n}", method="POST", data=b""))
+
+
 def set_fail(on):
     urllib.request.urlopen(urllib.request.Request(BASE + f"_fail?on={int(on)}", method="POST", data=b""))
 
@@ -33,8 +42,10 @@ def top(page, query, n=1):
 
 
 with sync_playwright() as p:
-    b = p.chromium.launch()
-    ctx = b.new_context(viewport={"width": 375, "height": 740}, is_mobile=True, has_touch=True)
+    ENGINE = sys.argv[1] if len(sys.argv) > 1 else "chromium"     # chromium | webkit (Safari) | firefox
+    b = getattr(p, ENGINE).launch()
+    print("Browser engine:", ENGINE)
+    ctx = b.new_context(viewport={"width": 375, "height": 740}, has_touch=True, **({"is_mobile": True} if ENGINE != "firefox" else {}))
     page = ctx.new_page()
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
@@ -153,7 +164,7 @@ with sync_playwright() as p:
     n = len(received())
     page.click("#submitBtn")
     page.wait_for_selector("#stepDone:not([hidden])", timeout=30000)
-    check("saved on this phone" in page.inner_text("#doneText"), "no connection: told it's saved and will send later")
+    check("saved on this phone" in page.inner_text("#doneText").lower(), "no connection: told it's saved and will send later")
     check(len(received()) == n, "nothing arrived while offline")
     set_fail(False)
     page.reload()
@@ -188,7 +199,28 @@ with sync_playwright() as p:
     print("Help + home screen tip")
     href = page.get_attribute("#helpLink", "href") or ""
     check(href.startswith("mailto:shawnlifebiz@gmail.com?subject="), "help link opens an email to Shawn with a subject")
-    check(page.is_visible("#homeTip") and page.is_visible("#tipOther"), "thank-you screen shows the home-screen tip")
+    check(page.is_visible("#homeTip") and "bookmark" in page.inner_text("#tipSteps"), "thank-you screen shows the home-screen tip")
+    check(page.inner_text("#helpLink") == "Contact us" and "@" not in page.inner_text(".foot"), "help link says 'Contact us', email address not shown")
+    n_ev = len(events())
+    page.evaluate("document.getElementById('helpLink').addEventListener('click', e => e.preventDefault())")
+    page.click("#helpLink"); page.wait_for_timeout(500)
+    check(any(e.get("type") == "help" for e in events()[n_ev:]), "'Contact us' click counted for the dashboard")
+    check(any(e.get("type") == "tip-shown" for e in events()), "home-screen tip view counted")
+
+    print("Google says 'busy': response must NOT be dropped")
+    set_busy(1)
+    page.click("#againBtn"); page.locator(".result").first.click(); page.click("label[for=q0_2]")
+    n = len(received())
+    page.click("#submitBtn"); page.wait_for_selector("#stepDone:not([hidden])")
+    check("still sending" in page.inner_text("#doneText"), "busy reply: told it's still sending, kept on the phone")
+    page.wait_for_function("document.getElementById('doneText').textContent.indexOf('has been sent') > -1", timeout=15000)
+    check(len(received()) == n + 1, "retried automatically a few seconds later and arrived; thank-you text updated to 'sent'")
+
+    print("Privacy page")
+    check(page.locator("a[href='privacy.html']").count() == 1, "privacy link in the footer")
+    pr = ctx.new_page(); pr.goto(BASE + "privacy.html")
+    check("Resource Alliance" in pr.inner_text("body") and "noindex" in (pr.get_attribute("meta[name=robots]", "content") or ""), "privacy page loads, names the controller, not indexed")
+    pr.close()
 
     print("Backup session list")
     set_fail(True)
@@ -196,11 +228,25 @@ with sync_playwright() as p:
     p3 = ctx3.new_page()
     p3.goto(BASE + "?test")
     p3.wait_for_timeout(1500)
-    p3.fill("#q", "bequest"); p3.wait_for_timeout(200)
+    p3.fill("#q", "plenary"); p3.wait_for_timeout(200)
     check(p3.locator(".result").count() > 0 and p3.is_hidden("#banner") is False or p3.locator(".result").count() > 0,
           f"Google down + nothing saved: sessions still load from the website copy ({p3.locator('.result').count()} found)")
     set_fail(False)
     ctx3.close()
+
+    print("Home-screen steps per browser")
+    for name, ua, expect in [
+        ("iPhone Safari", "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1", "In Safari"),
+        ("iPhone Chrome", "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/130.0 Mobile/15E148 Safari/604.1", "In Chrome: tap the Share button in the address bar"),
+        ("Samsung", "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0 Mobile Safari/537.36", "In Samsung Internet"),
+        ("Android Chrome", "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36", "In Chrome: tap the ⋮ menu")]:
+        cx = b.new_context(user_agent=ua, viewport={"width": 390, "height": 800}); pp = cx.new_page()
+        pp.goto(BASE + "?test"); pp.wait_for_selector("#q"); pp.wait_for_timeout(400)
+        pp.fill("#q", "plenary"); pp.wait_for_timeout(200); pp.locator(".result").first.click()
+        pp.click("label[for=q0_4]"); pp.click("#submitBtn"); pp.wait_for_selector("#stepDone:not([hidden])")
+        txt = pp.inner_text("#tipSteps")
+        check(expect in txt, f"{name}: '{txt[:70]}'")
+        cx.close()
 
     print("Logos")
     check(page.locator(".brandbar a[href='https://www.resource-alliance.org/']").count() == 2, "both logos link to resource-alliance.org")

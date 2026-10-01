@@ -10,10 +10,12 @@
  *   Responses       : one row per feedback submission. Do not edit the header row.
  *   Test responses  : anything sent from the form with ?test on the end of the URL.
  *   Summary         : per-session averages, rebuilt from the "IFC Feedback" menu.
- *   Raw log         : (hidden) every response exactly as it arrived, as a safety copy.
- *                     Never edit it; it is what we rebuild from if Responses gets damaged.
+ *   Raw log         : (hidden) MASTER COPY. Every response lands here first, exactly as
+ *                     sent, then moves to Responses within a minute. Never edit it.
+ *   Events          : clicks on Help / ShawnLife links and home-screen installs.
  *
- * Backups: "IFC Feedback > Turn on hourly backups" copies the whole spreadsheet to a
+ * "IFC Feedback > Turn on automatic processing + hourly backups" must be run once:
+ * it moves responses every minute and copies the whole spreadsheet to a
  * separate file in your Google Drive every hour (keeps the last 48).
  *
  * Dashboard: reads everything through doPost with action "dashboard" and the
@@ -48,8 +50,10 @@ function onOpen() {
     .addItem('Update the Summary tab', 'buildSummary')
     .addSeparator()
     .addItem('Set dashboard password', 'setDashboardPassword')
-    .addItem('Turn on hourly backups', 'turnOnBackups')
+    .addItem('Turn on automatic processing + hourly backups', 'turnOnAutomation')
+    .addItem('Process new responses now', 'processQueue')
     .addItem('Back up now', 'backupNow')
+    .addItem('Clear test responses', 'clearTestResponses')
     .addSeparator()
     .addItem('First-time setup (creates the tabs)', 'setup')
     .addToUi();
@@ -140,7 +144,18 @@ function doGet(e) {
 }
 
 
-/* ---------- saving a response ---------- */
+/* ---------- receiving (fast: no queue, no waiting) ----------
+ *
+ * Every response is written straight to the Raw log in one step and the phone is
+ * told "saved". That takes a fraction of a second and never waits for other
+ * phones, so a whole room pressing Send at once is fine. Every minute (and whenever
+ * the dashboard is open) processQueue() moves new Raw log rows into the Responses
+ * tabs in one batch. The Raw log is the master copy: never edit it.
+ */
+
+var RAW_HEAD = ['Received', 'ID', 'Kind', 'Everything sent (JSON)', 'Status'];
+var KINDS = { RESPONSE: 1, TEST: 1, EVENT: 1 };
+var EVENT_TYPES = ['help', 'shawnlife', 'installed', 'tip-shown'];
 
 function doPost(e) {
   try {
@@ -148,33 +163,108 @@ function doPost(e) {
     if (e.postData.contents.length > 20000) return json_({ ok: false, error: 'too large' });
     var p = JSON.parse(e.postData.contents);
     if (p.action === 'dashboard') return dashboard_(p);
+    if (p.action === 'assign') return assign_(p);
+    if (p.action === 'event') {
+      var type = String(p.type || '');
+      if (EVENT_TYPES.indexOf(type) === -1) return json_({ ok: false, error: 'unknown event' });
+      rawSheet_().appendRow([new Date(), '', 'EVENT', JSON.stringify({ type: type, test: p.test === true }), '']);
+      return json_({ ok: true });
+    }
+
     var rid = String(p.rid || '').slice(0, 64);
-    var s = p.session || {};
-    var answers = p.answers || {};
-    if (!rid || !s.title || typeof answers !== 'object') return json_({ ok: false, error: 'invalid' });
-
+    if (!rid || !p.session || !p.session.title || typeof p.answers !== 'object') return json_({ ok: false, error: 'invalid' });
     var cache = CacheService.getScriptCache();
-    if (cache.get('rid_' + rid)) return json_({ ok: true, duplicate: true }); // a retry of something already saved
+    if (cache.get('rid_' + rid)) return json_({ ok: true, duplicate: true });   // a retry of something already saved
+    rawSheet_().appendRow([new Date(), rid, p.test === true ? 'TEST' : 'RESPONSE', JSON.stringify(p), '']);
+    cache.put('rid_' + rid, '1', 21600);
+    return json_({ ok: true });
+  } catch (err) {
+    return json_({ ok: false, error: String(err).slice(0, 200) });
+  }
+}
 
-    // Clean the answers
-    var clean = {}, keys = Object.keys(answers).slice(0, MAX_ANSWERS), hasAnswer = false;
-    keys.forEach(function (k) {
-      var col = safe_(String(k).slice(0, 60));
-      var v = answers[k];
-      if (typeof v === 'number') v = (v >= 1 && v <= 5) ? Math.round(v) : '';
-      else v = safe_(String(v == null ? '' : v).slice(0, MAX_TEXT));
-      if (v !== '') hasAnswer = true;
-      clean[col] = v;
+function rawSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(RAW_LOG);
+  if (!sh) {
+    sh = ss.insertSheet(RAW_LOG);
+    sh.getRange(1, 1, 1, RAW_HEAD.length).setValues([RAW_HEAD]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    sh.hideSheet();
+  } else if (sh.getRange(1, 5).getValue() !== 'Status') {
+    sh.getRange(1, 1, 1, RAW_HEAD.length).setValues([RAW_HEAD]).setFontWeight('bold');   // upgrade old header
+  }
+  return sh;
+}
+
+
+/* ---------- processing: Raw log -> Responses / Test responses / Events ---------- */
+
+function processQueue() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return 0;          // another run is already doing it
+  try {
+    var raw = rawSheet_();
+    var props = PropertiesService.getScriptProperties();
+    var last = raw.getLastRow();
+    var from = Number(props.getProperty('RAW_NEXT_ROW') || 2);
+    if (last < from) { props.setProperty('LAST_PROCESSED', new Date().toISOString()); return 0; }
+
+    // IDs already saved, so a resend can never create a second row
+    var saved = {};
+    if (from > 2) {
+      raw.getRange(2, 2, from - 2, 4).getValues().forEach(function (r) { if (r[3] === 'saved') saved[r[0]] = 1; });
+    }
+    var block = raw.getRange(from, 1, last - from + 1, 5).getValues();
+    var out = { RESPONSE: [], TEST: [], EVENT: [] }, status = [];
+    var ids = sessionIds_();                    // looked up once for the whole batch
+    block.forEach(function (r) {
+      var kind = r[2], st = r[4];
+      if (!KINDS[kind] || st) { status.push([st]); return; }        // older rows or already handled
+      try {
+        var p = JSON.parse(r[3]);
+        if (kind === 'EVENT') { out.EVENT.push([r[0], p.type, p.test ? 'test' : '']); status.push(['saved']); return; }
+        if (saved[r[1]]) { status.push(['duplicate']); return; }
+        var c = clean_(p, ids);
+        if (!c) { status.push(['rejected']); return; }
+        c.base.Timestamp = r[0];
+        out[kind].push(c);
+        saved[r[1]] = 1;
+        status.push(['saved']);
+      } catch (err) { status.push(['rejected']); }
     });
-    if (!hasAnswer) return json_({ ok: false, error: 'no answers' });
+    writeRows_(RESPONSES, out.RESPONSE);
+    writeRows_(TEST_RESPONSES, out.TEST);
+    if (out.EVENT.length) {
+      var ev = eventsSheet_();
+      ev.getRange(ev.getLastRow() + 1, 1, out.EVENT.length, 3).setValues(out.EVENT);
+    }
+    raw.getRange(from, 5, status.length, 1).setValues(status);
+    props.setProperty('RAW_NEXT_ROW', String(last + 1));
+    props.setProperty('LAST_PROCESSED', new Date().toISOString());
+    return out.RESPONSE.length + out.TEST.length;
+  } finally {
+    lock.releaseLock();
+  }
+}
 
-    var id = String(s.id || '').slice(0, 64);
-    var note = '';
-    if (id === 'NOT LISTED') note = 'Typed in by attendee';
-    else if (!sessionIds_()[id]) note = 'Session not in current list';
-
-    var base = {
-      'Timestamp': new Date(),
+// Validate and tidy one response. Returns null if it is junk.
+function clean_(p, ids) {
+  var s = p.session || {}, answers = p.answers || {};
+  var clean = {}, hasAnswer = false;
+  Object.keys(answers).slice(0, MAX_ANSWERS).forEach(function (k) {
+    var col = safe_(String(k).slice(0, 60));
+    var v = answers[k];
+    if (typeof v === 'number') v = (v >= 1 && v <= 5) ? Math.round(v) : '';
+    else v = safe_(String(v == null ? '' : v).slice(0, MAX_TEXT));
+    if (v !== '' && col !== 'Came from') hasAnswer = true;
+    clean[col] = v;
+  });
+  if (!hasAnswer || !s.title) return null;
+  var id = String(s.id || '').slice(0, 64);
+  var note = id === 'NOT LISTED' ? 'Typed in by attendee' : (!(ids || sessionIds_())[id] ? 'Session not in current list' : '');
+  return {
+    base: {
       'Session ID': safe_(id),
       'Session': safe_(String(s.title).slice(0, 300)),
       'Speakers': safe_(String(s.speakers || '').slice(0, 300)),
@@ -183,35 +273,24 @@ function doPost(e) {
       'Time': safe_([s.start, s.end].filter(String).join('–').slice(0, 20)),
       'Track': safe_(String(s.track || '').slice(0, 100)),
       'Note': note
-    };
+    },
+    answers: clean
+  };
+}
 
-    var lock = LockService.getScriptLock();
-    lock.waitLock(25000);
-    try {
-      if (cache.get('rid_' + rid)) return json_({ ok: true, duplicate: true });
-      var sh = responsesSheet_(p.test === true);
-      var head = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0].map(String);
-      Object.keys(clean).forEach(function (col) {
-        if (head.indexOf(col) === -1) {
-          head.push(col);
-          sh.getRange(1, head.length).setValue(col).setFontWeight('bold');
-        }
-      });
-      var row = head.map(function (h) {
-        if (h in base) return base[h];
-        if (h in clean) return clean[h];
-        return '';
-      });
-      sh.appendRow(row);
-      rawLog_(rid, p);
-      cache.put('rid_' + rid, '1', 21600);
-    } finally {
-      lock.releaseLock();
-    }
-    return json_({ ok: true });
-  } catch (err) {
-    return json_({ ok: false, error: String(err).slice(0, 200) });
-  }
+function writeRows_(name, list) {
+  if (!list.length) return;
+  var sh = responsesSheet_(name === TEST_RESPONSES);
+  var head = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0].map(String);
+  list.forEach(function (c) {
+    Object.keys(c.answers).forEach(function (col) {
+      if (head.indexOf(col) === -1) { head.push(col); sh.getRange(1, head.length).setValue(col).setFontWeight('bold'); }
+    });
+  });
+  var rows = list.map(function (c) {
+    return head.map(function (h) { return h in c.base ? c.base[h] : (h in c.answers ? c.answers[h] : ''); });
+  });
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, head.length).setValues(rows);
 }
 
 function responsesSheet_(isTest) {
@@ -226,9 +305,20 @@ function responsesSheet_(isTest) {
   return sh;
 }
 
+function eventsSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('Events');
+  if (!sh) {
+    sh = ss.insertSheet('Events');
+    sh.getRange(1, 1, 1, 3).setValues([['When', 'What', 'Test?']]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
 function sessionIds_() {
   var ids = {};
-  var hit = CacheService.getScriptCache().get(CACHE_KEY);   // avoid re-reading the sheet on every submit
+  var hit = CacheService.getScriptCache().get(CACHE_KEY);
   var list = hit ? JSON.parse(hit).sessions : readSessions_();
   list.forEach(function (r) {
     var id = r.ID || r.Id || r.id;
@@ -247,55 +337,90 @@ function json_(o) {
 }
 
 
-// Untouched copy of every response, so nothing is lost if the Responses tab is
-// sorted, edited or cleared by accident.
-function rawLog_(rid, p) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(RAW_LOG);
-  if (!sh) {
-    sh = ss.insertSheet(RAW_LOG);
-    sh.getRange(1, 1, 1, 4).setValues([['Received', 'Response ID', 'Test?', 'Everything sent (JSON)']]).setFontWeight('bold');
-    sh.setFrozenRows(1);
-    sh.hideSheet();
-  }
-  sh.appendRow([new Date(), rid, p.test === true ? 'test' : '', JSON.stringify(p).slice(0, 45000)]);
-}
+/* ---------- dashboard (password protected) ---------- */
 
-
-/* ---------- dashboard data (password protected) ---------- */
-
-function dashboard_(p) {
+function auth_(p) {
   var cache = CacheService.getScriptCache();
   var fails = Number(cache.get('dash_fails') || 0);
-  if (fails >= 20) return json_({ ok: false, error: 'locked', message: 'Too many wrong passwords. Try again in 15 minutes.' });
+  if (fails >= 20) return { ok: false, error: 'locked', message: 'Too many wrong passwords. Try again in 15 minutes.' };
   var real = PropertiesService.getScriptProperties().getProperty('DASHBOARD_PASSWORD');
-  if (!real) return json_({ ok: false, error: 'no password', message: 'Set a password first: IFC Feedback > Set dashboard password.' });
+  if (!real) return { ok: false, error: 'no password', message: 'Set a password first: IFC Feedback > Set dashboard password.' };
   if (String(p.key || '') !== real) {
     cache.put('dash_fails', String(fails + 1), 900);
     Utilities.sleep(800);                               // slows down guessing
-    return json_({ ok: false, error: 'wrong password' });
+    return { ok: false, error: 'wrong password' };
   }
-  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(p.test === true ? TEST_RESPONSES : RESPONSES);
+  return null;
+}
+
+function dashboard_(p) {
+  var denied = auth_(p);
+  if (denied) return json_(denied);
+  try { processQueue(); } catch (err) { /* the minute trigger will catch up */ }
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), tz = ss.getSpreadsheetTimeZone();
+  var sh = ss.getSheetByName(p.test === true ? TEST_RESPONSES : RESPONSES);
   var responses = [];
-  var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
   if (sh && sh.getLastRow() > 1) {
     var data = sh.getDataRange().getValues();
     var head = data[0].map(String);
     for (var r = 1; r < data.length; r++) {
-      var o = {};
+      var o = { _row: r + 1 };
       for (var c = 0; c < head.length; c++) {
         if (!head[c]) continue;
         var v = data[r][c];
-        if (v instanceof Date) {
-          // Session dates come back as plain days in conference time; timestamps as exact moments
-          v = head[c] === 'Date' ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : v.toISOString();
-        }
+        if (v instanceof Date) v = head[c] === 'Date' ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : v.toISOString();
         o[head[c]] = v;
       }
       responses.push(o);
     }
   }
-  return json_({ ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses });
+  var events = {}, ev = ss.getSheetByName('Events');
+  if (ev && ev.getLastRow() > 1) {
+    ev.getRange(2, 1, ev.getLastRow() - 1, 3).getValues().forEach(function (r) {
+      if ((r[2] === 'test') === (p.test === true)) events[r[1]] = (events[r[1]] || 0) + 1;
+    });
+  }
+  var props = PropertiesService.getScriptProperties();
+  var raw = ss.getSheetByName(RAW_LOG);
+  var waiting = raw ? Math.max(0, raw.getLastRow() + 1 - Number(props.getProperty('RAW_NEXT_ROW') || 2)) : 0;
+  return json_({
+    ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, events: events,
+    health: { lastProcessed: props.getProperty('LAST_PROCESSED'), waiting: waiting,
+              automatic: ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'processQueue'; }) }
+  });
+}
+
+// Dashboard "Typed in" panel: attach a typed-in response to the right session.
+function assign_(p) {
+  var denied = auth_(p);
+  if (denied) return json_(denied);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = responsesSheet_(p.test === true);
+    var row = Number(p.row);
+    if (!(row >= 2 && row <= sh.getLastRow())) return json_({ ok: false, error: 'row not found' });
+    var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+    var vals = sh.getRange(row, 1, 1, head.length).getValues()[0];
+    var get = function (h) { return vals[head.indexOf(h)]; };
+    var ts = get('Timestamp');
+    if (!(ts instanceof Date) || ts.toISOString() !== p.timestamp) return json_({ ok: false, error: 'row changed, refresh and try again' });
+    var s = readSessions_().filter(function (x) { return String(x.ID) === String(p.sessionId); })[0];
+    if (!s) return json_({ ok: false, error: 'session not found' });
+    var typed = String(get('Note')).indexOf('Typed in') === 0 && get('Session ID') === 'NOT LISTED' ? get('Session') : '';
+    var set = {
+      'Session ID': s.ID, 'Session': safe_(s.Title || ''), 'Speakers': safe_(s.Speakers || ''), 'Room': safe_(s.Room || ''),
+      'Date': s.Date || '', 'Time': [s.Start, s.End].filter(String).join('–'), 'Track': safe_(s.Track || ''),
+      'Note': 'Typed in as "' + safe_(String(typed || get('Session'))).replace(/^'/, '') + '", matched on dashboard'
+    };
+    Object.keys(set).forEach(function (h) {
+      var c = head.indexOf(h);
+      if (c > -1) sh.getRange(row, c + 1).setValue(set[h]);
+    });
+    return json_({ ok: true });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function setDashboardPassword() {
@@ -309,16 +434,38 @@ function setDashboardPassword() {
 }
 
 
-/* ---------- backups ---------- */
+/* ---------- automatic jobs ---------- */
 
-function turnOnBackups() {
+function turnOnAutomation() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (t.getHandlerFunction() === 'backupNow') ScriptApp.deleteTrigger(t);
+    var f = t.getHandlerFunction();
+    if (f === 'backupNow' || f === 'processQueue') ScriptApp.deleteTrigger(t);
   });
+  ScriptApp.newTrigger('processQueue').timeBased().everyMinutes(1).create();
   ScriptApp.newTrigger('backupNow').timeBased().everyHours(1).create();
+  processQueue();
   backupNow();
-  SpreadsheetApp.getUi().alert('Hourly backups are on. Copies go to the "' + BACKUP_FOLDER + '" folder in your Google Drive.');
+  SpreadsheetApp.getUi().alert('Done. New responses now move into the Responses tab every minute, and the whole ' +
+    'spreadsheet is copied to the "' + BACKUP_FOLDER + '" folder in your Google Drive every hour.');
 }
+
+// Kept so the old menu item name still works
+function turnOnBackups() { turnOnAutomation(); }
+
+function clearTestResponses() {
+  var ui = SpreadsheetApp.getUi();
+  if (ui.alert('Clear test responses?', 'Deletes every row in the "Test responses" tab (the real Responses tab is not touched).', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TEST_RESPONSES);
+  if (sh && sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
+  var ev = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Events');
+  if (ev && ev.getLastRow() > 1) {
+    var keep = ev.getRange(2, 1, ev.getLastRow() - 1, 3).getValues().filter(function (r) { return r[2] !== 'test'; });
+    ev.getRange(2, 1, ev.getLastRow() - 1, 3).clearContent();
+    if (keep.length) ev.getRange(2, 1, keep.length, 3).setValues(keep);
+  }
+  ui.alert('Test responses cleared.');
+}
+
 
 function backupNow() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();

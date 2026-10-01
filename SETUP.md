@@ -69,11 +69,11 @@ This makes `qr/feedback-qr.png` (for slides), `qr/feedback-qr.svg` (for print) a
 1. Apps Script editor: select all, delete, paste the new `backend/apps_script.js`, **Save**.
 2. **Deploy > Manage deployments > pencil > Version: New version > Deploy.** (Not "New deployment".)
 3. Reload the Sheet. Then **IFC Feedback > Set dashboard password** (8+ characters). Google asks for permission again because backups need access to your Drive: allow it.
-4. **IFC Feedback > Turn on hourly backups.** Copies land in a Drive folder called "IFC 2026 Feedback backups" (last 48 kept).
-5. **File > Settings > Time zone: (GMT+01:00) Amsterdam.** Keeps timestamps in conference time.
-6. Open the dashboard: `<form address>/dashboard/` and sign in with the password.
+4. **IFC Feedback > Turn on automatic processing + hourly backups.** Responses land in the hidden Raw log first and move into Responses every minute; copies of the whole file land in a Drive folder called "IFC 2026 Feedback backups" (last 48 kept). **Must be done once, or responses wait in the Raw log** (safe, but the Responses tab stays empty; the dashboard shows a warning).
+5. **File > Settings > Time zone: Amsterdam or Berlin** (same time). Keeps timestamps in conference time.
+6. Open the dashboard: `<form address>/dashboard/` and sign in with the password, or use a sign-in link: `<form address>/dashboard/#<password>` (the part after # never leaves the browser).
 
-A hidden **Raw log** tab now keeps an untouched copy of every response. Never edit it.
+The hidden **Raw log** tab is the master copy of every response. Never edit or sort it. "Clear test responses" in the menu empties the Test responses tab after testing.
 
 ## Changing the questions or colours
 
