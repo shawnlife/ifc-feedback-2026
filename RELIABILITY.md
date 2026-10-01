@@ -30,6 +30,8 @@ Status as of 1 Oct 2026. ✅ done · 🟡 needs Shawn · ⬜ to do
 | 800 sent, 100 at once, lock-free Raw log | All 800 told "saved", **only 114 written**. Google Sheets overwrites rows when written at the same instant | Lock restored around the single write. Decision: **Firebase as the intake** |
 | 800 sent, 100 at once, via Firebase (phones' real route) | **800 of 800 in the Sheet, 0 duplicates.** 793 accepted first try (median 2 s); 7 retried after "busy"; 69 fell back to the Sheet route when Firebase was slow from a single test machine, and were saved | Done. Firebase rules checked: saves valid, refuses junk, refuses outside reads, repeats recognised |
 
+| Firebase free-plan read limit (50,000/day) | 1 Oct: the copy job re-read the 800 test responses every minute and used the whole day's allowance by 15:50. Writes were unaffected; copying paused until the 09:00 reset. **Fixed**: exact bookmark, each response read once, plus an hourly 20-minute safety sweep. Expected event use ~5,000 reads/day | 🟡 verify after reset |
+
 ## 2. Tests run so far
 - 70 automated checks on the form, in Chrome, Safari and Firefox engines, (search, locking, sending, offline queue, duplicates, back button, QR tracking, backup list, layout at phone width): all pass
 - Dashboard: wrong password rejected, all tabs render with 869 made-up responses, no errors

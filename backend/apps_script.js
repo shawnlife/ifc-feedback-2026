@@ -236,49 +236,68 @@ function syncFirestore_(started) {
   started = started || Date.now();
   var props = PropertiesService.getScriptProperties();
   var url = 'https://firestore.googleapis.com/v1/projects/' + FIREBASE_PROJECT_ID + '/databases/(default)/documents:runQuery';
-  var since = props.getProperty('FS_SYNCED_UNTIL') || '2026-01-01T00:00:00Z';
-  // look back 3 minutes past the last sync, in case a write landed late; duplicates are skipped below
-  var from = new Date(new Date(since).getTime() - 3 * 60000).toISOString();
+  // Bookmark = the exact last response copied (time + document name). Each run reads only
+  // what is newer, so every response is read once (free plan: 50,000 reads a day).
+  var cursor = JSON.parse(props.getProperty('FS_CURSOR') || 'null');
+  // Once an hour, also re-check the last 20 minutes in case a write became visible late.
+  var sweep = Date.now() - Number(props.getProperty('FS_LAST_SWEEP') || 0) > 60 * 60000;
   var added = 0;
   try {
     var raw = rawSheet_();
     var known = {};
     if (raw.getLastRow() > 1) raw.getRange(2, 2, raw.getLastRow() - 1, 1).getValues().forEach(function (r) { if (r[0]) known[r[0]] = 1; });
-    for (var page = 0; page < 10; page++) {
+    var query = function (from, after) {
+      var q = {
+        from: [{ collectionId: 'responses' }],
+        orderBy: [{ field: { fieldPath: 'received' }, direction: 'ASCENDING' }, { field: { fieldPath: '__name__' }, direction: 'ASCENDING' }],
+        limit: 500
+      };
+      if (from) q.where = { fieldFilter: { field: { fieldPath: 'received' }, op: 'GREATER_THAN_OR_EQUAL', value: { timestampValue: from } } };
+      if (after) q.startAt = { values: [{ timestampValue: after.t }, { referenceValue: after.n }], before: false };   // start just after the bookmark
       var res = UrlFetchApp.fetch(url, {
         method: 'post', contentType: 'application/json', muteHttpExceptions: true,
         headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
-        payload: JSON.stringify({ structuredQuery: {
-          from: [{ collectionId: 'responses' }],
-          where: { fieldFilter: { field: { fieldPath: 'received' }, op: 'GREATER_THAN_OR_EQUAL', value: { timestampValue: from } } },
-          orderBy: [{ field: { fieldPath: 'received' }, direction: 'ASCENDING' }],
-          limit: 500
-        } })
+        payload: JSON.stringify({ structuredQuery: q })
       });
       if (res.getResponseCode() !== 200) throw new Error('Firebase ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200));
-      var docs = JSON.parse(res.getContentText()).filter(function (x) { return x.document; });
-      var rows = [], newest = from;
+      return JSON.parse(res.getContentText()).filter(function (x) { return x.document; });
+    };
+    var take = function (docs) {
+      var rows = [];
       docs.forEach(function (x) {
         var d = fromFs_({ mapValue: { fields: x.document.fields } });
-        var when = d.received || x.document.createTime;
-        if (when > newest) newest = when;
         if (!d.rid || known[d.rid]) return;
         known[d.rid] = 1;
+        var when = d.received || x.document.createTime;
         delete d.received;
         rows.push([new Date(when), d.rid, d.test === true ? 'TEST' : 'RESPONSE', JSON.stringify(d), '']);
       });
-      if (rows.length) {
-        var lock = LockService.getScriptLock();      // same lock as phones writing directly: never two writers at once
-        if (!lock.tryLock(20000)) break;               // phones are busy writing; pick these up next minute
-        try {
-          raw.getRange(raw.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
-          SpreadsheetApp.flush();
-        } finally { lock.releaseLock(); }
-        added += rows.length;
-      }
-      if (newest > since) { since = newest; props.setProperty('FS_SYNCED_UNTIL', since); }
+      if (!rows.length) return true;
+      var lock = LockService.getScriptLock();      // same lock as phones writing directly: never two writers at once
+      if (!lock.tryLock(20000)) return false;        // phones are busy writing; pick these up next minute
+      try {
+        raw.getRange(raw.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
+        SpreadsheetApp.flush();
+      } finally { lock.releaseLock(); }
+      added += rows.length;
+      return true;
+    };
+
+    // 1. everything after the bookmark, page by page
+    for (var page = 0; page < 10; page++) {
+      var docs = query(null, cursor);
+      if (!docs.length) break;
+      if (!take(docs)) break;
+      var lastDoc = docs[docs.length - 1].document;
+      var lastFields = fromFs_({ mapValue: { fields: lastDoc.fields } });
+      cursor = { t: lastFields.received || lastDoc.createTime, n: lastDoc.name };
+      props.setProperty('FS_CURSOR', JSON.stringify(cursor));
       if (docs.length < 500 || Date.now() - started > TIME_BUDGET_MS / 2) break;
-      from = newest;
+    }
+    // 2. hourly safety sweep
+    if (sweep) {
+      take(query(new Date(Date.now() - 20 * 60000).toISOString(), null));
+      props.setProperty('FS_LAST_SWEEP', String(Date.now()));
     }
     props.setProperty('FS_LAST_SYNC', new Date().toISOString());
     props.deleteProperty('FS_LAST_ERROR');
