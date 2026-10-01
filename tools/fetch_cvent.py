@@ -29,7 +29,7 @@ MONTHS = {m: i for i, m in enumerate(["january", "february", "march", "april", "
 # Not things people give session feedback on
 SKIP = re.compile(r"^(breakfast|lunch|dinner|buffet dinner|drinks reception|break|yoga|yin|sound bath|"
                   r"10 minute movement|mindfulness walk|speaker welcome|live stream test|pub quiz|gala|"
-                  r"ifc welcome dinner|ifc online|arrival & registration|workshop tbc|welcome to ifc)", re.I)
+                  r"ifc welcome dinner|ifc online|arrival & registration|workshop tbc|welcome to ifc|opening keynote|closing keynote|opening plenary|closing plenary)", re.I)
 
 GRAB = r"""async (i) => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
