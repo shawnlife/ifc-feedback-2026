@@ -85,17 +85,25 @@
 
   /* ---------- loading ---------- */
 
+  // Every request gets a number; only the answer to the newest one is used. Otherwise a
+  // slow "real data" refresh arriving after a "test data" one would overwrite it.
+  var reqSeq = 0;
   function fetchData() {
+    var mine = ++reqSeq, wantTest = $('showTest').checked;
     return fetch(API, {
       method: 'POST', cache: 'no-store',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'dashboard', key: state.key, test: $('showTest').checked })
-    }).then(function (r) { return r.json(); });
+      body: JSON.stringify({ action: 'dashboard', key: state.key, test: wantTest })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (mine !== reqSeq || wantTest !== $('showTest').checked) { d = { ok: true, stale: true }; }
+      return d;
+    });
   }
 
   function load() {
     $('updated').textContent = 'Updating…';
     return fetchData().then(function (d) {
+      if (d.stale) return;                      // a newer request is on its way; ignore this answer
       if (!d.ok) {
         if (d.error === 'wrong password' || d.error === 'locked' || d.error === 'no password') {
           signOut(d.message || 'That password did not work.');
@@ -652,6 +660,7 @@
       state.key = key;
       fetchData().then(function (d) {
         $('loginBtn').disabled = false;
+        if (d.stale) { $('loginBtn').disabled = false; return; }
         if (!d.ok) { $('loginError').textContent = d.message || 'That password did not work.'; return; }
         store($('remember').checked ? 'local' : 'session', KEY_STORE, key);
         state.data = d; state.lastOk = Date.now();
@@ -667,7 +676,13 @@
 
     $('logoutBtn').addEventListener('click', function () { clearInterval(timer); signOut(''); });
     $('refreshBtn').addEventListener('click', load);
-    $('showTest').addEventListener('change', load);
+    $('showTest').addEventListener('change', function () {
+      state.data = null; state.lastOk = 0;
+      ['overview', 'rankings', 'comments', 'leaders', 'scorecards', 'typed', 'analytics'].forEach(function (t) {
+        $('tab-' + t).innerHTML = '<p class="empty">Loading ' + ($('showTest').checked ? 'test' : 'real') + ' responses…</p>';
+      });
+      load();
+    });
     ['fDay', 'fTrack', 'fRoom'].forEach(function (id) { $(id).addEventListener('change', renderAll); });
     var t;
     $('fText').addEventListener('input', function () { clearTimeout(t); t = setTimeout(renderAll, 150); });
