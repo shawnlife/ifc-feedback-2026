@@ -25,7 +25,7 @@ Status as of 1 Oct 2026. ✅ done · 🟡 needs Shawn · ⬜ to do
 ## 2. Tests run so far
 - 59 automated checks on the form (search, locking, sending, offline queue, duplicates, back button, QR tracking, backup list, layout at phone width): all pass
 - Dashboard: wrong password rejected, all tabs render with 869 made-up responses, no errors
-- One real end-to-end response through Google (test mode) — saved
+- One real end-to-end response through Google (test mode): saved
 
 ## 3. Still to do before the event
 1. 🟡 Paste updated script, redeploy (new version), set dashboard password, turn on backups, set Sheet time zone (SETUP.md step 6)
