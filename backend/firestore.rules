@@ -1,0 +1,29 @@
+rules_version = '2';
+// IFC 2026 feedback: paste into Firebase console > Firestore Database > Rules > Publish.
+// Phones may only CREATE a response. Nobody can read, change or delete anything from
+// the web; the Google Sheet script reads with your own Google login instead.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /responses/{rid} {
+      allow create: if rid.size() <= 64
+        && rid.matches('^[A-Za-z0-9_-]+$')
+        && request.resource.data.keys().hasOnly(['rid', 'test', 'sentAt', 'session', 'answers', 'v', 'received'])
+        && request.resource.data.rid == rid
+        && request.resource.data.received == request.time
+        && request.resource.data.test is bool
+        && request.resource.data.session is map
+        && request.resource.data.session.size() <= 10
+        && request.resource.data.session.title is string
+        && request.resource.data.session.title.size() <= 300
+        && request.resource.data.answers is map
+        && request.resource.data.answers.size() <= 20;
+      allow read, update, delete: if false;
+    }
+
+    // everything else is closed
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

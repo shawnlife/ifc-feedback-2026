@@ -75,6 +75,23 @@ This makes `qr/feedback-qr.png` (for slides), `qr/feedback-qr.svg` (for print) a
 
 The hidden **Raw log** tab is the master copy of every response. Never edit or sort it. "Clear test responses" in the menu empties the Test responses tab after testing.
 
+## Step 7: Firebase (receives responses; handles hundreds at the same moment)
+
+Why: Google Sheets loses rows when hundreds of phones write at the same instant (proved in testing). Firebase is Google's database built for that. Phones send there first; every minute the script copies new responses into the Sheet. If Firebase is ever unreachable, phones automatically use the Sheet route instead.
+
+**Part A: create Firebase (sign in as scbuck27@gmail.com, the account that owns the Sheet)**
+1. Go to console.firebase.google.com > **Create a project**. Name: `ifc-feedback-2026`. Turn **off** Google Analytics. Create.
+2. Left menu: **Build > Firestore Database > Create database**. Location: a **Europe** one (e.g. `eur3`). Start in **production mode**. Create.
+3. **Rules** tab: delete everything, paste `backend/firestore.rules`, **Publish**.
+4. Gear icon > **Project settings > General > Your apps >** the `</>` (Web) icon. Nickname `IFC feedback form`, no Hosting, **Register app**. From the code it shows, copy `projectId` and `apiKey` and send them to Claude. (Both are meant to be public; the rules above are what protect the data.)
+5. Stay on the free **Spark** plan. With no card attached it can never charge you.
+
+**Part B: after Claude has filled in those two values**
+1. Apps Script: gear icon (**Project Settings**) > tick **Show "appsscript.json" manifest file in editor**.
+2. Editor: open `appsscript.json`, replace everything with `backend/appsscript.json`, Save. Open `Code.gs`, replace everything with `backend/apps_script.js`, Save.
+3. **Deploy > Manage deployments > pencil > New version > Deploy.**
+4. Sheet: **IFC Feedback > Turn on automatic processing + hourly backups**. Approve the new permission (Firebase / "Cloud Datastore").
+
 ## Changing the questions or colours
 
 - Questions: `config.js`. Each question's `column` is the heading it gets in the Sheet.

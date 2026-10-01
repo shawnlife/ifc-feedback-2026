@@ -23,6 +23,13 @@ Status as of 1 Oct 2026. ✅ done · 🟡 needs Shawn · ⬜ to do
 | Form found by strangers | noindex everywhere, no links to it, link/QR only | ✅ |
 | Session rated before it happened | Locked until start time | ✅ tested |
 
+## Load tests (1 Oct 2026)
+| Test | Result | What we did |
+|---|---|---|
+| 300 sent, 40 at once, original design (lock around everything) | Half refused first time; all but 1 recovered on retry; no loss | Found: slow under load; and phones dropped "busy" replies (bug fixed) |
+| 800 sent, 100 at once, lock-free Raw log | All 800 told "saved", **only 114 written**. Google Sheets overwrites rows when written at the same instant | Lock restored around the single write. Decision: **Firebase as the intake** |
+| 800 via Firebase | ⬜ after Firebase setup | |
+
 ## 2. Tests run so far
 - 70 automated checks on the form, in Chrome, Safari and Firefox engines, (search, locking, sending, offline queue, duplicates, back button, QR tracking, backup list, layout at phone width): all pass
 - Dashboard: wrong password rejected, all tabs render with 869 made-up responses, no errors

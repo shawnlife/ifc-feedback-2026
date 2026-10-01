@@ -13,6 +13,12 @@
   var CFG = window.IFC_CONFIG || {};
   var API = (CFG.apiUrl || '').trim();
   var DEMO = !API;
+  // Firebase Firestore: the main intake. Each response is created with its own ID as
+  // the document name, so a resend can never make a duplicate.
+  var FB = CFG.firebase || {};
+  var FS_DOCS = FB.projectId && FB.apiKey
+    ? (FB.endpoint || 'https://firestore.googleapis.com/v1') + '/projects/' + FB.projectId + '/databases/(default)/documents'
+    : null;
   var DEMO_CSV = CFG.demoSessions || 'sessions-ifc2026.csv';
   var params = new URLSearchParams(location.search);
   var TEST = params.has('test');
@@ -656,7 +662,49 @@
 
   function outbox() { return store(OUTBOX_KEY) || []; }
 
+  // Main route: Firebase. Fallback: the Google Sheet script. "Saved" only when one of them confirms.
   function send(item) {
+    if (!FS_DOCS) return sendSheet(item);
+    return sendFirebase(item).catch(function () { return sendSheet(item); });
+  }
+
+  function toFs(v) {
+    if (v === null || v === undefined) return { nullValue: null };
+    if (typeof v === 'boolean') return { booleanValue: v };
+    if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+    if (Array.isArray(v)) return { arrayValue: { values: v.map(toFs) } };
+    if (typeof v === 'object') {
+      var f = {};
+      Object.keys(v).forEach(function (k) { f[k] = toFs(v[k]); });
+      return { mapValue: { fields: f } };
+    }
+    return { stringValue: String(v) };
+  }
+
+  function sendFirebase(item) {
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 15000);
+    var fields = toFs({ rid: item.rid, test: item.test, sentAt: item.sentAt, session: item.session, answers: item.answers, v: 1 }).mapValue.fields;
+    var body = { writes: [{
+      update: { name: FS_DOCS.replace(/^.*?\/projects\//, 'projects/') + '/responses/' + item.rid, fields: fields },
+      currentDocument: { exists: false },                                   // create only, never overwrite
+      updateTransforms: [{ fieldPath: 'received', setToServerValue: 'REQUEST_TIME' }]
+    }] };
+    return fetch(FS_DOCS + ':commit?key=' + encodeURIComponent(FB.apiKey), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      signal: ctrl ? ctrl.signal : undefined
+    }).then(function (r) {
+      clearTimeout(timer);
+      if (r.ok) return { ok: true };
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        var st = j && j.error && j.error.status;
+        if (r.status === 409 || st === 'ALREADY_EXISTS' || st === 'FAILED_PRECONDITION') return { ok: true, duplicate: true };
+        throw new Error('firebase ' + r.status);
+      });
+    }, function (e) { clearTimeout(timer); throw e; });
+  }
+
+  function sendSheet(item) {
     var ctrl = window.AbortController ? new AbortController() : null;
     var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 45000);   // Google can be slow at peak, but it gets there
     // text/plain avoids a CORS preflight, which Apps Script cannot answer

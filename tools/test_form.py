@@ -27,6 +27,14 @@ def events():
     return json.load(urllib.request.urlopen(urllib.request.Request(BASE + "_events", method="POST", data=b"")))
 
 
+def via():
+    return json.load(urllib.request.urlopen(urllib.request.Request(BASE + "_via", method="POST", data=b"")))
+
+
+def set_fsfail(on):
+    urllib.request.urlopen(urllib.request.Request(BASE + f"_fsfail?on={int(on)}", method="POST", data=b""))
+
+
 def set_busy(n):
     urllib.request.urlopen(urllib.request.Request(BASE + f"_busy?n={n}", method="POST", data=b""))
 
@@ -132,6 +140,7 @@ with sync_playwright() as p:
     page.click("label[for=q3_0]")
     page.fill("#q4", "=HYPERLINK(\"evil\") takeaway")
     before = len(received())
+    via0 = via()
     page.click("#submitBtn")
     page.wait_for_selector("#stepDone:not([hidden])")
     got = received()
@@ -143,6 +152,16 @@ with sync_playwright() as p:
           "answers mapped to the right columns")
     check(last["test"] is False, "not flagged as a test")
     check(last["answers"].get("Came from") == "Link", "plain visit recorded as 'Link'")
+
+    check(via()["firebase"] > via0["firebase"] and via()["sheet"] == via0["sheet"], f"sent through Firebase, the main route ({via()})")
+
+    print("Firebase down: falls back to the Google Sheet route")
+    set_fsfail(True)
+    page.click("#againBtn"); page.locator(".result").first.click(); page.click("label[for=q0_3]")
+    before = via()["sheet"]
+    page.click("#submitBtn"); page.wait_for_selector("#stepDone:not([hidden])", timeout=40000)
+    check(via()["sheet"] == before + 1 and "has been sent" in page.inner_text("#doneText"), "Firebase unreachable: saved through the Sheet route instead, person told 'sent'")
+    set_fsfail(False)
 
     print("Back button")
     page.click("#againBtn")
@@ -207,14 +226,15 @@ with sync_playwright() as p:
     check(any(e.get("type") == "help" for e in events()[n_ev:]), "'Contact us' click counted for the dashboard")
     check(any(e.get("type") == "tip-shown" for e in events()), "home-screen tip view counted")
 
-    print("Google says 'busy': response must NOT be dropped")
-    set_busy(1)
+    print("Firebase down AND Google says 'busy': response must NOT be dropped")
+    set_fsfail(True); set_busy(1)
     page.click("#againBtn"); page.locator(".result").first.click(); page.click("label[for=q0_2]")
     n = len(received())
     page.click("#submitBtn"); page.wait_for_selector("#stepDone:not([hidden])")
     check("still sending" in page.inner_text("#doneText"), "busy reply: told it's still sending, kept on the phone")
     page.wait_for_function("document.getElementById('doneText').textContent.indexOf('has been sent') > -1", timeout=15000)
     check(len(received()) == n + 1, "retried automatically a few seconds later and arrived; thank-you text updated to 'sent'")
+    set_fsfail(False)
 
     print("Privacy page")
     check(page.locator("a[href='privacy.html']").count() == 1, "privacy link in the footer")

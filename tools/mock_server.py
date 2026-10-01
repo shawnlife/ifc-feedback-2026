@@ -25,7 +25,9 @@ from urllib.parse import urlparse, parse_qs
 
 ROOT = Path(__file__).parent.parent
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
-received, state, events, assigned = [], {"fail": False}, [], {}
+received, state, events, assigned = [], {"fail": False, "fsfail": False}, [], {}
+FIREBASE = os.environ.get("MOCK_FIREBASE", "1") == "1"     # pretend Firebase is set up (the normal case)
+via = {"firebase": 0, "sheet": 0}
 DASH_KEY = "test-password"
 
 
@@ -100,6 +102,10 @@ class Handler(SimpleHTTPRequestHandler):
         if u.path == "/config.js":  # same config, pointed at this mock
             # whatever the real address is, point the form at this mock instead
             text = re.sub(r"apiUrl:\s*'[^']*'", f"apiUrl: 'http://localhost:{PORT}/exec'", (ROOT / "config.js").read_text())
+            if FIREBASE:
+                text = text.replace("firebase: {", f"firebase: {{ endpoint: 'http://localhost:{PORT}/fs/v1',", 1)
+                text = re.sub(r"projectId:\s*'[^']*'", "projectId: 'mock'", text)
+                text = re.sub(r"apiKey:\s*'[^']*'", "apiKey: 'mock-key'", text)
             body = text.encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/javascript")
@@ -128,6 +134,30 @@ class Handler(SimpleHTTPRequestHandler):
         if u.path == "/_fail":
             state["fail"] = parse_qs(u.query).get("on", ["1"])[0] == "1"
             return self.send_json({"fail": state["fail"]})
+        if u.path == "/_fsfail":                        # Firebase unreachable (form must fall back to the Sheet)
+            state["fsfail"] = parse_qs(u.query).get("on", ["1"])[0] == "1"
+            return self.send_json({"fsfail": state["fsfail"]})
+        if u.path == "/_via":
+            return self.send_json(via)
+        if u.path.startswith("/fs/v1/projects/") and u.path.endswith("documents:commit"):
+            if state["fail"] or state["fsfail"]:
+                self.connection.close()
+                return
+            w = json.loads(body)["writes"][0]
+            assert w["currentDocument"] == {"exists": False} and w["updateTransforms"][0]["setToServerValue"] == "REQUEST_TIME"
+            rid = w["update"]["name"].rsplit("/", 1)[1]
+            def plain(v):
+                if "mapValue" in v: return {k: plain(x) for k, x in v["mapValue"].get("fields", {}).items()}
+                if "integerValue" in v: return int(v["integerValue"])
+                if "booleanValue" in v: return v["booleanValue"]
+                if "nullValue" in v: return None
+                if "arrayValue" in v: return [plain(x) for x in v["arrayValue"].get("values", [])]
+                return list(v.values())[0]
+            item = plain({"mapValue": {"fields": w["update"]["fields"]}})
+            if any(r["rid"] == rid for r in received):
+                return self.send_json({"error": {"code": 409, "status": "ALREADY_EXISTS"}}, 409)
+            received.append(item); via["firebase"] += 1
+            return self.send_json({"writeResults": [{}], "commitTime": "now"})
         if u.path == "/_busy":                          # next N sends get a "busy" error reply
             state["busy"] = int(parse_qs(u.query).get("n", ["1"])[0])
             return self.send_json({"busy": state["busy"]})
@@ -170,7 +200,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "Exception: Service invoked too many times"})
             if any(r["rid"] == item["rid"] for r in received):
                 return self.send_json({"ok": True, "duplicate": True})
-            received.append(item)
+            received.append(item); via["sheet"] += 1
             return self.send_json({"ok": True})
         self.send_json({"ok": False}, 404)
 

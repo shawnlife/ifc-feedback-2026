@@ -517,6 +517,7 @@
   // Warn if responses are piling up in the Raw log instead of reaching the Sheet tabs
   function healthMessage(h) {
     if (!h) return '';
+    if (h.firebase && h.firebase.error) return 'Copying from Firebase to the Sheet is failing (' + h.firebase.error.slice(25, 140) + '). Responses are safe in Firebase; tell Shawn.';
     if (!h.automatic) return 'Automatic processing is OFF. In the Sheet: IFC Feedback > Turn on automatic processing + hourly backups. (Nothing is lost: responses wait safely in the Raw log.)';
     var age = h.lastProcessed ? Date.now() - Date.parse(h.lastProcessed) : Infinity;
     if (h.waiting > 0 && age > 5 * 60000) return h.waiting + ' responses are waiting in the Raw log and processing last ran ' + ago(age) + '. They are safe; check the script triggers.';

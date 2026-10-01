@@ -20,6 +20,10 @@ N = int(sys.argv[1]) if len(sys.argv) > 1 else 800
 CONC = int(sys.argv[2]) if len(sys.argv) > 2 else 100
 KEY = sys.argv[3] if len(sys.argv) > 3 else ""
 PERMANENT = {"invalid", "too large", "empty", "no answers"}
+CFGTXT = (ROOT / "config.js").read_text()
+FB_PROJECT = (re.search(r"projectId:\s*'([^']*)'", CFGTXT) or [None, ""])[1]
+FB_KEY = (re.search(r"apiKey:\s*'([^']*)'", CFGTXT) or [None, ""])[1]
+via = {"firebase": 0, "sheet": 0}
 sessions = list(csv.DictReader((ROOT / "sessions-ifc2026.csv").open(encoding="utf-8")))
 RUN = "LT" + time.strftime("%H%M%S")
 
@@ -39,10 +43,44 @@ def make(i):
                         "Key takeaway": f"{RUN} #{i}", "Came from": "Load test"}}
 
 
+def to_fs(v):
+    if isinstance(v, bool): return {"booleanValue": v}
+    if isinstance(v, int): return {"integerValue": str(v)}
+    if isinstance(v, dict): return {"mapValue": {"fields": {k: to_fs(x) for k, x in v.items()}}}
+    if v is None: return {"nullValue": None}
+    return {"stringValue": str(v)}
+
+
+def send_firebase(item):
+    """Exactly what a phone does: create-only write, ID = rid, server timestamp."""
+    docs = f"https://firestore.googleapis.com/v1/projects/{FB_PROJECT}/databases/(default)/documents"
+    body = {"writes": [{"update": {"name": f"projects/{FB_PROJECT}/databases/(default)/documents/responses/{item['rid']}",
+                                   "fields": to_fs({k: item[k] for k in ("rid", "test", "sentAt", "session", "answers")} | {"v": 1})["mapValue"]["fields"]},
+                        "currentDocument": {"exists": False},
+                        "updateTransforms": [{"fieldPath": "received", "setToServerValue": "REQUEST_TIME"}]}]}
+    req = urllib.request.Request(f"{docs}:commit?key={FB_KEY}", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+    try:
+        urllib.request.urlopen(req, timeout=15).read()
+        return True
+    except urllib.error.HTTPError as e:
+        txt = e.read().decode()[:300]
+        if e.code == 409 or "ALREADY_EXISTS" in txt or "FAILED_PRECONDITION" in txt:
+            return True
+        raise RuntimeError(f"firebase {e.code} {txt[:120]}")
+
+
 def send(item):
     t = time.time()
+    if FB_PROJECT and FB_KEY:
+        try:
+            if send_firebase(item):
+                via["firebase"] += 1
+                return "ok", time.time() - t, ""
+        except Exception as e:
+            errors_fb[str(e)[:90]] = errors_fb.get(str(e)[:90], 0) + 1   # fall back to the Sheet route, like a phone
     try:
         j = post(item)
+        if j.get("ok"): via["sheet"] += 1
         if j.get("ok"):
             return "ok", time.time() - t, ""
         return ("rejected" if j.get("error") in PERMANENT else "busy"), time.time() - t, str(j.get("error"))[:80]
@@ -50,6 +88,7 @@ def send(item):
         return "failed", time.time() - t, type(e).__name__ + ": " + str(e)[:60]
 
 
+errors_fb = {}
 items = [make(i) for i in range(N)]
 pending = list(range(N))
 attempts = {i: 0 for i in range(N)}
@@ -81,11 +120,12 @@ print(f"time to answer on first try: median {lat[len(lat)//2]:.1f}s, 95% under {
 print(f"needed retries: {sum(1 for a in attempts.values() if a > 1)}, never accepted: {len(pending)}")
 for e, c in sorted(errors.items(), key=lambda x: -x[1]):
     print(f"  {c} x {e}")
+print(f"route used: {via}" + (f"; Firebase errors before falling back: {errors_fb}" if errors_fb else ""))
 
 if KEY:
     print("\nChecking the Sheet (dashboard also triggers processing)…")
-    for k in range(8):
-        time.sleep(20 if k else 5)
+    for k in range(12):
+        time.sleep(30 if k else 5)
         d = post({"action": "dashboard", "key": KEY, "test": True}, timeout=120)
         found = [r for r in d.get("responses", []) if str(r.get("Key takeaway", "")).startswith(RUN + " #")]
         nums = [int(str(r["Key takeaway"]).split("#")[1]) for r in found]

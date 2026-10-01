@@ -14,6 +14,14 @@ window.IFC_CONFIG = {
   // sessions-ifc2026.csv and does not save anything.
   apiUrl: 'https://script.google.com/macros/s/AKfycbxG_FLqQRg2gsGxfDqIVjpvoBHTuIDDzevORXNPwPOcuFy7MwWbfq6V6tloZkZh38DbZg/exec',
 
+  // FIREBASE (the main way responses come in; built to take hundreds at the same moment).
+  // From the Firebase console: Project settings > General > Your apps > Web app config.
+  // Leave empty to send straight to the Google Sheet instead.
+  firebase: {
+    projectId: '',
+    apiKey: ''
+  },
+
   eventName: 'IFC 2026',
 
   // BRANDING: put the image files in assets/brand/ and write their names here.

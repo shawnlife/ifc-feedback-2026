@@ -25,6 +25,9 @@
  * What it deliberately does NOT store: names, emails, IP addresses, device info.
  */
 
+// Firebase project ID (Firebase console > Project settings). Leave '' if not using Firebase.
+var FIREBASE_PROJECT_ID = '';
+
 var SESSIONS = 'Sessions';
 var RESPONSES = 'Responses';
 var TEST_RESPONSES = 'Test responses';
@@ -217,12 +220,94 @@ function rawSheet_() {
 }
 
 
+/* ---------- Firebase -> Raw log ----------
+ * Phones send to Firebase first. This copies new Firebase responses into the Raw
+ * log (skipping any already there, e.g. ones that also came the Sheet route), then
+ * processQueue carries on as normal. Reads use your own Google login, so Firebase
+ * needs no public read access at all.
+ */
+function syncFirestore_() {
+  if (!FIREBASE_PROJECT_ID) return 0;
+  var props = PropertiesService.getScriptProperties();
+  var url = 'https://firestore.googleapis.com/v1/projects/' + FIREBASE_PROJECT_ID + '/databases/(default)/documents:runQuery';
+  var since = props.getProperty('FS_SYNCED_UNTIL') || '2026-01-01T00:00:00Z';
+  // look back 3 minutes past the last sync, in case a write landed late; duplicates are skipped below
+  var from = new Date(new Date(since).getTime() - 3 * 60000).toISOString();
+  var added = 0;
+  try {
+    var raw = rawSheet_();
+    var known = {};
+    if (raw.getLastRow() > 1) raw.getRange(2, 2, raw.getLastRow() - 1, 1).getValues().forEach(function (r) { if (r[0]) known[r[0]] = 1; });
+    for (var page = 0; page < 10; page++) {
+      var res = UrlFetchApp.fetch(url, {
+        method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+        headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+        payload: JSON.stringify({ structuredQuery: {
+          from: [{ collectionId: 'responses' }],
+          where: { fieldFilter: { field: { fieldPath: 'received' }, op: 'GREATER_THAN_OR_EQUAL', value: { timestampValue: from } } },
+          orderBy: [{ field: { fieldPath: 'received' }, direction: 'ASCENDING' }],
+          limit: 500
+        } })
+      });
+      if (res.getResponseCode() !== 200) throw new Error('Firebase ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200));
+      var docs = JSON.parse(res.getContentText()).filter(function (x) { return x.document; });
+      var rows = [], newest = from;
+      docs.forEach(function (x) {
+        var d = fromFs_({ mapValue: { fields: x.document.fields } });
+        var when = d.received || x.document.createTime;
+        if (when > newest) newest = when;
+        if (!d.rid || known[d.rid]) return;
+        known[d.rid] = 1;
+        delete d.received;
+        rows.push([new Date(when), d.rid, d.test === true ? 'TEST' : 'RESPONSE', JSON.stringify(d), '']);
+      });
+      if (rows.length) {
+        var lock = LockService.getScriptLock();      // same lock as phones writing directly: never two writers at once
+        lock.waitLock(30000);
+        try {
+          raw.getRange(raw.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
+          SpreadsheetApp.flush();
+        } finally { lock.releaseLock(); }
+        added += rows.length;
+      }
+      if (newest > since) { since = newest; props.setProperty('FS_SYNCED_UNTIL', since); }
+      if (docs.length < 500) break;
+      from = newest;
+    }
+    props.setProperty('FS_LAST_SYNC', new Date().toISOString());
+    props.deleteProperty('FS_LAST_ERROR');
+  } catch (err) {
+    props.setProperty('FS_LAST_ERROR', new Date().toISOString() + ' ' + String(err).slice(0, 300));
+  }
+  return added;
+}
+
+// Firestore's typed values -> plain values
+function fromFs_(v) {
+  if (!v) return null;
+  if ('stringValue' in v) return v.stringValue;
+  if ('integerValue' in v) return Number(v.integerValue);
+  if ('doubleValue' in v) return v.doubleValue;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('timestampValue' in v) return v.timestampValue;
+  if ('nullValue' in v) return null;
+  if ('arrayValue' in v) return (v.arrayValue.values || []).map(fromFs_);
+  if ('mapValue' in v) {
+    var o = {}, f = v.mapValue.fields || {};
+    Object.keys(f).forEach(function (k) { o[k] = fromFs_(f[k]); });
+    return o;
+  }
+  return null;
+}
+
+
 /* ---------- processing: Raw log -> Responses / Test responses / Events ---------- */
 
 function processQueue() {
   var lock = LockService.getDocumentLock();   // separate from the intake lock, so phones are never kept waiting by this
   if (!lock || !lock.tryLock(1000)) return 0; // another run is already doing it
   try {
+    syncFirestore_();                         // bring in anything that arrived through Firebase first
     var raw = rawSheet_();
     var props = PropertiesService.getScriptProperties();
     var last = raw.getLastRow();
@@ -405,6 +490,7 @@ function dashboard_(p) {
   return json_({
     ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, events: events,
     health: { lastProcessed: props.getProperty('LAST_PROCESSED'), waiting: waiting,
+              firebase: FIREBASE_PROJECT_ID ? { lastSync: props.getProperty('FS_LAST_SYNC'), error: props.getProperty('FS_LAST_ERROR') } : null,
               automatic: ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'processQueue'; }) }
   });
 }
