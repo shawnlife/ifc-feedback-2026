@@ -13,7 +13,7 @@ Status as of 1 Oct 2026. ✅ done · 🟡 needs Shawn · ⬜ to do
 | Google replies "busy" (quota, overload) | Treated as temporary: kept on the phone and retried. (Bug found and fixed 1 Oct: these used to be dropped.) | ✅ tested |
 | Someone sorts, edits or deletes rows in Responses | Hidden **Raw log** tab keeps an untouched copy of every response | ✅ built, 🟡 needs script update |
 | Spreadsheet deleted or badly damaged | Hourly full copy to a separate Drive folder (48 kept) + Google's own version history | ✅ built, 🟡 needs script update + switch on |
-| Too many people submit at the same moment (end of a block) | Load test 1 Oct (old design, 300 sent 40 at once): half refused first time, nothing lost after retries. **Redesigned**: each response is one quick write to the Raw log (no waiting in line), moved to Responses in batches every minute. Phones retry after 3-6 s with random spacing. | 🟡 re-test with 800 after script update |
+| Too many people submit at the same moment (end of a block) | Phones send to **Firebase** (built for this), fall back to the Sheet route (one write at a time, never two at once). Every minute Firebase is copied into the Sheet. Phones retry after 3-6 s with random spacing | ✅ 800 at once: all 800 arrived |
 | Google Apps Script outage for an extended period | Phones keep answers and retry, but only while/when the page is reopened | ⬜ decide on a **second, independent backup endpoint** |
 | Someone floods the form with junk | Honeypot field, server checks (ratings 1-5, length limits, no formulas), dashboard can filter by time | ✅ |
 | Spreadsheet formula injection ("=HYPERLINK…" typed in a comment) | Neutralised before writing; CSV export neutralised too | ✅ tested |
@@ -28,7 +28,7 @@ Status as of 1 Oct 2026. ✅ done · 🟡 needs Shawn · ⬜ to do
 |---|---|---|
 | 300 sent, 40 at once, original design (lock around everything) | Half refused first time; all but 1 recovered on retry; no loss | Found: slow under load; and phones dropped "busy" replies (bug fixed) |
 | 800 sent, 100 at once, lock-free Raw log | All 800 told "saved", **only 114 written**. Google Sheets overwrites rows when written at the same instant | Lock restored around the single write. Decision: **Firebase as the intake** |
-| 800 via Firebase | ⬜ after Firebase setup | |
+| 800 sent, 100 at once, via Firebase (phones' real route) | **800 of 800 in the Sheet, 0 duplicates.** 793 accepted first try (median 2 s); 7 retried after "busy"; 69 fell back to the Sheet route when Firebase was slow from a single test machine, and were saved | Done. Firebase rules checked: saves valid, refuses junk, refuses outside reads, repeats recognised |
 
 ## 2. Tests run so far
 - 70 automated checks on the form, in Chrome, Safari and Firefox engines, (search, locking, sending, offline queue, duplicates, back button, QR tracking, backup list, layout at phone width): all pass
@@ -37,7 +37,7 @@ Status as of 1 Oct 2026. ✅ done · 🟡 needs Shawn · ⬜ to do
 
 ## 3. Still to do before the event
 1. 🟡 Paste updated script, redeploy (new version), set dashboard password, turn on backups, set Sheet time zone (SETUP.md step 6)
-2. 🟡 **Load test 800** after the script update (first test with the old design found the bottleneck, now redesigned)
+2. ✅ **Load test 800**: passed via Firebase (see table above)
 3. ✅ Browser tests in Safari (WebKit) and Firefox engines: all pass
 4. ⏸ **Second backup endpoint** (parked: Shawn unsure; revisit after the 800 load test): a second copy of the script on a *different* Google account; the form switches to it automatically if the main one fails twice in a row
 5. ✅ **Privacy notice** at privacy.html (controller: The Resource Alliance, contact@resource-alliance.org as on their own privacy policy). 🟡 Shawn/RA to confirm wording
