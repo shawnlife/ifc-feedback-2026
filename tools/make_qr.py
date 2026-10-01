@@ -16,6 +16,9 @@ from PIL import Image, ImageDraw, ImageFont
 if len(sys.argv) < 2:
     sys.exit("Usage: python3 tools/make_qr.py https://your-final-address/")
 URL = sys.argv[1]
+# The QR code carries ?qr so the Sheet can tell QR scans from typed/shared links.
+# The sign still shows the plain address for typing.
+QR_URL = URL + ("&" if "?" in URL else "?") + "qr"
 OUT = Path(__file__).parent.parent / "qr"
 OUT.mkdir(exist_ok=True)
 INK, ORANGE, ORANGE_TEXT, MUTED = "#000000", "#F18500", "#A85300", "#545454"
@@ -29,7 +32,7 @@ def font(size, bold=False):
         return ImageFont.load_default()
 
 
-qr = segno.make(URL, error="h")   # high error correction: survives smudges and glare
+qr = segno.make(QR_URL, error="h")   # high error correction: survives smudges and glare
 qr.save(OUT / "feedback-qr.svg", scale=10, border=2, dark=INK)
 qr.save(OUT / "feedback-qr.png", scale=20, border=2, dark=INK)
 
@@ -64,7 +67,7 @@ card.save(OUT / "feedback-sign-A5.png", dpi=(300, 300))
 try:
     import cv2
     val, *_ = cv2.QRCodeDetector().detectAndDecode(cv2.imread(str(OUT / "feedback-sign-A5.png")))
-    print("Decode check:", "OK" if val == URL else f"MISMATCH ({val!r})")
+    print("Decode check:", "OK" if val == QR_URL else f"MISMATCH ({val!r})", "->", val)
 except ImportError:
     print("(opencv not installed, skipped decode check: scan it with a phone)")
 print("Wrote", *(p.name for p in sorted(OUT.iterdir())))
