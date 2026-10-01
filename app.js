@@ -708,7 +708,7 @@
       img.onload = function () {
         img.hidden = false;
         if (id === 'bannerImg') $('hero').hidden = false;
-        else $('brandbar').hidden = false;
+        else { $('brandbar').hidden = false; if (id === 'logoLeft') $('eventName').hidden = true; }  // logo already says IFC 2026
       };
       img.src = src;
     };

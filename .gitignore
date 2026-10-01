@@ -1,4 +1,6 @@
 .DS_Store
 __pycache__/
-# internal notes, not for the public repo
+# internal, never public
 TO-GET.md
+source/
+*Facility Management*

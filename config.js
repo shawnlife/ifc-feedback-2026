@@ -19,10 +19,10 @@ window.IFC_CONFIG = {
   // BRANDING: put the image files in assets/brand/ and write their names here.
   // Leave any of them empty ('') to hide it.
   brand: {
-    logoLeft: '',      // e.g. 'assets/brand/resource-alliance-logo.svg'
-    logoLeftAlt: 'The Resource Alliance',
-    logoRight: '',     // e.g. 'assets/brand/ifc-2026-logo.svg'
-    logoRightAlt: 'IFC 2026',
+    logoLeft: 'assets/brand/ifc-2026-logo-white.webp',
+    logoLeftAlt: 'IFC 2026',
+    logoRight: 'assets/brand/presented-by-resource-alliance-white.webp',
+    logoRightAlt: 'Presented by the Resource Alliance',
     banner: ''         // e.g. 'assets/brand/banner.jpg' (wide image, shown short on phones)
   },
 

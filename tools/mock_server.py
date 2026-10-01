@@ -12,6 +12,7 @@ POST /_fail?on=1        makes /exec fail (simulates no signal); ?on=0 to recover
 
 import csv
 import json
+import os
 import re
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -53,7 +54,7 @@ class Handler(SimpleHTTPRequestHandler):
         elif u.path == "/exec":
             if state["fail"]:
                 return self.send_json({"ok": False}, 503)
-            with (ROOT / "sample-data" / "sessions-sample.csv").open(encoding="utf-8") as f:
+            with (ROOT / os.environ.get("MOCK_SESSIONS", "sample-data/sessions-sample.csv")).open(encoding="utf-8") as f:
                 self.send_json({"ok": True, "sessions": list(csv.DictReader(f))})
         elif u.path == "/_received":
             self.send_json(received)
