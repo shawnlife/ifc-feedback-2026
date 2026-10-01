@@ -8,7 +8,8 @@ service cloud.firestore {
     match /responses/{rid} {
       allow create: if rid.size() <= 64
         && rid.matches('^[A-Za-z0-9_-]+$')
-        && request.resource.data.keys().hasOnly(['rid', 'test', 'sentAt', 'session', 'answers', 'v', 'received'])
+        && request.resource.data.keys().hasOnly(['rid', 'test', 'sentAt', 'form', 'session', 'answers', 'v', 'received'])
+        && (!('form' in request.resource.data) || request.resource.data.form in ['attendee', 'leader'])
         && request.resource.data.rid == rid
         && request.resource.data.received == request.time
         && request.resource.data.test is bool

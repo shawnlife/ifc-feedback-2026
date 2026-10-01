@@ -20,13 +20,20 @@
   var col = function (q) { return q.column || q.label; };
   var OVERALL = RATINGS[0] ? col(RATINGS[0]) : null;
   var PRACTICE = CHOICES[0] || null;          // "Will you put something into practice?"
+  // Session leader form
+  var LQ = CFG.leaderQuestions || [];
+  var L_NAME = LQ.filter(function (q) { return q.type === 'name'; }).map(col)[0];
+  var L_RATINGS = LQ.filter(function (q) { return q.type === 'rating'; });
+  var L_TEXTS = LQ.filter(function (q) { return q.type === 'text'; });
+  var L_ISSUES = L_TEXTS[0] ? col(L_TEXTS[0]) : null;          // "Key issues"
+  var L_OVERALL = L_RATINGS[0] ? col(L_RATINGS[0]) : null;
 
   var $ = function (id) { return document.getElementById(id); };
   var state = {
     key: null, data: null, lastOk: 0, tab: 'overview',
     sortBy: 'avg0', sortDir: -1, minN: 3, scorecard: '', commentsShown: 100
   };
-  var sessions = [], byId = {}, rows = [];
+  var sessions = [], byId = {}, rows = [], leaders = [];
 
 
   /* ---------- helpers ---------- */
@@ -124,6 +131,15 @@
         room: s ? s.room : r.Room || '', date: s ? s.date : String(r.Date || '').slice(0, 10),
         start: s ? s.start : (t[0] || '').trim(), track: s ? s.track : r.Track || '', type: s ? s.type : '',
         source: r['Came from'] || 'Unknown'
+      };
+    });
+    leaders = (state.data.leaders || []).map(function (r) {
+      var id = String(r['Session ID'] || ''), s = byId[id];
+      return {
+        raw: r, id: id, when: r.Timestamp, name: r[L_NAME] || '',
+        title: s ? s.title : r.Session || '', speakers: s ? s.speakers : r.Speakers || '',
+        room: s ? s.room : r.Room || '', date: s ? s.date : String(r.Date || '').slice(0, 10),
+        start: s ? s.start : String(r.Time || '').split(/[–-]/)[0].trim(), track: s ? s.track : r.Track || '', type: s ? s.type : ''
       };
     });
     fillFilters();
@@ -272,7 +288,9 @@
     list.forEach(function (r) { if (!r.typed) (groups[r.id] = groups[r.id] || []).push(r); });
     return fSessions().map(function (s) {
       var g = groups[s.id] || [], st = statsFor(g);
-      return { s: s, st: st, rate: s.attendance ? st.n / s.attendance : null };
+      var lr = leaders.filter(function (l) { return l.id === s.id; }).map(function (l) { return num(l.raw[L_OVERALL]); })
+        .filter(function (v) { return v != null; });
+      return { s: s, st: st, rate: s.attendance ? st.n / s.attendance : null, leader: mean(lr) };
     });
   }
 
@@ -286,6 +304,7 @@
       if (key === 'rate') return d.rate == null ? -1 : d.rate;
       if (key === 'practice') return d.st.practiceN ? d.st.practiceYes / d.st.practiceN : -1;
       if (key === 'when') return d.s.date + d.s.start + d.s.room;
+      if (key === 'leader') return d.leader == null ? -1 : d.leader;
       if (key === 'title') return d.s.title.toLowerCase();
       var i = +key.slice(3); return d.st.avgs[i] == null ? -1 : d.st.avgs[i];
     };
@@ -306,7 +325,7 @@
     html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + th('title', 'Session') + th('when', 'When / room') + th('n', 'Responses', 1) +
       (hasRate ? th('rate', 'Response rate', 1) : '') +
       RATINGS.map(function (q, i) { return th('avg' + i, esc(col(q).replace(' (1-5)', '')), 1); }).join('') +
-      (PRACTICE ? th('practice', 'Will apply', 1) : '') + '</tr></thead><tbody>';
+      (PRACTICE ? th('practice', 'Will apply', 1) : '') + (L_OVERALL ? th('leader', 'Leader score', 1) : '') + '</tr></thead><tbody>';
     html += shown.map(function (d) {
       return '<tr><td><button type="button" class="linkish" data-card="' + esc(d.s.id) + '">' + esc(d.s.title) + '</button>' +
         (d.s.speakers ? '<div class="t-sub">' + esc(d.s.speakers) + '</div>' : '') + '</td>' +
@@ -316,7 +335,8 @@
         d.st.avgs.map(function (a, i) {
           return '<td class="num">' + fmt1(a) + (i === 0 && a != null ? '<span class="scorebar" aria-hidden="true"><i style="width:' + (a / 5 * 100) + '%"></i></span>' : '') + '</td>';
         }).join('') +
-        (PRACTICE ? '<td class="num">' + pct(d.st.practiceYes, d.st.practiceN) + '</td>' : '') + '</tr>';
+        (PRACTICE ? '<td class="num">' + pct(d.st.practiceYes, d.st.practiceN) + '</td>' : '') +
+        (L_OVERALL ? '<td class="num">' + fmt1(d.leader) + '</td>' : '') + '</tr>';
     }).join('') + '</tbody></table></div>';
     if (!shown.length) html += '<p class="empty">No sessions have that many responses yet. Lower the minimum above.</p>';
     $('tab-rankings').innerHTML = html;
@@ -326,11 +346,12 @@
     var data = rankingData();
     var head = ['Session ID', 'Session', 'Speakers', 'Room', 'Day', 'Start', 'Track', 'Responses']
       .concat(RATINGS.map(function (q) { return 'Average ' + col(q); }))
-      .concat(PRACTICE ? ['% ' + PRACTICE.options[0]] : []);
+      .concat(PRACTICE ? ['% ' + PRACTICE.options[0]] : []).concat(L_OVERALL ? ['Leader score'] : []);
     var lines = [head].concat(data.map(function (d) {
       return [d.s.id, d.s.title, d.s.speakers, d.s.room, d.s.date, d.s.start, d.s.track, d.st.n]
         .concat(d.st.avgs.map(function (a) { return a == null ? '' : a.toFixed(2); }))
-        .concat(PRACTICE ? [d.st.practiceN ? Math.round(100 * d.st.practiceYes / d.st.practiceN) : ''] : []);
+        .concat(PRACTICE ? [d.st.practiceN ? Math.round(100 * d.st.practiceYes / d.st.practiceN) : ''] : [])
+        .concat(L_OVERALL ? [d.leader == null ? '' : d.leader.toFixed(1)] : []);
     }));
     var csv = lines.map(function (l) {
       return l.map(function (v) {
@@ -376,7 +397,8 @@
     var html = '<article class="card"><h3>' + esc(s.title) + '</h3><div class="meta">' +
       esc([s.speakers, s.room, dayLabel(s.date) + (s.start ? ', ' + s.start + (s.end ? '–' + s.end : '') : '')].filter(Boolean).join(' · ')) +
       ' · <strong>' + st.n + ' responses</strong>' + (s.attendance ? ' (' + Math.round(100 * st.n / s.attendance) + '% of ' + s.attendance + ' attendees)' : '') + '</div>';
-    if (!list.length) return html + '<p class="empty">No feedback yet.</p></article>';
+    html += leaderBlock(s);
+    if (!list.length) return html + '<p class="empty">No attendee feedback yet.</p></article>';
     html += '<div class="row">' + RATINGS.map(function (q, i) {
       var vals = list.map(function (r) { return num(r.raw[col(q)]); }).filter(function (v) { return v != null; });
       var counts = [5, 4, 3, 2, 1].map(function (n) { return vals.filter(function (v) { return v === n; }).length; });
@@ -402,10 +424,58 @@
     return html + '</article>';
   }
 
+  function leaderBlock(s) {
+    var ls = leaders.filter(function (l) { return l.id === s.id; });
+    if (!ls.length) return '';
+    return '<div class="leader-box"><div class="qname">Session leader report' + (ls.length > 1 ? 's' : '') + '</div>' +
+      ls.map(function (l) {
+        return '<div class="leader-one"><strong>' + esc(l.name || 'Session leader') + '</strong> · ' +
+          L_RATINGS.map(function (q) { return esc(q.label) + ' <strong>' + (num(l.raw[col(q)]) || '–') + '</strong>/5'; }).join(' · ') +
+          L_TEXTS.map(function (q) {
+            var v = l.raw[col(q)];
+            return v ? '<p class="' + (col(q) === L_ISSUES ? 'issue' : '') + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' : '';
+          }).join('') + '</div>';
+      }).join('') + '</div>';
+  }
+
+  // Session leaders tab: every report, key issues first
+  function renderLeaders() {
+    var list = leaders.filter(function (l) {
+      return matches(l, l.name + ' ' + L_TEXTS.map(function (q) { return l.raw[col(q)] || ''; }).join(' '));
+    }).sort(function (a, b) { return (a.date + a.start + a.room).localeCompare(b.date + b.start + b.room); });
+    var issues = list.filter(function (l) { return L_ISSUES && String(l.raw[L_ISSUES] || '').trim(); });
+    $('issueCount').textContent = leaders.filter(function (l) { return L_ISSUES && String(l.raw[L_ISSUES] || '').trim(); }).length || '';
+    var covered = {}; list.forEach(function (l) { covered[l.id] = 1; });
+    var html = '<div class="tiles">' +
+      tile('Leader reports', String(list.length), Object.keys(covered).length + ' of ' + fSessions().length + ' sessions covered') +
+      L_RATINGS.map(function (q) {
+        var vals = list.map(function (l) { return num(l.raw[col(q)]); }).filter(function (v) { return v != null; });
+        return tile('Average ' + q.label.toLowerCase(), vals.length ? fmt1(mean(vals)) + ' <small>/ 5</small>' : '–', vals.length + ' ratings');
+      }).join('') +
+      tile('Key issues raised', String(issues.length), issues.length ? 'Listed first below' : 'None so far') + '</div>';
+    var row = function (l) {
+      return '<tr' + (issues.indexOf(l) > -1 ? ' class="has-issue"' : '') + '><td><button type="button" class="linkish" data-card="' + esc(l.id) + '">' + esc(l.title) + '</button>' +
+        '<div class="t-sub">' + esc(dayLabel(l.date) + ', ' + l.start + ' · ' + l.room) + '</div></td>' +
+        '<td>' + esc(l.name) + '</td>' +
+        L_RATINGS.map(function (q) { return '<td class="num">' + (num(l.raw[col(q)]) || '–') + '</td>'; }).join('') +
+        '<td>' + L_TEXTS.map(function (q) {
+          var v = l.raw[col(q)];
+          return v ? '<p class="' + (col(q) === L_ISSUES ? 'issue' : '') + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' : '';
+        }).join('') + '</td></tr>';
+    };
+    var head = '<thead><tr><th>Session</th><th>Leader</th>' + L_RATINGS.map(function (q) { return '<th class="num">' + esc(q.label) + '</th>'; }).join('') + '<th>Comments</th></tr></thead>';
+    if (issues.length) html += '<h2 class="section">Key issues to look at</h2><div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + issues.map(row).join('') + '</tbody></table></div>';
+    html += '<h2 class="section">All leader reports</h2>' + (list.length
+      ? '<div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + list.map(row).join('') + '</tbody></table></div>'
+      : '<p class="empty">No session leader reports yet. The form is at <strong>/sessionleader</strong>.</p>');
+    $('tab-leaders').innerHTML = html;
+  }
+
   function renderScorecards() {
     var list = fRows(), groups = {};
     list.forEach(function (r) { if (!r.typed) (groups[r.id] = groups[r.id] || []).push(r); });
-    var ses = fSessions().filter(function (s) { return groups[s.id]; })
+    var withLeader = {}; leaders.forEach(function (l) { withLeader[l.id] = 1; });
+    var ses = fSessions().filter(function (s) { return groups[s.id] || withLeader[s.id]; })
       .sort(function (a, b) { return (a.date + a.start + a.room).localeCompare(b.date + b.start + b.room); });
     if (state.scorecard && !ses.some(function (s) { return s.id === state.scorecard; }) && byId[state.scorecard]) ses.unshift(byId[state.scorecard]);
     var html = '<div class="controls"><label>Session <select id="cardPick"><option value="">All sessions shown (' + ses.length + ')</option>' +
@@ -502,7 +572,7 @@
   /* ---------- page wiring ---------- */
 
   function renderAll() {
-    renderOverview(); renderRankings(); renderComments(); renderScorecards(); renderTyped();
+    renderOverview(); renderRankings(); renderComments(); renderLeaders(); renderScorecards(); renderTyped();
   }
 
   function updateStatus() {

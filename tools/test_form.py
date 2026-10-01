@@ -268,6 +268,26 @@ with sync_playwright() as p:
         check(expect in txt, f"{name}: '{txt[:70]}'")
         cx.close()
 
+    print("Session leader form (/sessionleader)")
+    lc = b.new_context(viewport={"width": 390, "height": 800}); lp = lc.new_page()
+    lp.goto(BASE + "sessionleader/?now=2026-10-14T12:40"); lp.wait_for_selector(".result")
+    check("leader" in lp.url and lp.inner_text("h1").lower() == "session leader feedback", f"/sessionleader opens the leader form ({lp.url})")
+    check("leading" in lp.inner_text("#findLabel"), "asks which session they were leading")
+    lp.locator(".result").first.click()
+    check(lp.locator(".name-input").count() == 1 and lp.locator(".q-help").count() >= 4, "name field and question explanations shown")
+    lp.click("label[for=q1_4]"); lp.click("label[for=q2_5]"); lp.click("label[for=q3_3]")
+    lp.fill("#q5", "Packed room, brilliant Q&A")
+    lp.click("#submitBtn")
+    check(lp.is_visible("#stepForm") and "highlighted" in lp.inner_text("#formError"), "name is required")
+    lp.fill("#q0", "Test Leader"); lp.click("#submitBtn"); lp.wait_for_selector("#stepDone:not([hidden])")
+    last = received()[-1]
+    check(last.get("form") == "leader" and last["answers"].get("Session leader name") == "Test Leader"
+          and last["answers"].get("Leader: Overall (1-5)") == 4 and last["answers"].get("Leader: Final comments"), "leader report sent, marked as leader, answers in the right columns")
+    check(lp.is_hidden("#homeTip"), "no home-screen tip for leaders")
+    lp.click("#againBtn"); lp.locator(".result").nth(1).click()
+    check(lp.input_value("#q0") == "Test Leader", "leader's name remembered for the next session")
+    lc.close()
+
     print("Logos")
     check(page.locator(".brandbar a[href='https://www.resource-alliance.org/']").count() == 2, "both logos link to resource-alliance.org")
 

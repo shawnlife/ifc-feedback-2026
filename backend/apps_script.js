@@ -9,6 +9,7 @@
  *                     up changes within about a minute.
  *   Responses       : one row per feedback submission. Do not edit the header row.
  *   Test responses  : anything sent from the form with ?test on the end of the URL.
+ *   Session leader feedback : reports from the /sessionleader form (Test leader feedback for ?test).
  *   Summary         : per-session averages, rebuilt from the "IFC Feedback" menu.
  *   Raw log         : (hidden) MASTER COPY. Every response lands here first, exactly as
  *                     sent, then moves to Responses within a minute. Never edit it.
@@ -33,6 +34,8 @@ var RESPONSES = 'Responses';
 var TEST_RESPONSES = 'Test responses';
 var SUMMARY = 'Summary';
 var RAW_LOG = 'Raw log';
+var LEADER = 'Session leader feedback';
+var TEST_LEADER = 'Test leader feedback';
 var BACKUP_FOLDER = 'IFC 2026 Feedback backups';
 var BACKUPS_TO_KEEP = 48;
 
@@ -79,7 +82,7 @@ function setup() {
     s.getRange(1, 1, 1, SESSION_HEADERS.length).setValues([SESSION_HEADERS]).setFontWeight('bold');
     s.setFrozenRows(1);
   }
-  [RESPONSES, TEST_RESPONSES].forEach(function (name) {
+  [RESPONSES, TEST_RESPONSES, LEADER, TEST_LEADER].forEach(function (name) {
     var sh = ss.getSheetByName(name);
     if (!sh) {
       sh = ss.insertSheet(name);
@@ -325,7 +328,8 @@ function processQueue() {
     }
     last = Math.min(last, from + MAX_ROWS_PER_RUN - 1);   // big backlog: do it in slices, one per minute
     var block = raw.getRange(from, 1, last - from + 1, 5).getValues();
-    var out = { RESPONSE: [], TEST: [], EVENT: [] }, status = [];
+    var out = { EVENT: [] }, status = [];
+    out[RESPONSES] = []; out[TEST_RESPONSES] = []; out[LEADER] = []; out[TEST_LEADER] = [];
     var ids = sessionIds_();                    // looked up once for the whole batch
     block.forEach(function (r) {
       var kind = r[2], st = r[4];
@@ -337,13 +341,13 @@ function processQueue() {
         var c = clean_(p, ids);
         if (!c) { status.push(['rejected']); return; }
         c.base.Timestamp = r[0];
-        out[kind].push(c);
+        var test = kind === 'TEST', leader = p.form === 'leader';
+        out[leader ? (test ? TEST_LEADER : LEADER) : (test ? TEST_RESPONSES : RESPONSES)].push(c);
         saved[r[1]] = 1;
         status.push(['saved']);
       } catch (err) { status.push(['rejected']); }
     });
-    writeRows_(RESPONSES, out.RESPONSE);
-    writeRows_(TEST_RESPONSES, out.TEST);
+    [RESPONSES, TEST_RESPONSES, LEADER, TEST_LEADER].forEach(function (name) { writeRows_(name, out[name]); });
     if (out.EVENT.length) {
       var ev = eventsSheet_();
       ev.getRange(ev.getLastRow() + 1, 1, out.EVENT.length, 3).setValues(out.EVENT);
@@ -351,7 +355,7 @@ function processQueue() {
     raw.getRange(from, 5, status.length, 1).setValues(status);
     props.setProperty('RAW_NEXT_ROW', String(last + 1));
     props.setProperty('LAST_PROCESSED', new Date().toISOString());
-    return out.RESPONSE.length + out.TEST.length;
+    return status.filter(function (x) { return x[0] === 'saved'; }).length;
   } finally {
     lock.releaseLock();
   }
@@ -389,7 +393,7 @@ function clean_(p, ids) {
 
 function writeRows_(name, list) {
   if (!list.length) return;
-  var sh = responsesSheet_(name === TEST_RESPONSES);
+  var sh = sheetFor_(name);
   var head = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0].map(String);
   list.forEach(function (c) {
     Object.keys(c.answers).forEach(function (col) {
@@ -402,9 +406,10 @@ function writeRows_(name, list) {
   sh.getRange(sh.getLastRow() + 1, 1, rows.length, head.length).setValues(rows);
 }
 
-function responsesSheet_(isTest) {
+function responsesSheet_(isTest) { return sheetFor_(isTest ? TEST_RESPONSES : RESPONSES); }
+
+function sheetFor_(name) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var name = isTest ? TEST_RESPONSES : RESPONSES;
   var sh = ss.getSheetByName(name);
   if (!sh) {
     sh = ss.insertSheet(name);
@@ -467,9 +472,9 @@ function dashboard_(p) {
   if (denied) return json_(denied);
   try { processQueue(); } catch (err) { /* the minute trigger will catch up */ }
   var ss = SpreadsheetApp.getActiveSpreadsheet(), tz = ss.getSpreadsheetTimeZone();
-  var sh = ss.getSheetByName(p.test === true ? TEST_RESPONSES : RESPONSES);
-  var responses = [];
-  if (sh && sh.getLastRow() > 1) {
+  var readTab = function (name) {
+    var sh = ss.getSheetByName(name), list = [];
+    if (!sh || sh.getLastRow() < 2) return list;
     var data = sh.getDataRange().getValues();
     var head = data[0].map(String);
     for (var r = 1; r < data.length; r++) {
@@ -480,9 +485,12 @@ function dashboard_(p) {
         if (v instanceof Date) v = head[c] === 'Date' ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : v.toISOString();
         o[head[c]] = v;
       }
-      responses.push(o);
+      list.push(o);
     }
-  }
+    return list;
+  };
+  var responses = readTab(p.test === true ? TEST_RESPONSES : RESPONSES);
+  var leaders = readTab(p.test === true ? TEST_LEADER : LEADER);
   var events = {}, ev = ss.getSheetByName('Events');
   if (ev && ev.getLastRow() > 1) {
     ev.getRange(2, 1, ev.getLastRow() - 1, 3).getValues().forEach(function (r) {
@@ -493,7 +501,7 @@ function dashboard_(p) {
   var raw = ss.getSheetByName(RAW_LOG);
   var waiting = raw ? Math.max(0, raw.getLastRow() + 1 - Number(props.getProperty('RAW_NEXT_ROW') || 2)) : 0;
   return json_({
-    ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, events: events,
+    ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, leaders: leaders, events: events,
     health: { lastProcessed: props.getProperty('LAST_PROCESSED'), waiting: waiting,
               firebase: FIREBASE_PROJECT_ID ? { lastSync: props.getProperty('FS_LAST_SYNC'), error: props.getProperty('FS_LAST_ERROR') } : null,
               automatic: ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'processQueue'; }) }
@@ -564,13 +572,15 @@ function turnOnBackups() { turnOnAutomation(); }
 
 function clearTestResponses() {
   var ui = SpreadsheetApp.getUi();
-  if (ui.alert('Clear test responses?', 'Deletes every row in the "Test responses" tab (the real Responses tab is not touched).', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
-  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TEST_RESPONSES);
-  if (sh && sh.getLastRow() > 1) {
-    var last = sh.getLastRow();
-    sh.insertRowAfter(last);            // Sheets won't delete every row under the header, so keep one blank row
-    sh.deleteRows(2, last - 1);
-  }
+  if (ui.alert('Clear test responses?', 'Deletes every row in the "Test responses" and "Test leader feedback" tabs (the real tabs are not touched).', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  [TEST_RESPONSES, TEST_LEADER].forEach(function (name) {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
+    if (sh && sh.getLastRow() > 1) {
+      var last = sh.getLastRow();
+      sh.insertRowAfter(last);          // Sheets won't delete every row under the header, so keep one blank row
+      sh.deleteRows(2, last - 1);
+    }
+  });
   var ev = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Events');
   if (ev && ev.getLastRow() > 1) {
     var keep = ev.getRange(2, 1, ev.getLastRow() - 1, 3).getValues().filter(function (r) { return r[2] !== 'test'; });

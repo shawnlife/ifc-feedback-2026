@@ -106,3 +106,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 15px; }
 
 .assign select { max-width: 320px; height: 38px; border: 2px solid var(--ink); background: var(--bg); }
 .assign .secondary.small { margin-left: 6px; }
+.count.warn { background: var(--danger); }
+.leader-box { margin: 0 0 18px; padding: 12px 14px; background: #fff7ec; border-left: 5px solid var(--accent); }
+.leader-one { margin-top: 6px; font-size: 15px; }
+.leader-one p, .tbl td p { margin: 4px 0 0; }
+p.issue { color: var(--danger); }
+p.issue .k { color: var(--danger); }
+tr.has-issue td:first-child { box-shadow: inset 4px 0 0 var(--danger); }

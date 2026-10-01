@@ -78,7 +78,29 @@ def fake_rows(n):
     return rows
 
 
+def fake_leaders():
+    import random
+    rnd = random.Random(11)
+    names = ["Anna de Groot", "Ben Okoro", "Chen Wei", "Dana Levi", "Eva Lindqvist", "Femi Adeyemi"]
+    issues = ["Projector failed for 10 minutes", "Room far too small, people standing", "Speaker ran 15 minutes over", ""]
+    notes = ["Packed room, great energy", "Lively Q&A, ran out of time", "A few people left halfway", "Speaker was outstanding"]
+    out = []
+    for s in [x for x in load_sessions() if x.get("Start")]:
+        if rnd.random() < 0.6:
+            o = rnd.randint(2, 5)
+            out.append(to_row({"session": {"id": s["ID"], "title": s["Title"], "speakers": s["Speakers"], "room": s["Room"],
+                                           "date": s["Date"], "start": s["Start"], "end": s["End"], "track": s["Track"]},
+                               "answers": {"Session leader name": rnd.choice(names), "Leader: Overall (1-5)": o,
+                                           "Leader: Audience engagement (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
+                                           "Leader: Content clarity (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
+                                           "Leader: Key issues": rnd.choices(issues, [1, 1, 1, 12])[0],
+                                           "Leader: Final comments": rnd.choice(notes), "Came from": "Link"}},
+                              f"{s['Date']}T{s['End'] or s['Start']}:00"))
+    return out
+
+
 FAKE = fake_rows(int(os.environ.get("MOCK_FAKE", "0"))) if os.environ.get("MOCK_FAKE") else []
+FAKE_LEADERS = fake_leaders() if os.environ.get("MOCK_FAKE") else []
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -171,7 +193,9 @@ class Handler(SimpleHTTPRequestHandler):
             if item.get("action") == "dashboard":
                 if item.get("key") != DASH_KEY:
                     return self.send_json({"ok": False, "error": "wrong password"})
-                rows = FAKE + [to_row(r) for r in received if bool(r.get("test")) == bool(item.get("test"))]
+                mine = [r for r in received if bool(r.get("test")) == bool(item.get("test"))]
+                rows = FAKE + [to_row(r) for r in mine if r.get("form") != "leader"]
+                leaders = FAKE_LEADERS + [to_row(r) for r in mine if r.get("form") == "leader"]
                 rows = [dict(r, _row=i + 2) for i, r in enumerate(rows)]
                 for i, r in enumerate(rows):
                     if r["_row"] in assigned:
@@ -182,7 +206,7 @@ class Handler(SimpleHTTPRequestHandler):
                 for e in events:
                     if bool(e.get("test")) == bool(item.get("test")):
                         ev[e["type"]] = ev.get(e["type"], 0) + 1
-                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows,
+                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows, "leaders": leaders,
                                        "events": ev, "health": {"automatic": True, "waiting": 0, "lastProcessed": None}})
             if item.get("action") == "assign":
                 if item.get("key") != DASH_KEY:

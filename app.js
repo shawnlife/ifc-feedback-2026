@@ -22,6 +22,10 @@
   var DEMO_CSV = CFG.demoSessions || 'sessions-ifc2026.csv';
   var params = new URLSearchParams(location.search);
   var TEST = params.has('test');
+  // Session leader form: same page, opened via /sessionleader/ (which adds ?leader)
+  var LEADER = params.has('leader');
+  var QUESTIONS = (LEADER ? CFG.leaderQuestions : CFG.questions) || [];
+  var NAME_KEY = 'ifc26-leader-name';
   var NOW_OVERRIDE = params.get('now'); // e.g. ?now=2026-10-14T11:00 to test the "just finished" list
 
   // QR codes point at the address with ?qr on the end. Remember that for this visit,
@@ -43,7 +47,7 @@
 
   var SESSIONS_KEY = 'ifc26-sessions-v1';
   var OUTBOX_KEY = 'ifc26-outbox-v1';
-  var RATED_KEY = 'ifc26-rated-v1';
+  var RATED_KEY = LEADER ? 'ifc26-rated-leader-v1' : 'ifc26-rated-v1';
   var RECENT_WINDOW_MIN = 150;   // sessions that ended up to 2.5h ago count as "just finished"
   var SHOW_FIRST = 10;           // results shown before "Show all"
   var REFRESH_AFTER_MS = 5 * 60 * 1000;
@@ -563,29 +567,42 @@
 
   function buildQuestions() {
     var html = '';
-    (CFG.questions || []).forEach(function (q, i) {
+    QUESTIONS.forEach(function (q, i) {
       var name = 'q' + i, req = q.required ? '&nbsp;<span class="req" aria-hidden="true">*</span>' : '';
+      var help = q.help ? '<p class="q-help" id="' + name + '_help">' + esc(q.help) + '</p>' : '';
+      var desc = q.help ? ' aria-describedby="' + name + '_help"' : '';
       if (q.type === 'rating') {
-        html += '<fieldset class="q" data-i="' + i + '"><legend>' + esc(q.label) + req + '</legend><div class="stars">';
+        html += '<fieldset class="q" data-i="' + i + '"' + desc + '><legend>' + esc(q.label) + req + '</legend>' + help + '<div class="stars">';
         for (var n = 1; n <= 5; n++) {
           html += '<input type="radio" id="' + name + '_' + n + '" name="' + name + '" value="' + n + '"' + (q.required ? ' required' : '') + '>' +
             '<label for="' + name + '_' + n + '" aria-label="' + n + ' out of 5">' + STAR + '</label>';
         }
         html += '</div><div class="scale-ends"><span>' + esc(q.low || '') + '</span><span>' + esc(q.high || '') + '</span></div></fieldset>';
       } else if (q.type === 'choice') {
-        html += '<fieldset class="q" data-i="' + i + '"><legend>' + esc(q.label) + req + '</legend><div class="choices">';
+        html += '<fieldset class="q" data-i="' + i + '"' + desc + '><legend>' + esc(q.label) + req + '</legend>' + help + '<div class="choices">';
         (q.options || []).forEach(function (opt, j) {
           html += '<input type="radio" id="' + name + '_' + j + '" name="' + name + '" value="' + esc(opt) + '"' + (q.required ? ' required' : '') + '>' +
             '<label for="' + name + '_' + j + '">' + esc(opt) + '</label>';
         });
         html += '</div></fieldset>';
+      } else if (q.type === 'name') {
+        html += '<div class="q" data-i="' + i + '"><label for="' + name + '">' + esc(q.label) + req + '</label>' + help +
+          '<input type="text" class="name-input" id="' + name + '" name="' + name + '" maxlength="100" autocomplete="name"' + desc +
+          (q.required ? ' required' : '') + '></div>';
       } else {
-        html += '<div class="q" data-i="' + i + '"><label for="' + name + '">' + esc(q.label) + req + '</label>' +
-          '<textarea id="' + name + '" name="' + name + '" maxlength="1000" rows="3" placeholder="' + esc(q.placeholder || '') + '"' +
+        html += '<div class="q" data-i="' + i + '"><label for="' + name + '">' + esc(q.label) + req + '</label>' + help +
+          '<textarea id="' + name + '" name="' + name + '" maxlength="1000" rows="3" placeholder="' + esc(q.placeholder || '') + '"' + desc +
           (q.required ? ' required' : '') + '></textarea></div>';
       }
     });
     els.questions.innerHTML = html;
+  }
+
+  // Leaders rate several sessions: fill in their name from last time
+  function prefillName() {
+    QUESTIONS.forEach(function (q, i) {
+      if (q.type === 'name' && $('q' + i) && !$('q' + i).value) $('q' + i).value = store(NAME_KEY) || '';
+    });
   }
 
   // Fill stars up to the chosen one
@@ -604,6 +621,7 @@
   function choose(s) {
     selected = s;
     els.stepForm.reset();
+    prefillName();
     els.stepForm.querySelectorAll('.stars').forEach(function (st) { paintStars(st.parentNode); });
     els.stepForm.querySelectorAll('.invalid').forEach(function (x) { x.classList.remove('invalid'); });
     els.stepForm.querySelectorAll('.q-error').forEach(function (x) { x.remove(); });
@@ -636,9 +654,9 @@
     var answers = {}, firstBad = null;
     els.stepForm.querySelectorAll('.invalid').forEach(function (x) { x.classList.remove('invalid'); });
     els.stepForm.querySelectorAll('.q-error').forEach(function (x) { x.remove(); });
-    (CFG.questions || []).forEach(function (q, i) {
+    QUESTIONS.forEach(function (q, i) {
       var val;
-      if (q.type === 'text') val = ($('q' + i).value || '').trim();
+      if (q.type === 'text' || q.type === 'name') val = ($('q' + i).value || '').trim();
       else val = (els.stepForm.querySelector('input[name="q' + i + '"]:checked') || {}).value || '';
       if (q.type === 'rating' && val) val = +val;
       answers[q.column || q.label] = val;
@@ -684,7 +702,7 @@
   function sendFirebase(item) {
     var ctrl = window.AbortController ? new AbortController() : null;
     var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 15000);
-    var fields = toFs({ rid: item.rid, test: item.test, sentAt: item.sentAt, session: item.session, answers: item.answers, v: 1 }).mapValue.fields;
+    var fields = toFs({ rid: item.rid, test: item.test, sentAt: item.sentAt, form: item.form || 'attendee', session: item.session, answers: item.answers, v: 1 }).mapValue.fields;
     var body = { writes: [{
       update: { name: FS_DOCS.replace(/^.*?\/projects\//, 'projects/') + '/responses/' + item.rid, fields: fields },
       currentDocument: { exists: false },                                   // create only, never overwrite
@@ -776,8 +794,10 @@
       session: s.manual
         ? { id: 'NOT LISTED', title: c.manualName }
         : { id: s.id, title: s.title, speakers: s.speakers, room: s.room, date: s.date, start: s.start, end: s.end, track: s.track },
+      form: LEADER ? 'leader' : 'attendee',
       answers: Object.assign({}, c.answers, { 'Came from': SOURCE })
     };
+    QUESTIONS.forEach(function (q) { if (q.type === 'name' && c.answers[q.column || q.label]) store(NAME_KEY, c.answers[q.column || q.label]); });
 
     if (!s.manual) {
       var r = rated();
@@ -810,7 +830,7 @@
       demo: 'Demo mode: nothing was saved. Connect the Google Sheet in config.js to go live.'
     }[state];
     $('doneTitle').textContent = state === 'rejected' ? 'Not sent' : 'Thank you!';
-    if (state !== 'rejected') showHomeTip();
+    if (state !== 'rejected' && !LEADER) showHomeTip();
     showStep('done');
     history.replaceState({ step: 'done' }, '');
     $('stepDone').focus();
@@ -890,6 +910,14 @@
   function init() {
     setupHelp();
     els.eventName.textContent = CFG.eventName || 'IFC 2026';
+    if (LEADER) {
+      document.title = (CFG.eventName || 'IFC 2026') + ' Session Leader Feedback';
+      document.querySelector('h1').textContent = 'Session leader feedback';
+      $('findLabel').textContent = 'Which session were you leading?';
+      document.querySelector('#stepForm .privacy').textContent = 'Your name is only seen by the IFC team.';
+      $('anonNote').textContent = 'For IFC 2026 session leaders.';
+      els.againBtn.textContent = 'Report on another session';
+    }
     applyBrand();
     if (DEMO) banner('Demo mode: nothing is saved.');
     else if (TEST) banner('Test mode: responses go to the "Test responses" tab, not the real results.');
