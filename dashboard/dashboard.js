@@ -29,6 +29,9 @@
   var L_OVERALL = L_RATINGS[0] ? col(L_RATINGS[0]) : null;
 
   var $ = function (id) { return document.getElementById(id); };
+  var qs = new URLSearchParams(location.search);
+  if (qs.has('analytics')) store('local', 'ifc26-analytics', qs.get('analytics') === 'off' ? null : '1');
+  var ANALYTICS = store('local', 'ifc26-analytics') === '1';
   var state = {
     key: null, data: null, lastOk: 0, tab: 'overview',
     sortBy: 'avg0', sortDir: -1, minN: 3, scorecard: '', commentsShown: 100
@@ -202,9 +205,6 @@
     var st = statsFor(list), ses = fSessions();
     var rated = {}; real.forEach(function (r) { rated[r.id] = 1; });
     var ratedN = ses.filter(function (s) { return rated[s.id]; }).length;
-    var src = {}; list.forEach(function (r) { src[r.source] = (src[r.source] || 0) + 1; });
-    var srcTxt = ['QR code', 'Link', 'Home screen'].filter(function (k) { return src[k]; })
-      .map(function (k) { return k + ' ' + pct(src[k], list.length); }).join(' · ') || '–';
     var last = list.reduce(function (m, r) { var t = Date.parse(r.when); return t > m ? t : m; }, 0);
 
     var html = '<div class="tiles">' +
@@ -212,16 +212,6 @@
       tile('Sessions with feedback', ratedN + ' <small>of ' + ses.length + '</small>', pct(ratedN, ses.length) + ' of sessions') +
       tile('Average overall', st.avgs[0] == null ? '–' : fmt1(st.avgs[0]) + ' <small>/ 5</small>', 'From ' + list.filter(function (r) { return num(r.raw[OVERALL]) != null; }).length + ' ratings') +
       (PRACTICE ? tile('Will put into practice', pct(st.practiceYes, st.practiceN), '“' + esc(PRACTICE.options[0]) + '”, of ' + st.practiceN + ' who answered') : '') +
-      tile('How people got here', '', srcTxt) +
-      '</div>';
-    var ev = state.data.events || {};
-    html += '<h2 class="section">Clicks and installs</h2><p class="sub">Anonymous counts. Installs can only be counted on Android; ' +
-      'iPhones show up as "Home screen" opens instead.</p><div class="tiles">' +
-      tile('“Contact us” clicks', String(ev.help || 0), 'People who tapped the help link') +
-      tile('ShawnLife clicks', String(ev.shawnlife || 0), 'Footer credit link') +
-      tile('Saw the home-screen tip', String(ev['tip-shown'] || 0), 'Shown on the thank-you screen') +
-      tile('Added to home screen', String(ev.installed || 0), 'Android installs') +
-      tile('Opened from home screen', String(src['Home screen'] || 0), 'Responses sent from the home-screen icon') +
       '</div>';
 
     // responses per time block
@@ -238,6 +228,30 @@
       '<button type="button" class="link table-toggle" data-toggle="blockTable">Show as a table</button>' +
       '<div id="blockTable" hidden>' + blockTable(order.map(function (k) { return blocks[k]; })) + '</div>';
     $('tab-overview').innerHTML = html;
+  }
+
+  // Analytics: how people use the tool (for Shawn)
+  function renderAnalytics() {
+    if (!ANALYTICS) return;
+    var list = fRows(), src = {};
+    list.forEach(function (r) { src[r.source] = (src[r.source] || 0) + 1; });
+    var ev = state.data.events || {}, u = (state.data.health || {}).usage || {};
+    var html = '<h2 class="section">How people got to the form</h2><p class="sub">Per response, with the filters above applied.</p><div class="tiles">' +
+      ['QR code', 'Link', 'Home screen'].map(function (k) {
+        return tile(k, String(src[k] || 0), pct(src[k] || 0, list.length) + ' of responses');
+      }).join('') + '</div>' +
+      '<h2 class="section">Clicks and installs</h2><p class="sub">Anonymous counts (not filtered). Installs can only be counted on Android; ' +
+      'iPhones show up as "Home screen" responses instead.</p><div class="tiles">' +
+      tile('“Contact us” clicks', String(ev.help || 0), 'People who tapped the help link') +
+      tile('ShawnLife clicks', String(ev.shawnlife || 0), 'Footer credit link') +
+      tile('Saw the home-screen tip', String(ev['tip-shown'] || 0), 'Shown on the thank-you screen') +
+      tile('Added to home screen', String(ev.installed || 0), 'Android installs') +
+      '</div>' +
+      '<h2 class="section">Google limits today</h2><p class="sub">Free-plan daily allowances. An email goes to Shawn well before either runs out.</p><div class="tiles">' +
+      tile('Background script time', (u.runMinutes == null ? '–' : u.runMinutes) + ' <small>of 90 min</small>', 'Resets daily') +
+      tile('Firebase reads', (u.firebaseReads == null ? '–' : u.firebaseReads.toLocaleString()) + ' <small>of 50,000</small>', 'Resets 09:00 Netherlands time') +
+      '</div>';
+    $('tab-analytics').innerHTML = html;
   }
 
   function tile(label, value, note) {
@@ -572,7 +586,7 @@
   /* ---------- page wiring ---------- */
 
   function renderAll() {
-    renderOverview(); renderRankings(); renderComments(); renderLeaders(); renderScorecards(); renderTyped();
+    renderOverview(); renderRankings(); renderComments(); renderLeaders(); renderScorecards(); renderTyped(); renderAnalytics();
   }
 
   function updateStatus() {
@@ -582,8 +596,7 @@
       ? (fresh ? 'Live · ' : 'Not updating · ') + 'updated ' + ago(Date.now() - state.lastOk) +
         ($('showTest').checked ? ' · showing TEST responses' : '')
       : 'Loading…';
-    var u = state.data && state.data.health && state.data.health.usage;
-    if (u) $('updated').textContent += ' · today: ' + u.runMinutes + ' of 90 background min, ' + u.firebaseReads.toLocaleString() + ' of 50,000 Firebase reads';
+
   }
 
   // Warn if responses are piling up in the Raw log instead of reaching the Sheet tabs
@@ -623,6 +636,7 @@
   }
 
   function init() {
+    $('analyticsTab').hidden = !ANALYTICS;
     if (!API) { $('login').hidden = false; $('loginError').textContent = 'No Google Sheet address in config.js yet.'; return; }
     // A sign-in link carries the password after #, which never leaves the browser.
     // It is remembered on this device and then tidied out of the address bar.

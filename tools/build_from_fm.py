@@ -19,7 +19,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 FM = next((ROOT / "source").glob("*Facility Management*.csv"))
-DAYS = {"tuesday": "2026-10-20", "wednesday": "2026-10-21", "thursday": "2026-10-22", "friday": "2026-10-23"}
+# Tuesday is left out (Shawn, 2 Oct): the Leadership Summit isn't reviewed, and masterclasses
+# are reviewed once, at the end of part 2 on Wednesday.
+DAYS = {"wednesday": "2026-10-21", "thursday": "2026-10-22", "friday": "2026-10-23"}
 
 # Things nobody gives session feedback on (or Shawn asked to leave out)
 SKIP = re.compile(r"(set ?up|^welcome to ifc|plenary|pub quiz|dinner|drinks|reception|gala|disco|dressing|"
