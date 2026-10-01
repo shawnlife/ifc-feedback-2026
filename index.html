@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IFC 2026 Session Feedback</title>
+<meta name="description" content="Rate the IFC 2026 session you just attended. Takes under a minute, no login.">
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script src="config.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<!-- Logos and banner image are set in config.js (brand section) -->
+<div class="brandbar" id="brandbar" hidden>
+  <div class="brandbar-inner">
+    <img id="logoLeft" alt="" hidden>
+    <img id="logoRight" class="logo-event" alt="" hidden>
+  </div>
+</div>
+<div class="hero" id="hero" hidden><img id="bannerImg" alt=""></div>
+
+<div class="wrap">
+
+  <header class="top">
+    <p class="kicker" id="eventName">IFC 2026</p>
+    <h1>Session feedback</h1>
+  </header>
+
+  <p class="banner" id="banner" hidden></p>
+
+  <!-- STEP 1: find the session -->
+  <section id="stepFind" aria-labelledby="findLabel">
+    <label class="search-label" id="findLabel" for="q">Which session did you attend?</label>
+    <p class="hint" id="qHint">Type anything you remember: speaker, room, topic or time.</p>
+    <div class="search">
+      <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+             enterkeyhint="search" placeholder="e.g. Room 4, Sofia, legacy" aria-describedby="qHint status">
+      <button type="button" class="clear" id="qClear" aria-label="Clear search" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+    <h2 class="list-heading" id="listHeading" hidden></h2>
+    <ul class="results" id="results"></ul>
+    <div class="alt-actions">
+      <button type="button" class="link" id="browseBtn">Browse all sessions</button>
+      <button type="button" class="link" id="manualBtn">My session isn't listed</button>
+    </div>
+  </section>
+
+  <!-- STEP 2: questions -->
+  <form id="stepForm" hidden novalidate>
+    <div class="chosen" id="chosen"></div>
+    <div id="questions"></div>
+    <!-- Honeypot: invisible to people, bots fill it in -->
+    <div class="hp" aria-hidden="true"><label>Leave empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
+    <p class="form-error" id="formError" role="alert"></p>
+    <button type="submit" class="primary" id="submitBtn">Send feedback</button>
+    <p class="privacy">Anonymous. We don't ask for your name or email.</p>
+  </form>
+
+  <!-- STEP 3: done -->
+  <section id="stepDone" hidden tabindex="-1" aria-labelledby="doneTitle">
+    <div class="done-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+    </div>
+    <h2 id="doneTitle">Thank you!</h2>
+    <p id="doneText">Your feedback has been sent.</p>
+    <button type="button" class="primary" id="againBtn">Rate another session</button>
+  </section>
+
+  <footer class="foot">
+    <p>Tool made using AI vibe-coding by <a href="https://shawnlife.com" target="_blank" rel="noopener">ShawnLife</a></p>
+  </footer>
+</div>
+
+<noscript><p class="noscript">This form needs JavaScript switched on in your browser.</p></noscript>
+</body>
+</html>

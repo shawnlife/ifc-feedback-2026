@@ -1,0 +1,3021 @@
+[
+ {
+  "title": "Live stream test",
+  "date": null,
+  "time": "",
+  "type": "",
+  "rest": [],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Drinks Reception",
+  "date": "19 October 2026",
+  "time": "19:00-19:30CET",
+  "type": "",
+  "rest": [
+   "Erasmus Lounge"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Buffet Dinner",
+  "date": "19 October 2026",
+  "time": "19:30-22:00CET",
+  "type": "",
+  "rest": [
+   "North & South Beach Restaurants"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Breakfast",
+  "date": "20 October 2026",
+  "time": "07:00-10:00CET",
+  "type": "",
+  "rest": [
+   "North & South Beach Restaurants"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Arrival & Registration: Masterclass Delegates",
+  "date": "20 October 2026",
+  "time": "08:00-14:00CET",
+  "type": "",
+  "rest": [
+   "Registration Lobby"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Speaker Welcome",
+  "date": "20 October 2026",
+  "time": "10:00-11:00CET",
+  "type": "",
+  "rest": [
+   "Innovation Hub"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Lunch",
+  "date": "20 October 2026",
+  "time": "12:00-14:00CET",
+  "type": "",
+  "rest": [
+   "North & South Beach Restaurants"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Welcome to IFC",
+  "date": "20 October 2026",
+  "time": "12:45-13:30CET",
+  "type": "",
+  "rest": [
+   "Innovation Hub"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Masterclass Tuesday Leading Long-Term Transformation",
+  "date": "20 October 2026",
+  "time": "14:00-17:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Erasmus 7",
+   "TMC5"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Yadharshini Selvaraj",
+    "org": "Tea Leaf Trust"
+   },
+   {
+    "name": "Tim Pare",
+    "org": "Tea Leaf Trust"
+   },
+   {
+    "name": "Sutharshan Visventhan",
+    "org": "The Cookstove Project"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Tuesday: Audience-Led Decision-Making",
+  "date": "20 October 2026",
+  "time": "14:00-17:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Erasmus 1",
+   "TMC2"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Kit Lewis",
+    "org": "Aha Agency"
+   },
+   {
+    "name": "Rosie O'Connor",
+    "org": "VSO"
+   },
+   {
+    "name": "Alice Gayner",
+    "org": "Comic Relief"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Tuesday: Alternative Financing Models for Impact",
+  "date": "20 October 2026",
+  "time": "14:00-17:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Cambridge 30",
+   "TMC11"
+  ],
+  "track": "",
+  "speakers": [
+   {
+    "name": "Richard Hawkes",
+    "org": "Oxfam"
+   },
+   {
+    "name": "Ruth Davidson",
+    "org": "SASC Trust"
+   },
+   {
+    "name": "Leana de Beer",
+    "org": "WaFunda"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Tuesday: Building Growth That Doesn’t Break Trust",
+  "date": "20 October 2026",
+  "time": "14:00-17:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Boston 13",
+   "TMC3"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Lindsay Marino Long",
+    "org": "Faircom New York"
+   },
+   {
+    "name": "Ishmam Rahman",
+    "org": "International Rescue Committee"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Tuesday: From Data Overwhelm to Strategic Impact",
+  "date": "20 October 2026",
+  "time": "14:00-17:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Boston 11",
+   "TMC9"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Erin Hamilainen",
+    "org": "Slingshot Data"
+   },
+   {
+    "name": "Fiona McPhee",
+    "org": "Revolutionise"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Tuesday: Great Fundraising Leadership",
+  "date": "20 October 2026",
+  "time": "14:00-17:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Cambridge 32",
+   "TMC4"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Colin Skehan",
+    "org": "Revolutionise International Ltd"
+   },
+   {
+    "name": "Jayne George",
+    "org": "RNLI"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Tuesday: Leading Fundraising Systems in Uncertainty",
+  "date": "20 October 2026",
+  "time": "14:00-17:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Boston 17",
+   "TMC8"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Luke Mallett",
+    "org": "Ripple Effect"
+   },
+   {
+    "name": "Damian Chapman",
+    "org": "Fundraiser In The Room"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Tuesday: Major Donor Fundraising in Complex Times",
+  "date": "20 October 2026",
+  "time": "14:00-17:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Boston 15",
+   "TMC1"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Vincent Duckworth",
+    "org": "ViTreo Group Inc."
+   },
+   {
+    "name": "Konstantina Papadimitriou",
+    "org": "Inuksuk Consulting"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Tuesday: Power, Wealth, Philanthropy… and Justice?",
+  "date": "20 October 2026",
+  "time": "14:00-17:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Erasmus 5",
+   "TMC7"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Rowena Estwick",
+    "org": "Ten Years' Time"
+   },
+   {
+    "name": "Dee Brecker",
+    "org": "Ten Years' Time & Ginko Coaching & Consulting"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Tuesday: The AI-Ready Fundraiser",
+  "date": "20 October 2026",
+  "time": "14:00-17:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Boston 19",
+   "TMC10"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Andrew Sabatino",
+    "org": "Donor Republic"
+   },
+   {
+    "name": "Natalie Gibbs",
+    "org": "Cancer Council Victoria"
+   },
+   {
+    "name": "Saarah Abdeen",
+    "org": "ActionAid Australia"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Tuesday: Your Digital Engine Room",
+  "date": "20 October 2026",
+  "time": "14:00-17:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Erasmus 3",
+   "TMC6"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "JoAnne O'Donovan",
+    "org": "Dogs Trust Ireland"
+   },
+   {
+    "name": "Joshua Leigh",
+    "org": "Hynt"
+   },
+   {
+    "name": "Sarah Crowhurst",
+    "org": "Hynt"
+   }
+  ]
+ },
+ {
+  "title": "Drinks Reception",
+  "date": "20 October 2026",
+  "time": "19:00-20:00CET",
+  "type": "",
+  "rest": [
+   "The Boulevard"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Dinner",
+  "date": "20 October 2026",
+  "time": "19:30-21:00CET",
+  "type": "",
+  "rest": [
+   "North & South Beach Restaurants"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Pub Quiz",
+  "date": "20 October 2026",
+  "time": "21:00-23:00CET",
+  "type": "",
+  "rest": [
+   "Cheers Bar"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Breakfast",
+  "date": "21 October 2026",
+  "time": "07:00-10:00CET",
+  "type": "",
+  "rest": [
+   "North & South Beach Restaurants"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Yoga",
+  "date": "21 October 2026",
+  "time": "07:00-07:45CET",
+  "type": "",
+  "rest": [
+   "Sorbonne 8"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Arrival & Registration: Standard Programme Delegates",
+  "date": "21 October 2026",
+  "time": "08:00-14:00CET",
+  "type": "",
+  "rest": [
+   "Registration Lobby"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Masterclass Wednesday: Audience-Led Decision-Making",
+  "date": "21 October 2026",
+  "time": "09:00-12:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Erasmus 1",
+   "WMC2"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Kit Lewis",
+    "org": "Aha Agency"
+   },
+   {
+    "name": "Rosie O'Connor",
+    "org": "VSO"
+   },
+   {
+    "name": "Alice Gayner",
+    "org": "Comic Relief"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Wednesday: Leading Long-Term Transformation",
+  "date": "21 October 2026",
+  "time": "09:00-12:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Erasmus 7",
+   "WMC5"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Yadharshini Selvaraj",
+    "org": "Tea Leaf Trust"
+   },
+   {
+    "name": "Tim Pare",
+    "org": "Tea Leaf Trust"
+   },
+   {
+    "name": "Sutharshan Visventhan",
+    "org": "The Cookstove Project"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Wednesday: Alternative Financing Models for Impact",
+  "date": "21 October 2026",
+  "time": "09:00-12:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Cambridge 30",
+   "WMC11"
+  ],
+  "track": "",
+  "speakers": [
+   {
+    "name": "Richard Hawkes",
+    "org": "Oxfam"
+   },
+   {
+    "name": "Ruth Davidson",
+    "org": "SASC Trust"
+   },
+   {
+    "name": "Leana de Beer",
+    "org": "WaFunda"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Wednesday: Building Growth That Doesn’t Break Trust",
+  "date": "21 October 2026",
+  "time": "09:00-12:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Boston 13",
+   "WMC3"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Lindsay Marino Long",
+    "org": "Faircom New York"
+   },
+   {
+    "name": "Ishmam Rahman",
+    "org": "International Rescue Committee"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Wednesday: From Data Overwhelm to Strategic Impact",
+  "date": "21 October 2026",
+  "time": "09:00-12:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Boston 11",
+   "WMC9"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Erin Hamilainen",
+    "org": "Slingshot Data"
+   },
+   {
+    "name": "Fiona McPhee",
+    "org": "Revolutionise"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Wednesday: Great Fundraising Leadership",
+  "date": "21 October 2026",
+  "time": "09:00-12:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Cambridge 32",
+   "WMC4"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Colin Skehan",
+    "org": "Revolutionise International Ltd"
+   },
+   {
+    "name": "Jayne George",
+    "org": "RNLI"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Wednesday: Leading Fundraising Systems in Uncertainty",
+  "date": "21 October 2026",
+  "time": "09:00-12:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Boston 17",
+   "WMC8"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Luke Mallett",
+    "org": "Ripple Effect"
+   },
+   {
+    "name": "Damian Chapman",
+    "org": "Fundraiser In The Room"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Wednesday: Major Donor Fundraising in Complex Times",
+  "date": "21 October 2026",
+  "time": "09:00-12:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Boston 15",
+   "WMC1"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Vincent Duckworth",
+    "org": "ViTreo Group Inc."
+   },
+   {
+    "name": "Konstantina Papadimitriou",
+    "org": "Inuksuk Consulting"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Wednesday: Power, Wealth, Philanthropy… and Justice?",
+  "date": "21 October 2026",
+  "time": "09:00-12:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Erasmus 5",
+   "WMC7"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Rowena Estwick",
+    "org": "Ten Years' Time"
+   },
+   {
+    "name": "Dee Brecker",
+    "org": "Ten Years' Time & Ginko Coaching & Consulting"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Wednesday: The AI-Ready Fundraiser",
+  "date": "21 October 2026",
+  "time": "09:00-12:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Boston 19",
+   "WMC10"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "Andrew Sabatino",
+    "org": "Donor Republic"
+   },
+   {
+    "name": "Natalie Gibbs",
+    "org": "Cancer Council Victoria"
+   },
+   {
+    "name": "Saarah Abdeen",
+    "org": "ActionAid Australia"
+   }
+  ]
+ },
+ {
+  "title": "Masterclass Wednesday: Your Digital Engine Room",
+  "date": "21 October 2026",
+  "time": "09:00-12:00CET",
+  "type": "Masterclasses",
+  "rest": [
+   "Erasmus 3",
+   "WMC6"
+  ],
+  "track": "Masterclass",
+  "speakers": [
+   {
+    "name": "JoAnne O'Donovan",
+    "org": "Dogs Trust Ireland"
+   },
+   {
+    "name": "Joshua Leigh",
+    "org": "Hynt"
+   },
+   {
+    "name": "Sarah Crowhurst",
+    "org": "Hynt"
+   }
+  ]
+ },
+ {
+  "title": "Speaker Welcome",
+  "date": "21 October 2026",
+  "time": "11:00-12:00CET",
+  "type": "",
+  "rest": [
+   "Innovation Hub"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Lunch",
+  "date": "21 October 2026",
+  "time": "12:00-14:00CET",
+  "type": "",
+  "rest": [
+   "North & South Beach Restaurants"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Mindfulness Walk",
+  "date": "21 October 2026",
+  "time": "12:30-13:15CET",
+  "type": "",
+  "rest": [
+   "Lobby"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Welcome to IFC",
+  "date": "21 October 2026",
+  "time": "12:45-13:30CET",
+  "type": "",
+  "rest": [
+   "Innovation Hub"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "IFC Online Livestream (Wednesday)",
+  "date": "21 October 2026",
+  "time": "13:30-18:00CET",
+  "type": "IFC Online",
+  "rest": [],
+  "track": "IFC Online",
+  "speakers": []
+ },
+ {
+  "title": "10 Minute Movement",
+  "date": "21 October 2026",
+  "time": "13:30-13:40CET",
+  "type": "Wellbeing",
+  "rest": [
+   "Sorbonne 8"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "10 Minute Movement",
+  "date": "21 October 2026",
+  "time": "13:45-13:55CET",
+  "type": "Wellbeing",
+  "rest": [
+   "Sorbonne 8"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Opening Keynote",
+  "date": "21 October 2026",
+  "time": "14:00-15:00CET",
+  "type": "",
+  "rest": [
+   "Atrium"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Break",
+  "date": "21 October 2026",
+  "time": "15:00-15:30CET",
+  "type": "",
+  "rest": [],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Acquisition Innovation",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 3",
+   "1WS14"
+  ],
+  "track": "Innovation, AI, & Future Practice",
+  "speakers": [
+   {
+    "name": "Arantza Espinosa",
+    "org": "Save The Children International"
+   },
+   {
+    "name": "Nathalie Ormrod",
+    "org": "Blue State"
+   }
+  ]
+ },
+ {
+  "title": "Dignity-Led Fundraising Narratives",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 16",
+   "1WS9"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Tehzeeb Lalani",
+    "org": "Head Held High Foundation"
+   },
+   {
+    "name": "Madan Padaki",
+    "org": "Head Held High Foundation"
+   }
+  ]
+ },
+ {
+  "title": "Fundraising Benchmarks Beyond Silos",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 11",
+   "1WS1"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Charly Jarrett",
+    "org": "Public Outreach"
+   },
+   {
+    "name": "Jessica Bernat",
+    "org": "Canadian Red Cross"
+   }
+  ]
+ },
+ {
+  "title": "Metrics-Based Decision-Making for Major Gifts",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 1",
+   "1WS7"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Laurel McCombs",
+    "org": "The Osborne Group"
+   }
+  ]
+ },
+ {
+  "title": "Millennial & Gen Z Philanthropic Trends",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 17",
+   "1WS5"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Olumide (Mide) Akerewusi",
+    "org": "AgentsC Inc."
+   },
+   {
+    "name": "Liz Alberto",
+    "org": "Save the Children Philippines"
+   },
+   {
+    "name": "Quincy Wiele",
+    "org": "Amnesty International Canada"
+   }
+  ]
+ },
+ {
+  "title": "Mobilising Under Pressure",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 7",
+   "1WS16"
+  ],
+  "track": "Mobilisation, Campaigning, & Civic Action",
+  "speakers": [
+   {
+    "name": "Agustina Oliveri",
+    "org": "Good Law Project"
+   }
+  ]
+ },
+ {
+  "title": "Multi-Agency Partnership Bids, Proposals, & Tenders",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 22",
+   "1WS12"
+  ],
+  "track": "Leadership, Systems, & Organisational Change",
+  "speakers": [
+   {
+    "name": "Christopher Richardson-Wright",
+    "org": "Air Balloon Consulting"
+   }
+  ]
+ },
+ {
+  "title": "Rebuilding Digital Donor Retention",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 13",
+   "1WS3"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Gitte Blemings",
+    "org": "DanChurchAid"
+   },
+   {
+    "name": "Cirkeline Buron",
+    "org": "DanChurchAid/Folkekirkens Nødhjælp"
+   }
+  ]
+ },
+ {
+  "title": "Reengaging Lapsed Donors with Reimagined Tech",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 15",
+   "1WS4"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Lou Barton",
+    "org": "Dotdigital"
+   },
+   {
+    "name": "Alex Cross",
+    "org": "Dotdigital"
+   }
+  ]
+ },
+ {
+  "title": "Reimagining Impact, Agency, & the Giving Experience",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 18",
+   "1WS10"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Stephen Ellis",
+    "org": "Third Culture"
+   },
+   {
+    "name": "Bec Stott",
+    "org": "Anglicare WA"
+   }
+  ]
+ },
+ {
+  "title": "Scaling Fundraising Impact",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Cambridge 30",
+   "1WS13"
+  ],
+  "track": "Leadership, Systems, & Organisational Change",
+  "speakers": [
+   {
+    "name": "Emily Bracken",
+    "org": "Upsall International"
+   },
+   {
+    "name": "Barbara Gerold-Wolke",
+    "org": "Médecins Sans Frontières"
+   },
+   {
+    "name": "Inés McCormick",
+    "org": "CEE/CIS/ME"
+   }
+  ]
+ },
+ {
+  "title": "Scaling Personalisation with AI Personas",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Cambridge 32",
+   "1WS15"
+  ],
+  "track": "Innovation, AI, & Future Practice",
+  "speakers": [
+   {
+    "name": "Josh Hirsch",
+    "org": "NIVA Health"
+   },
+   {
+    "name": "Joy McKee",
+    "org": "Advancement for the College and Graduate School of Arts & Sciences, Boston University"
+   }
+  ]
+ },
+ {
+  "title": "The $8 Trillion Islamic Finance Opportunity",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 19",
+   "1WS6"
+  ],
+  "track": "Financial Reality & Funding Models",
+  "speakers": [
+   {
+    "name": "Perihan Abou El Ela",
+    "org": "Greenpeace MENA"
+   }
+  ]
+ },
+ {
+  "title": "The Power of Coalition-Based Fundraising",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 5",
+   "1WS8"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Abel Aniley",
+    "org": "Development Expertise Center"
+   },
+   {
+    "name": "Berhanu Demissie",
+    "org": "Development Expertise Center"
+   }
+  ]
+ },
+ {
+  "title": "The Unstoppable Bequest Pipeline",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 20",
+   "1WS2"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Adriana Aguilera",
+    "org": "The Fred Hollows Foundation"
+   },
+   {
+    "name": "Nadia Aden",
+    "org": "The Fred Hollows Foundation (Australia)"
+   }
+  ]
+ },
+ {
+  "title": "What You Can Learn From the Radical Right",
+  "date": "21 October 2026",
+  "time": "15:30-16:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 9",
+   "1WS11"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Ali Walker Davies",
+    "org": "Forward Action"
+   },
+   {
+    "name": "Cristina Praz",
+    "org": "Centrul FILIA"
+   }
+  ]
+ },
+ {
+  "title": "Open Discussions - Session 1",
+  "date": "21 October 2026",
+  "time": "17:00-18:00CET",
+  "type": "",
+  "rest": [],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Yin & Restorative Yoga",
+  "date": "21 October 2026",
+  "time": "17:15-18:00CET",
+  "type": "",
+  "rest": [
+   "Sorbonne 8"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Sound Bath & Meditation",
+  "date": "21 October 2026",
+  "time": "18:10-18:55CET",
+  "type": "",
+  "rest": [
+   "Sorbonne 8"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Drinks Reception",
+  "date": "21 October 2026",
+  "time": "19:00-20:00CET",
+  "type": "",
+  "rest": [
+   "The Boulevard"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "IFC Welcome Dinner",
+  "date": "21 October 2026",
+  "time": "20:00-22:00CET",
+  "type": "",
+  "rest": [
+   "Atrium"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Breakfast",
+  "date": "22 October 2026",
+  "time": "07:00-10:00CET",
+  "type": "",
+  "rest": [
+   "North & South Beach Restaurants"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Yoga",
+  "date": "22 October 2026",
+  "time": "07:00-07:45CET",
+  "type": "",
+  "rest": [
+   "Sorbonne 8"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Sound Bath",
+  "date": "22 October 2026",
+  "time": "07:55-08:40CET",
+  "type": "",
+  "rest": [
+   "Sorbonne 8"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "IFC Online Livestream (Thursday)",
+  "date": "22 October 2026",
+  "time": "07:59-23:59CET",
+  "type": "IFC Online",
+  "rest": [],
+  "track": "IFC Online",
+  "speakers": []
+ },
+ {
+  "title": "Acquisition Innovation",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 5",
+   "2WS13"
+  ],
+  "track": "Innovation, AI, & Future Practice",
+  "speakers": [
+   {
+    "name": "Arantza Espinosa",
+    "org": "Save The Children International"
+   },
+   {
+    "name": "Nathalie Ormrod",
+    "org": "Blue State"
+   }
+  ]
+ },
+ {
+  "title": "Audience-Led Decision-Making",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 15",
+   "2WS3"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Kit Lewis",
+    "org": "Aha Agency"
+   },
+   {
+    "name": "Alice Gayner",
+    "org": "Comic Relief"
+   },
+   {
+    "name": "Rosie O'Connor",
+    "org": "VSO"
+   }
+  ]
+ },
+ {
+  "title": "Hopeful, Human, & Practical Legacies",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 11",
+   "2WS1"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Mackenzie Darbyshire",
+    "org": "Kittiwake"
+   },
+   {
+    "name": "Joanne Bath",
+    "org": "Kittiwake"
+   }
+  ]
+ },
+ {
+  "title": "Investing for Impact",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 22",
+   "2WS7"
+  ],
+  "track": "Financial Reality & Funding Models",
+  "speakers": [
+   {
+    "name": "Fiona McPhee",
+    "org": "Revolutionise"
+   },
+   {
+    "name": "Erin Hamilainen",
+    "org": "Slingshot Data"
+   }
+  ]
+ },
+ {
+  "title": "Partnerships That Scale Impact",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 20",
+   "2WS9"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Allwell Akhigbe",
+    "org": "Travaille Ensemble"
+   }
+  ]
+ },
+ {
+  "title": "Rebranding Aid",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Cambridge 30",
+   "2WS10"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Hannah Johnson",
+    "org": "Shape History"
+   },
+   {
+    "name": "Lydia Piddock",
+    "org": "UK for UNHCR"
+   }
+  ]
+ },
+ {
+  "title": "Rebuilding Digital Donor Retention",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 13",
+   "2WS2"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Gitte Blemings",
+    "org": "DanChurchAid"
+   },
+   {
+    "name": "Cirkeline Buron",
+    "org": "DanChurchAid/Folkekirkens Nødhjælp"
+   }
+  ]
+ },
+ {
+  "title": "Reimagining Digital Donor Journeys",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 17",
+   "2WS4"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Carla McLuskie",
+    "org": "the Digital Fundraising Academy"
+   },
+   {
+    "name": "Cheryl Gunning",
+    "org": "Debra"
+   }
+  ]
+ },
+ {
+  "title": "Reimagining Impact, Agency, & the Giving Experience",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 1",
+   "2WS11"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Stephen Ellis",
+    "org": "Third Culture"
+   },
+   {
+    "name": "Bec Stott",
+    "org": "Anglicare WA"
+   }
+  ]
+ },
+ {
+  "title": "Scaling Fundraising Impact",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 19",
+   "2WS12"
+  ],
+  "track": "Leadership, Systems, & Organisational Change",
+  "speakers": [
+   {
+    "name": "Emily Bracken",
+    "org": "Upsall International"
+   },
+   {
+    "name": "Barbara Gerold-Wolke",
+    "org": "Médecins Sans Frontières"
+   },
+   {
+    "name": "Inés McCormick",
+    "org": "CEE/CIS/ME"
+   }
+  ]
+ },
+ {
+  "title": "Shifting Power Through Fundraising",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 16",
+   "2WS14"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Cathrin Sarll",
+    "org": "Saferworld"
+   },
+   {
+    "name": "Meryem Aboushala",
+    "org": "MARS Organisation, Turkey and Syria"
+   }
+  ]
+ },
+ {
+  "title": "The $8 Trillion Islamic Finance Opportunity",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 9",
+   "2WS6"
+  ],
+  "track": "Financial Reality & Funding Models",
+  "speakers": [
+   {
+    "name": "Perihan Abou El Ela",
+    "org": "Greenpeace MENA"
+   }
+  ]
+ },
+ {
+  "title": "The Power of Coalition-Based Fundraising",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 18",
+   "2WS8"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Abel Aniley",
+    "org": "Development Expertise Center"
+   },
+   {
+    "name": "Berhanu Demissie",
+    "org": "Development Expertise Center"
+   }
+  ]
+ },
+ {
+  "title": "Workshop TBC - MD",
+  "date": "22 October 2026",
+  "time": "09:00-10:15CET",
+  "type": "",
+  "rest": [
+   "2WS5"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Beyond Competitive Fundraising",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 18",
+   "3WS8"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Melissa Castrillon",
+    "org": "País de Raíz"
+   }
+  ]
+ },
+ {
+  "title": "Dignity-Led Fundraising Narratives",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 9",
+   "3WS10"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Tehzeeb Lalani",
+    "org": "Head Held High Foundation"
+   },
+   {
+    "name": "Madan Padaki",
+    "org": "Head Held High Foundation"
+   }
+  ]
+ },
+ {
+  "title": "Fix Your Broken Funding Model",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 3",
+   "3WS6"
+  ],
+  "track": "Financial Reality & Funding Models",
+  "speakers": [
+   {
+    "name": "Cameron Becker",
+    "org": "CARE Canada"
+   },
+   {
+    "name": "Rebecca Davies",
+    "org": "CARE Canada"
+   }
+  ]
+ },
+ {
+  "title": "Fundraising Benchmarks Beyond Silos",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 13",
+   "3WS2"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Charly Jarrett",
+    "org": "Public Outreach"
+   },
+   {
+    "name": "Jessica Bernat",
+    "org": "Canadian Red Cross"
+   }
+  ]
+ },
+ {
+  "title": "Major Donor Fundraising in Complex Times",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 11",
+   "3WS1"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Vincent Duckworth",
+    "org": "ViTreo Group Inc."
+   },
+   {
+    "name": "Konstantina Papadimitriou",
+    "org": "Inuksuk Consulting"
+   }
+  ]
+ },
+ {
+  "title": "Metrics-Based Decision-Making for Major Gifts",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 16",
+   "3WS7"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Laurel McCombs",
+    "org": "The Osborne Group"
+   }
+  ]
+ },
+ {
+  "title": "Millennial & Gen Z Philanthropic Trends",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 22",
+   "3WS5"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Olumide (Mide) Akerewusi",
+    "org": "AgentsC Inc."
+   },
+   {
+    "name": "Liz Alberto",
+    "org": "Save the Children Philippines"
+   },
+   {
+    "name": "Quincy Wiele",
+    "org": "Amnesty International Canada"
+   }
+  ]
+ },
+ {
+  "title": "Mobile Messaging for Sustainer Growth in Crisis",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 17",
+   "3WS4"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Hank Walter",
+    "org": "Retention and Integrated Marketing, International Rescue Committee"
+   },
+   {
+    "name": "Heather Foye",
+    "org": "Faircom New York"
+   }
+  ]
+ },
+ {
+  "title": "Mobilising Under Pressure",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 1",
+   "3WS12"
+  ],
+  "track": "Mobilisation, Campaigning, & Civic Action",
+  "speakers": [
+   {
+    "name": "Agustina Oliveri",
+    "org": "Good Law Project"
+   }
+  ]
+ },
+ {
+  "title": "The Inner Work of Trust-Based Philanthropy",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "",
+  "rest": [
+   "Oxford 20",
+   "3WS9"
+  ],
+  "track": "",
+  "speakers": [
+   {
+    "name": "Caroline Mbuvi McCoy",
+    "org": "Red Soil Strategies"
+   },
+   {
+    "name": "Sharon Afandi",
+    "org": "Segal Family Foundation"
+   }
+  ]
+ },
+ {
+  "title": "The Mamdani Campaign & the Future of Social Media",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Cambridge 30",
+   "3WS13"
+  ],
+  "track": "Mobilisation, Campaigning, & Civic Action",
+  "speakers": [
+   {
+    "name": "Gabriella Zutrau",
+    "org": "Independent Digital Strategy Advisor"
+   }
+  ]
+ },
+ {
+  "title": "The Power of Film for Impact Storytelling",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 19",
+   "3WS11"
+  ],
+  "track": "Innovation, Change, & Learning",
+  "speakers": [
+   {
+    "name": "Kristie Robinson",
+    "org": "Lupa"
+   },
+   {
+    "name": "Nicole van Schaik",
+    "org": "De Impactrevolutie"
+   }
+  ]
+ },
+ {
+  "title": "The Unstoppable Bequest Pipeline",
+  "date": "22 October 2026",
+  "time": "10:30-11:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 15",
+   "3WS3"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Adriana Aguilera",
+    "org": "The Fred Hollows Foundation"
+   },
+   {
+    "name": "Nadia Aden",
+    "org": "The Fred Hollows Foundation (Australia)"
+   }
+  ]
+ },
+ {
+  "title": "Lunch",
+  "date": "22 October 2026",
+  "time": "12:00-13:30CET",
+  "type": "",
+  "rest": [
+   "North & South Beach Restaurants"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Mindfulness Walk",
+  "date": "22 October 2026",
+  "time": "12:15-12:45CET",
+  "type": "",
+  "rest": [
+   "Lobby"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "10 Minute Movement",
+  "date": "22 October 2026",
+  "time": "13:00-13:10CET",
+  "type": "Wellbeing",
+  "rest": [
+   "Sorbonne 8"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "10 Minute Movement",
+  "date": "22 October 2026",
+  "time": "13:15-13:25CET",
+  "type": "Wellbeing",
+  "rest": [
+   "Sorbonne 8"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Alternative Financing Models for Social Impact",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 19",
+   "4WS9"
+  ],
+  "track": "Financial Reality & Funding Models",
+  "speakers": [
+   {
+    "name": "Ruth Davidson",
+    "org": "SASC Trust"
+   },
+   {
+    "name": "Leana de Beer",
+    "org": "WaFunda"
+   },
+   {
+    "name": "Richard Hawkes",
+    "org": "Oxfam"
+   }
+  ]
+ },
+ {
+  "title": "Building Strategic Gaming Partnerships",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 18",
+   "4WS6"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Wayne Emanuel",
+    "org": "CTRL+IMPACT"
+   }
+  ]
+ },
+ {
+  "title": "Core Messaging for Supporter Base Expansion",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 1",
+   "4WS12"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Charlotte Grette Osmundsen",
+    "org": "b.bold"
+   },
+   {
+    "name": "Vegard Hauge",
+    "org": "Cerebral Parese-foreningen"
+   }
+  ]
+ },
+ {
+  "title": "Creating Conditions for Growth",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Cambridge 30",
+   "4WS14"
+  ],
+  "track": "Leadership, Systems, & Organisational Change",
+  "speakers": [
+   {
+    "name": "Jayne George",
+    "org": "RNLI"
+   },
+   {
+    "name": "Colin Skehan",
+    "org": "Revolutionise International Ltd"
+   }
+  ]
+ },
+ {
+  "title": "Fix Your Broken Funding Model",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 16",
+   "4WS8"
+  ],
+  "track": "Financial Reality & Funding Models",
+  "speakers": [
+   {
+    "name": "Cameron Becker",
+    "org": "CARE Canada"
+   },
+   {
+    "name": "Rebecca Davies",
+    "org": "CARE Canada"
+   }
+  ]
+ },
+ {
+  "title": "Fundraising Benchmarks Beyond Silos",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 11",
+   "4WS1"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Charly Jarrett",
+    "org": "Public Outreach"
+   },
+   {
+    "name": "Jessica Bernat",
+    "org": "Canadian Red Cross"
+   }
+  ]
+ },
+ {
+  "title": "Millennial & Gen Z Philanthropic Trends",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 15",
+   "4WS4"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Olumide (Mide) Akerewusi",
+    "org": "AgentsC Inc."
+   },
+   {
+    "name": "Liz Alberto",
+    "org": "Save the Children Philippines"
+   },
+   {
+    "name": "Quincy Wiele",
+    "org": "Amnesty International Canada"
+   }
+  ]
+ },
+ {
+  "title": "One Ask, Many Cultures",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 17",
+   "4WS5"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Khalila Hassouna",
+    "org": "ESCP Business School"
+   }
+  ]
+ },
+ {
+  "title": "Rebranding Aid",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 22",
+   "4WS11"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Hannah Johnson",
+    "org": "Shape History"
+   },
+   {
+    "name": "Lydia Piddock",
+    "org": "UK for UNHCR"
+   }
+  ]
+ },
+ {
+  "title": "Rebuilding Trust Across Borders",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 7",
+   "4WS15"
+  ],
+  "track": "Mobilisation, Campaigning, & Civic Action",
+  "speakers": [
+   {
+    "name": "Dumezwani Dhlamini",
+    "org": "Southern African People's Solidarity Network"
+   },
+   {
+    "name": "Lameck Mununga Kabaso",
+    "org": "Zambia Social Forum"
+   }
+  ]
+ },
+ {
+  "title": "Reengaging Lapsed Donors with Reimagined Tech",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 13",
+   "4WS2"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Lou Barton",
+    "org": "Dotdigital"
+   },
+   {
+    "name": "Alex Cross",
+    "org": "Dotdigital"
+   }
+  ]
+ },
+ {
+  "title": "Shifting Power Through Fundraising",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 20",
+   "4WS10"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Cathrin Sarll",
+    "org": "Saferworld"
+   },
+   {
+    "name": "Meryem Aboushala",
+    "org": "MARS Organisation, Turkey and Syria"
+   }
+  ]
+ },
+ {
+  "title": "Shock-Proof Your NGO Finances",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "",
+  "rest": [
+   "Erasmus 5",
+   "4WS7"
+  ],
+  "track": "",
+  "speakers": [
+   {
+    "name": "Andrew Myhill",
+    "org": "Aon"
+   },
+   {
+    "name": "Emma Karhan",
+    "org": "Aon"
+   }
+  ]
+ },
+ {
+  "title": "What You Can Learn From the Radical Right",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 3",
+   "4WS13"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Ali Walker Davies",
+    "org": "Forward Action"
+   },
+   {
+    "name": "Cristina Praz",
+    "org": "Centrul FILIA"
+   }
+  ]
+ },
+ {
+  "title": "Your Digital Engine Room",
+  "date": "22 October 2026",
+  "time": "13:30-14:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 9",
+   "4WS3"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Joshua Leigh",
+    "org": "Hynt"
+   },
+   {
+    "name": "Sarah Crowhurst",
+    "org": "Hynt"
+   },
+   {
+    "name": "JoAnne O'Donovan",
+    "org": "Dogs Trust Ireland"
+   }
+  ]
+ },
+ {
+  "title": "Acquisition Innovation",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 9",
+   "5WS14"
+  ],
+  "track": "Innovation, AI, & Future Practice",
+  "speakers": [
+   {
+    "name": "Arantza Espinosa",
+    "org": "Save The Children International"
+   },
+   {
+    "name": "Nathalie Ormrod",
+    "org": "Blue State"
+   }
+  ]
+ },
+ {
+  "title": "Building Narrative Power",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 20",
+   "5WS9"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Berry Cochrane",
+    "org": "Forward Action"
+   }
+  ]
+ },
+ {
+  "title": "Grassroots Fundraising Lessons for Resilience",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 16",
+   "5WS7"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Puja Biswas",
+    "org": "INDIAdonates"
+   }
+  ]
+ },
+ {
+  "title": "Leading Change Without Losing Your Mission",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 5",
+   "5WS13"
+  ],
+  "track": "Leadership, Systems, & Organisational Change",
+  "speakers": [
+   {
+    "name": "Yadharshini Selvaraj",
+    "org": "Tea Leaf Trust"
+   },
+   {
+    "name": "Sutharshan Visventhan",
+    "org": "The Cookstove Project"
+   },
+   {
+    "name": "Tim Pare",
+    "org": "Tea Leaf Trust"
+   }
+  ]
+ },
+ {
+  "title": "Market Development for Sustainable Income",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 19",
+   "5WS5"
+  ],
+  "track": "Financial Reality & Funding Models",
+  "speakers": [
+   {
+    "name": "Inés McCormick",
+    "org": "CEE/CIS/ME"
+   }
+  ]
+ },
+ {
+  "title": "Multi-Agency Partnership Bids, Proposals, & Tenders",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 3",
+   "5WS12"
+  ],
+  "track": "Leadership, Systems, & Organisational Change",
+  "speakers": [
+   {
+    "name": "Christopher Richardson-Wright",
+    "org": "Air Balloon Consulting"
+   }
+  ]
+ },
+ {
+  "title": "Partnerships That Scale Impact",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 15",
+   "5WS8"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Allwell Akhigbe",
+    "org": "Travaille Ensemble"
+   }
+  ]
+ },
+ {
+  "title": "Power, Wealth, Philanthropy... and Justice?",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 18",
+   "5WS6"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Dee Brecker",
+    "org": "Ten Years' Time & Ginko Coaching & Consulting"
+   },
+   {
+    "name": "Rowena Estwick",
+    "org": "Ten Years' Time"
+   }
+  ]
+ },
+ {
+  "title": "Reengaging Lapsed Donors with Reimagined Tech",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 13",
+   "5WS2"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Lou Barton",
+    "org": "Dotdigital"
+   },
+   {
+    "name": "Alex Cross",
+    "org": "Dotdigital"
+   }
+  ]
+ },
+ {
+  "title": "Reimagining Digital Donor Journeys",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Cambridge 30",
+   "5WS3"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Carla McLuskie",
+    "org": "the Digital Fundraising Academy"
+   },
+   {
+    "name": "Cheryl Gunning",
+    "org": "Debra"
+   }
+  ]
+ },
+ {
+  "title": "Reimagining Impact, Agency, & the Giving Experience",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 22",
+   "5WS10"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Stephen Ellis",
+    "org": "Third Culture"
+   },
+   {
+    "name": "Bec Stott",
+    "org": "Anglicare WA"
+   }
+  ]
+ },
+ {
+  "title": "The Power of Film for Impact Storytelling",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 1",
+   "5WS11"
+  ],
+  "track": "Innovation, Change, & Learning",
+  "speakers": [
+   {
+    "name": "Kristie Robinson",
+    "org": "Lupa"
+   },
+   {
+    "name": "Nicole van Schaik",
+    "org": "De Impactrevolutie"
+   }
+  ]
+ },
+ {
+  "title": "The Unstoppable Bequest Pipeline",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 11",
+   "5WS1"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Adriana Aguilera",
+    "org": "The Fred Hollows Foundation"
+   },
+   {
+    "name": "Nadia Aden",
+    "org": "The Fred Hollows Foundation (Australia)"
+   }
+  ]
+ },
+ {
+  "title": "Workshop TBC - MD",
+  "date": "22 October 2026",
+  "time": "15:00-16:15CET",
+  "type": "",
+  "rest": [
+   "5WS4"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Building Growth That Doesn’t Break Trust",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 5",
+   "6WS14"
+  ],
+  "track": "Innovation, AI, & Future Practice",
+  "speakers": [
+   {
+    "name": "Ishmam Rahman",
+    "org": "International Rescue Committee"
+   },
+   {
+    "name": "Lindsay Marino Long",
+    "org": "Faircom New York"
+   }
+  ]
+ },
+ {
+  "title": "Building Strategic Gaming Partnerships",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 22",
+   "6WS5"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Wayne Emanuel",
+    "org": "CTRL+IMPACT"
+   }
+  ]
+ },
+ {
+  "title": "Core Messaging for Supporter Base Expansion",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 20",
+   "6WS10"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Charlotte Grette Osmundsen",
+    "org": "b.bold"
+   },
+   {
+    "name": "Vegard Hauge",
+    "org": "Cerebral Parese-foreningen"
+   }
+  ]
+ },
+ {
+  "title": "Dignity-Led Fundraising Narratives",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 18",
+   "6WS9"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Tehzeeb Lalani",
+    "org": "Head Held High Foundation"
+   },
+   {
+    "name": "Madan Padaki",
+    "org": "Head Held High Foundation"
+   }
+  ]
+ },
+ {
+  "title": "Fix Your Broken Funding Model",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 9",
+   "6WS7"
+  ],
+  "track": "Financial Reality & Funding Models",
+  "speakers": [
+   {
+    "name": "Cameron Becker",
+    "org": "CARE Canada"
+   },
+   {
+    "name": "Rebecca Davies",
+    "org": "CARE Canada"
+   }
+  ]
+ },
+ {
+  "title": "Grassroots Fundraising Lessons for Resilience",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 16",
+   "6WS8"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Puja Biswas",
+    "org": "INDIAdonates"
+   }
+  ]
+ },
+ {
+  "title": "Hopeful, Human, & Practical Legacies",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 11",
+   "6WS1"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Mackenzie Darbyshire",
+    "org": "Kittiwake"
+   },
+   {
+    "name": "Joanne Bath",
+    "org": "Kittiwake"
+   }
+  ]
+ },
+ {
+  "title": "Mobile Messaging for Sustainer Growth in Crisis",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 15",
+   "6WS3"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Hank Walter",
+    "org": "Retention and Integrated Marketing, International Rescue Committee"
+   },
+   {
+    "name": "Heather Foye",
+    "org": "Faircom New York"
+   }
+  ]
+ },
+ {
+  "title": "Multi-Agency Partnership Bids, Proposals, & Tenders",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 3",
+   "6WS12"
+  ],
+  "track": "Leadership, Systems, & Organisational Change",
+  "speakers": [
+   {
+    "name": "Christopher Richardson-Wright",
+    "org": "Air Balloon Consulting"
+   }
+  ]
+ },
+ {
+  "title": "One Ask, Many Cultures",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 17",
+   "6WS4"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Khalila Hassouna",
+    "org": "ESCP Business School"
+   }
+  ]
+ },
+ {
+  "title": "Rebuilding Digital Donor Retention",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 13",
+   "6WS2"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Gitte Blemings",
+    "org": "DanChurchAid"
+   },
+   {
+    "name": "Cirkeline Buron",
+    "org": "DanChurchAid/Folkekirkens Nødhjælp"
+   }
+  ]
+ },
+ {
+  "title": "Rebuilding Trust Across Borders",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 7",
+   "6WS15"
+  ],
+  "track": "Mobilisation, Campaigning, & Civic Action",
+  "speakers": [
+   {
+    "name": "Dumezwani Dhlamini",
+    "org": "Southern African People's Solidarity Network"
+   },
+   {
+    "name": "Lameck Mununga Kabaso",
+    "org": "Zambia Social Forum"
+   }
+  ]
+ },
+ {
+  "title": "Scaling Personalisation with AI Personas",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Cambridge 30",
+   "6WS13"
+  ],
+  "track": "Innovation, AI, & Future Practice",
+  "speakers": [
+   {
+    "name": "Josh Hirsch",
+    "org": "NIVA Health"
+   },
+   {
+    "name": "Joy McKee",
+    "org": "Advancement for the College and Graduate School of Arts & Sciences, Boston University"
+   }
+  ]
+ },
+ {
+  "title": "Shock-Proof Your NGO Finances",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "",
+  "rest": [
+   "Erasmus 1",
+   "6WS6"
+  ],
+  "track": "",
+  "speakers": [
+   {
+    "name": "Andrew Myhill",
+    "org": "Aon"
+   },
+   {
+    "name": "Emma Karhan",
+    "org": "Aon"
+   }
+  ]
+ },
+ {
+  "title": "What You Can Learn From the Radical Right",
+  "date": "22 October 2026",
+  "time": "16:30-17:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 19",
+   "6WS11"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Ali Walker Davies",
+    "org": "Forward Action"
+   },
+   {
+    "name": "Cristina Praz",
+    "org": "Centrul FILIA"
+   }
+  ]
+ },
+ {
+  "title": "Open Discussions - Session 2",
+  "date": "22 October 2026",
+  "time": "18:00-19:00CET",
+  "type": "",
+  "rest": [],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Sound Bath & Meditation",
+  "date": "22 October 2026",
+  "time": "18:00-18:45CET",
+  "type": "",
+  "rest": [
+   "Sorbonne 8"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Drinks Reception",
+  "date": "22 October 2026",
+  "time": "19:30-20:00CET",
+  "type": "",
+  "rest": [
+   "The Boulevard"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Gala Dinner",
+  "date": "22 October 2026",
+  "time": "20:00-23:00CET",
+  "type": "",
+  "rest": [
+   "Atrium"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Gala After Party",
+  "date": "22 October 2026 – 23 October 2026",
+  "time": "23:00-02:30CET",
+  "type": "",
+  "rest": [
+   "Rotunde"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Breakfast",
+  "date": "23 October 2026",
+  "time": "07:00-10:00CET",
+  "type": "",
+  "rest": [
+   "North & South Beach Restaurants"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "IFC Online Livestream (Friday)",
+  "date": "23 October 2026",
+  "time": "09:00-14:00CET",
+  "type": "IFC Online",
+  "rest": [],
+  "track": "IFC Online",
+  "speakers": []
+ },
+ {
+  "title": "Beyond Competitive Fundraising",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 20",
+   "7WS6"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Melissa Castrillon",
+    "org": "País de Raíz"
+   }
+  ]
+ },
+ {
+  "title": "Building Narrative Power",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 18",
+   "7WS9"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Berry Cochrane",
+    "org": "Forward Action"
+   }
+  ]
+ },
+ {
+  "title": "Core Messaging for Supporter Base Expansion",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Oxford 22",
+   "7WS11"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Charlotte Grette Osmundsen",
+    "org": "b.bold"
+   },
+   {
+    "name": "Vegard Hauge",
+    "org": "Cerebral Parese-foreningen"
+   }
+  ]
+ },
+ {
+  "title": "Hopeful, Human, & Practical Legacies",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 11",
+   "7WS1"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Mackenzie Darbyshire",
+    "org": "Kittiwake"
+   },
+   {
+    "name": "Joanne Bath",
+    "org": "Kittiwake"
+   }
+  ]
+ },
+ {
+  "title": "Market Development for Sustainable Income",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 17",
+   "7WS4"
+  ],
+  "track": "Financial Reality & Funding Models",
+  "speakers": [
+   {
+    "name": "Inés McCormick",
+    "org": "CEE/CIS/ME"
+   }
+  ]
+ },
+ {
+  "title": "Mobile Messaging for Sustainer Growth in Crisis",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 15",
+   "7WS3"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Hank Walter",
+    "org": "Retention and Integrated Marketing, International Rescue Committee"
+   },
+   {
+    "name": "Heather Foye",
+    "org": "Faircom New York"
+   }
+  ]
+ },
+ {
+  "title": "Rebranding Aid",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Cambridge 30",
+   "7WS10"
+  ],
+  "track": "Narratives, Influence, & Public Trust",
+  "speakers": [
+   {
+    "name": "Hannah Johnson",
+    "org": "Shape History"
+   },
+   {
+    "name": "Lydia Piddock",
+    "org": "UK for UNHCR"
+   }
+  ]
+ },
+ {
+  "title": "Rebuilding Trust Across Borders",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 1",
+   "7WS13"
+  ],
+  "track": "Mobilisation, Campaigning, & Civic Action",
+  "speakers": [
+   {
+    "name": "Dumezwani Dhlamini",
+    "org": "Southern African People's Solidarity Network"
+   },
+   {
+    "name": "Lameck Mununga Kabaso",
+    "org": "Zambia Social Forum"
+   }
+  ]
+ },
+ {
+  "title": "Reimagining Digital Donor Journeys",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 19",
+   "7WS2"
+  ],
+  "track": "Core Fundraising & Supporter Growth",
+  "speakers": [
+   {
+    "name": "Carla McLuskie",
+    "org": "the Digital Fundraising Academy"
+   },
+   {
+    "name": "Cheryl Gunning",
+    "org": "Debra"
+   }
+  ]
+ },
+ {
+  "title": "Shifting Power Through Fundraising",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Boston 13",
+   "7WS5"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Cathrin Sarll",
+    "org": "Saferworld"
+   },
+   {
+    "name": "Meryem Aboushala",
+    "org": "MARS Organisation, Turkey and Syria"
+   }
+  ]
+ },
+ {
+  "title": "The Inner Work of Trust-Based Philanthropy",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "",
+  "rest": [
+   "Oxford 16",
+   "7WS8"
+  ],
+  "track": "",
+  "speakers": [
+   {
+    "name": "Caroline Mbuvi McCoy",
+    "org": "Red Soil Strategies"
+   },
+   {
+    "name": "Sharon Afandi",
+    "org": "Segal Family Foundation"
+   }
+  ]
+ },
+ {
+  "title": "The Mamdani Campaign & the Future of Social Media",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Cambridge 32",
+   "7WS14"
+  ],
+  "track": "Mobilisation, Campaigning, & Civic Action",
+  "speakers": [
+   {
+    "name": "Gabriella Zutrau",
+    "org": "Independent Digital Strategy Advisor"
+   }
+  ]
+ },
+ {
+  "title": "The Power of Coalition-Based Fundraising",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "Workshop",
+  "rest": [
+   "Erasmus 3",
+   "7WS7"
+  ],
+  "track": "Power, Partnerships, & System Change",
+  "speakers": [
+   {
+    "name": "Abel Aniley",
+    "org": "Development Expertise Center"
+   },
+   {
+    "name": "Berhanu Demissie",
+    "org": "Development Expertise Center"
+   }
+  ]
+ },
+ {
+  "title": "Workshop TBC - FU",
+  "date": "23 October 2026",
+  "time": "09:30-10:45CET",
+  "type": "",
+  "rest": [
+   "7WS12"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Break",
+  "date": "23 October 2026",
+  "time": "10:45-11:30CET",
+  "type": "",
+  "rest": [],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Closing Keynote",
+  "date": "23 October 2026",
+  "time": "11:30-12:30CET",
+  "type": "",
+  "rest": [
+   "Atrium"
+  ],
+  "track": "",
+  "speakers": []
+ },
+ {
+  "title": "Lunch",
+  "date": "23 October 2026",
+  "time": "12:30-14:00CET",
+  "type": "",
+  "rest": [
+   "North & South Beach Restaurants"
+  ],
+  "track": "",
+  "speakers": []
+ }
+]

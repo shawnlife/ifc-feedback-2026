@@ -1,0 +1,790 @@
+/* IFC 2026 Session Feedback
+ *
+ * Flow: find session (smart search) -> answer questions -> sent.
+ * Sessions come from the Google Sheet via the Apps Script web app (or the sample
+ * CSV in demo mode). Answers are queued on the phone first and then sent, so a
+ * flaky conference wifi connection never loses a response.
+ *
+ * Settings and questions live in config.js. You should not need to edit this file.
+ */
+(function () {
+  'use strict';
+
+  var CFG = window.IFC_CONFIG || {};
+  var API = (CFG.apiUrl || '').trim();
+  var DEMO = !API;
+  var DEMO_CSV = CFG.demoSessions || 'sessions-ifc2026.csv';
+  var params = new URLSearchParams(location.search);
+  var TEST = params.has('test');
+  var NOW_OVERRIDE = params.get('now'); // e.g. ?now=2026-10-14T11:00 to test the "just finished" list
+  var TZ = CFG.timezone || 'Europe/Amsterdam';
+
+  var SESSIONS_KEY = 'ifc26-sessions-v1';
+  var OUTBOX_KEY = 'ifc26-outbox-v1';
+  var RATED_KEY = 'ifc26-rated-v1';
+  var RECENT_WINDOW_MIN = 150;   // sessions that ended up to 2.5h ago count as "just finished"
+  var SHOW_FIRST = 10;           // results shown before "Show all"
+  var REFRESH_AFTER_MS = 5 * 60 * 1000;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var els = {
+    q: $('q'), qClear: $('qClear'), status: $('status'), results: $('results'), listHeading: $('listHeading'),
+    stepFind: $('stepFind'), stepForm: $('stepForm'), stepDone: $('stepDone'),
+    chosen: $('chosen'), questions: $('questions'), formError: $('formError'), submitBtn: $('submitBtn'),
+    browseBtn: $('browseBtn'), manualBtn: $('manualBtn'), againBtn: $('againBtn'),
+    doneText: $('doneText'), banner: $('banner'), eventName: $('eventName')
+  };
+
+  var sessions = [];     // normalised session objects
+  var dayNumbers = {};   // '2026-10-14' -> 2
+  var lastFetch = 0;
+  var selected = null;   // the chosen session, or {manual:true}
+  var browsing = false;
+
+
+  /* ---------- small helpers ---------- */
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function store(key, val) {
+    try {
+      if (val === undefined) return JSON.parse(localStorage.getItem(key) || 'null');
+      localStorage.setItem(key, JSON.stringify(val));
+    } catch (e) { return null; }
+  }
+  function uid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function norm(s) {
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  }
+  function banner(text) {
+    els.banner.textContent = text;
+    els.banner.hidden = !text;
+  }
+
+
+  /* ---------- dates and times (all in conference local time) ---------- */
+
+  var MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  var MONTHS_FULL = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+  var DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+  function parseDate(raw) {
+    var s = norm(raw).trim();
+    if (!s) return '';
+    var m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return m[1] + '-' + pad(+m[2]) + '-' + pad(+m[3]);
+    m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/); // 14/10/2026: day first (European)
+    if (m) return (m[3].length === 2 ? '20' + m[3] : m[3]) + '-' + pad(+m[2]) + '-' + pad(+m[1]);
+    m = s.match(/(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]{3,})\.?(?:,?\s+(\d{4}))?/); // 14 Oct 2026
+    var m2 = s.match(/([a-z]{3,})\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?/); // Oct 14, 2026
+    var day, mon, year;
+    if (m && MONTHS.indexOf(m[2].slice(0, 3)) > -1) { day = +m[1]; mon = MONTHS.indexOf(m[2].slice(0, 3)); year = m[3]; }
+    else if (m2 && MONTHS.indexOf(m2[1].slice(0, 3)) > -1) { day = +m2[2]; mon = MONTHS.indexOf(m2[1].slice(0, 3)); year = m2[3]; }
+    else return '';
+    return (year || new Date().getFullYear()) + '-' + pad(mon + 1) + '-' + pad(day);
+  }
+
+  function parseTime(raw) {
+    var s = norm(raw).replace(/\s+/g, '');
+    var m = s.match(/^(\d{1,2})(?:[:.h](\d{2}))?(?::\d{2})?(am|pm|a\.m\.|p\.m\.)?$/) ||
+            s.match(/(\d{1,2}):(\d{2})(?::\d{2})?(am|pm)?$/);   // "2026-10-14 14:00" from a date+time cell
+    if (!m) return '';
+    var h = +m[1], min = +(m[2] || 0);
+    if (m[3] && m[3][0] === 'p' && h < 12) h += 12;
+    if (m[3] && m[3][0] === 'a' && h === 12) h = 0;
+    if (h > 23 || min > 59) return '';
+    return pad(h) + ':' + pad(min);
+  }
+
+  // Minutes since 1970 for a local conference date + time, treating it as UTC.
+  // Only ever compared with nowMinutes(), which uses the same trick, so it is consistent.
+  function toMinutes(date, time) {
+    if (!date || !time) return NaN;
+    var d = date.split('-'), t = time.split(':');
+    return Date.UTC(+d[0], +d[1] - 1, +d[2], +t[0], +t[1]) / 60000;
+  }
+
+  function nowMinutes() {
+    if (NOW_OVERRIDE) {
+      var p = NOW_OVERRIDE.split('T');
+      var m = toMinutes(parseDate(p[0]), parseTime(p[1] || '12:00'));
+      if (!isNaN(m)) return m;
+    }
+    try {
+      var parts = {};
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+      }).formatToParts(new Date()).forEach(function (x) { parts[x.type] = x.value; });
+      return toMinutes(parts.year + '-' + parts.month + '-' + parts.day, parts.hour + ':' + parts.minute);
+    } catch (e) {
+      return Math.floor(Date.now() / 60000);
+    }
+  }
+
+  function dayLabel(date, long) {
+    if (!date) return '';
+    var d = date.split('-');
+    var dt = new Date(Date.UTC(+d[0], +d[1] - 1, +d[2]));
+    var wd = DAYS[dt.getUTCDay()], mo = MONTHS_FULL[+d[1] - 1];
+    var cap = function (s) { return s[0].toUpperCase() + s.slice(1); };
+    return long ? cap(wd) + ' ' + (+d[2]) + ' ' + cap(mo) : cap(wd.slice(0, 3)) + ' ' + (+d[2]) + ' ' + cap(mo.slice(0, 3));
+  }
+  function timeLabel(s) {
+    if (!s.start) return '';
+    return s.start + (s.end ? '–' + s.end : '');
+  }
+
+
+  /* ---------- loading sessions ---------- */
+
+  var KEY_ALIASES = {
+    id: ['id', 'session id', 'code', 'session code'],
+    title: ['title', 'session title', 'session', 'session name', 'name'],
+    speakers: ['speakers', 'speaker', 'speaker(s)', 'speaker names', 'speaker name(s)', 'presenters', 'presenter', 'presenter(s)', 'facilitator', 'facilitators'],
+    room: ['room', 'venue', 'location', 'room name'],
+    date: ['date', 'day', 'session date'],
+    start: ['start', 'start time', 'starts', 'from', 'time', 'time slot', 'timeslot', 'slot'],
+    end: ['end', 'end time', 'ends', 'to', 'finish'],
+    track: ['track', 'topic', 'theme', 'stream', 'track/topic', 'category'],
+    orgs: ['organisations', 'organizations', 'organisation', 'organization', 'company', 'companies']
+  };
+
+  function normaliseSession(raw) {
+    var lower = {};
+    Object.keys(raw).forEach(function (k) { lower[norm(k).trim()] = raw[k] == null ? '' : String(raw[k]).trim(); });
+    var get = function (field) {
+      var list = KEY_ALIASES[field];
+      for (var i = 0; i < list.length; i++) if (lower[list[i]]) return lower[list[i]];
+      return '';
+    };
+    var s = {
+      id: get('id'), title: get('title'), speakers: get('speakers'), room: get('room'),
+      date: parseDate(get('date')), track: get('track'), orgs: get('orgs')
+    };
+    var startRaw = get('start'), endRaw = get('end');
+    // A single "Time" column like "09:30 - 10:45"
+    var range = startRaw.split(/\s*(?:-|\u2013|\u2014|to)\s*/);
+    if (range.length === 2 && !endRaw) { startRaw = range[0]; endRaw = range[1]; }
+    s.start = parseTime(startRaw);
+    s.end = parseTime(endRaw);
+    if (!s.title) return null;
+    if (!s.id) s.id = [s.date, s.start, s.room, s.title].join('|').slice(0, 120);
+    return s;
+  }
+
+  function parseCSV(text) {
+    var rows = [], row = [], field = '', inQ = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (inQ) {
+        if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+        else if (c === '"') inQ = false;
+        else field += c;
+      } else if (c === '"') inQ = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(field); rows.push(row); row = []; field = '';
+      } else field += c;
+    }
+    if (field || row.length) { row.push(field); rows.push(row); }
+    var head = rows.shift() || [];
+    return rows.filter(function (r) { return r.join('').trim(); }).map(function (r) {
+      var o = {};
+      head.forEach(function (h, j) { o[h] = r[j] || ''; });
+      return o;
+    });
+  }
+
+  function setSessions(list) {
+    sessions = list.map(normaliseSession).filter(Boolean);
+    var dates = sessions.map(function (s) { return s.date; }).filter(Boolean)
+      .filter(function (d, i, a) { return a.indexOf(d) === i; }).sort();
+    dayNumbers = {};
+    dates.forEach(function (d, i) { dayNumbers[d] = i + 1; });
+    sessions.forEach(buildIndex);
+  }
+
+  function fetchSessions() {
+    var req = DEMO
+      ? fetch(DEMO_CSV, { cache: 'no-cache' })
+          .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+          .then(parseCSV)
+      : fetch(API + '?action=sessions', { cache: 'no-store' })
+          .then(function (r) { return r.json(); })
+          .then(function (j) { if (!j.ok) throw new Error(j.error || 'bad response'); return j.sessions; });
+    return req.then(function (list) {
+      lastFetch = Date.now();
+      store(SESSIONS_KEY, { t: lastFetch, list: list });
+      setSessions(list);
+      return true;
+    });
+  }
+
+  function loadSessions() {
+    var cached = store(SESSIONS_KEY);
+    if (cached && cached.list && cached.list.length) {
+      setSessions(cached.list);
+      render();
+    } else {
+      els.status.textContent = 'Loading sessions…';
+    }
+    return fetchSessions().then(render).catch(function () {
+      if (!sessions.length) {
+        els.status.innerHTML = '';
+        banner('Could not load the session list. Check your connection and reload the page, or tap "My session isn\'t listed" below.');
+      }
+    });
+  }
+
+
+  /* ---------- smart search ---------- */
+
+  var STOP = ['the', 'a', 'an', 'of', 'and', 'in', 'on', 'at', 'for', 'to', 'with', 'by', 'about',
+              'session', 'talk', 'workshop', 'is', 'was', 'i', 'my', 'it', 'from'];
+
+  function tokens(s) {
+    return norm(s).replace(/&/g, ' and ').split(/[^a-z0-9]+/).filter(Boolean);
+  }
+
+  function timeTokens(t) {
+    if (!t) return [];
+    var h = +t.slice(0, 2), m = t.slice(3), h12 = h % 12 || 12, ap = h < 12 ? 'am' : 'pm';
+    var out = [String(h), pad(h), pad(h) + m, h + m, h12 + ap, String(h12)];
+    if (m !== '00') out.push(h12 + m + ap, h12 + m);
+    return out;
+  }
+
+  function dateTokens(d) {
+    if (!d) return [];
+    var p = d.split('-'), dt = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+    var wd = DAYS[dt.getUTCDay()], mo = MONTHS_FULL[+p[1] - 1];
+    var out = [wd, wd.slice(0, 3), mo, mo.slice(0, 3), String(+p[2])];
+    if (dayNumbers[d]) out.push('day' + dayNumbers[d]);
+    return out;
+  }
+
+  // Each session gets searchable fields with weights: a speaker or room match
+  // is worth more than "the word appeared somewhere".
+  function buildIndex(s) {
+    s._fields = [
+      { w: 3, t: tokens(s.title) },
+      { w: 3, t: tokens(s.speakers) },
+      { w: 2.5, t: tokens(s.room) },
+      { w: 2, t: tokens(s.track) },
+      { w: 2, t: tokens(s.orgs) },                       // speakers' organisations
+      { w: 2, t: tokens(s.id), strict: true },           // session code, e.g. 1WS14
+      // strict: times and day names only match exactly or by prefix, never as typos
+      // (otherwise "thursday" matches "tuesday", two letters apart)
+      { w: 1.5, t: timeTokens(s.start), strict: true },
+      { w: 1.2, t: dateTokens(s.date), strict: true }
+    ];
+    s._room = tokens(s.room).join(' ');
+    s._title = tokens(s.title).join(' ');
+    s._speakers = tokens(s.speakers).join(' ');
+  }
+
+  // Damerau-Levenshtein distance (typos, missing letters, swapped letters)
+  function dist(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    var d = [], i, j;
+    for (i = 0; i <= a.length; i++) { d[i] = [i]; }
+    for (j = 0; j <= b.length; j++) d[0][j] = j;
+    for (i = 1; i <= a.length; i++) {
+      var rowMin = Infinity;
+      for (j = 1; j <= b.length; j++) {
+        var cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+        if (d[i][j] < rowMin) rowMin = d[i][j];
+      }
+      if (rowMin > max) return max + 1;
+    }
+    return d[a.length][b.length];
+  }
+
+  // How well does one typed word match one word of a session? 0 = not at all.
+  function wordMatch(q, w, strict) {
+    if (q === w) return 1;
+    if (/^\d+$/.test(q) && q.length <= 2) return 0;        // "4" must be exactly "4", not "14" or "45"
+    if (w.indexOf(q) === 0) return q.length === 1 ? 0 : 0.85;
+    if (strict) return 0;
+    if (q.length >= 4 && w.indexOf(q) > 0) return 0.6;
+    if (q.length >= 4 && /[a-z]/.test(q)) {
+      var max = q.length >= 7 ? 2 : 1;
+      if (dist(q, w, max) <= max) return 0.6;
+      // typo while still typing: compare with the start of the word
+      for (var L = q.length - 1; L <= q.length + 1; L++) {
+        if (L < w.length && L >= 3 && dist(q, w.slice(0, L), max) <= max) return 0.5;
+      }
+    }
+    return 0;
+  }
+
+  function prepQuery(raw) {
+    var s = norm(raw)
+      .replace(/\bday\s+(\d)\b/g, 'day$1')
+      .replace(/\b(\d{1,2})\s*(am|pm)\b/g, '$1$2')
+      .replace(/\b(\d{1,2})[:.h](\d{2})\s*(am|pm)\b/g, '$1$2$3')
+      .replace(/\b(\d{1,2})[:.h](\d{2})\b/g, '$1$2');
+    return tokens(s).filter(function (t) { return STOP.indexOf(t) === -1; });
+  }
+
+  function search(raw) {
+    var qt = prepQuery(raw);
+    if (!qt.length) return [];
+    var qPhrase = qt.join(' ');
+    var need = qt.length - Math.floor(qt.length / 3);   // 1->1, 2->2, 3->2, 4->3: one typo word is forgiven
+    var now = nowMinutes();
+    var compact = qt.length > 1 ? qt.join('') : '';          // "tik tok" -> "tiktok"
+    var out = [];
+    var bestIn = function (s, q) {
+      var best = 0;
+      s._fields.forEach(function (f) {
+        for (var i = 0; i < f.t.length; i++) {
+          var m = wordMatch(q, f.t[i], f.strict);
+          if (m && m * f.w > best) best = m * f.w;
+        }
+      });
+      return best;
+    };
+    sessions.forEach(function (s) {
+      var score = 0, hits = 0;
+      qt.forEach(function (q) {
+        var best = bestIn(s, q);
+        if (best) { hits++; score += best; }
+      });
+      if (compact.length >= 4 && hits < qt.length) {
+        var joined = bestIn(s, compact);
+        if (joined) { hits = qt.length; score = Math.max(score, joined * qt.length); }
+      }
+      if (hits < need) return;
+      // Whole phrase bonuses: "room 4" should beat "4pm in room 7"
+      if (qt.length > 1 || qPhrase.length > 3) {
+        if (s._room === qPhrase || (s._room && qPhrase.indexOf(s._room) > -1)) score += 4;
+        if (s._title.indexOf(qPhrase) > -1) score += 3;
+        if (s._speakers.indexOf(qPhrase) > -1) score += 3;
+      }
+      score += timeBoost(s, now);
+      out.push({ s: s, hits: hits, score: score });
+    });
+    out.sort(function (a, b) {
+      return b.hits - a.hits || b.score - a.score || sortKey(a.s).localeCompare(sortKey(b.s));
+    });
+    return out.map(function (x) { return x.s; });
+  }
+
+  // During the conference, sessions that just ended are the likeliest answer.
+  function timeBoost(s, now) {
+    var start = toMinutes(s.date, s.start), end = toMinutes(s.date, s.end || s.start);
+    if (isNaN(start)) return 0;
+    if (start <= now && now - end <= RECENT_WINDOW_MIN) return 1.5;   // on now or just finished
+    if (end < now && s.date === todayISO(now)) return 0.5;           // earlier today
+    return 0;
+  }
+
+  function todayISO(now) {
+    var d = new Date(now * 60000);
+    return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
+  }
+
+  function sortKey(s) { return (s.date || '9') + (s.start || '99') + s.room + s.title; }
+
+  // The latest time slot that is on now or just finished (all its parallel sessions).
+  function recentSessions() {
+    var now = nowMinutes();
+    var list = sessions.filter(function (s) {
+      var start = toMinutes(s.date, s.start), end = toMinutes(s.date, s.end || s.start);
+      return !isNaN(start) && start - 10 <= now && now - end <= RECENT_WINDOW_MIN;
+    });
+    var latest = list.reduce(function (m, s) { return s.date + s.start > m ? s.date + s.start : m; }, '');
+    return list.filter(function (s) { return s.date + s.start === latest; })
+      .sort(function (a, b) { return a.room.localeCompare(b.room, undefined, { numeric: true }); });
+  }
+
+
+  /* ---------- rendering the list ---------- */
+
+  function highlight(text, qt) {
+    return String(text).split(/(\s+)/).map(function (w) {
+      if (!w.trim()) return w;
+      var nw = tokens(w);
+      var hit = qt.length && nw.some(function (t) {
+        return qt.some(function (q) { return wordMatch(q, t) > 0; });
+      });
+      if (!hit) return esc(w);
+      var m = w.match(/^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/u);   // keep commas outside the highlight
+      return esc(m[1]) + '<mark>' + esc(m[2]) + '</mark>' + esc(m[3]);
+    }).join('');
+  }
+
+  function rated() { return store(RATED_KEY) || []; }
+
+  function card(s, qt) {
+    qt = qt || [];
+    var done = rated().indexOf(s.id) > -1;
+    return '<li><button type="button" class="result" data-id="' + esc(s.id) + '">' +
+      '<span class="r-title">' + highlight(s.title, qt) + '</span>' +
+      (s.speakers ? '<span class="r-speakers">' + highlight(s.speakers, qt) + '</span>' : '') +
+      '<span class="r-meta">' +
+        (s.room ? '<span class="r-room">' + highlight(s.room, qt) + '</span>' : '') +
+        (s.date ? '<span>' + esc(dayLabel(s.date)) + (s.start ? ', ' + esc(timeLabel(s)) : '') + '</span>' : '') +
+        (s.track ? '<span>' + highlight(s.track, qt) + '</span>' : '') +
+        (done ? '<span class="r-done">✓ You rated this</span>' : '') +
+      '</span></button></li>';
+  }
+
+  var showAll = false;
+
+  function render() {
+    if (browsing) return renderBrowse();
+    var raw = els.q.value;
+    els.qClear.hidden = !raw;
+    if (!sessions.length) return;
+
+    if (!raw.trim()) {
+      var recent = recentSessions();
+      els.listHeading.hidden = !recent.length;
+      els.listHeading.textContent = 'Just finished or in progress';
+      els.results.innerHTML = recent.map(function (s) { return card(s); }).join('');
+      els.status.textContent = recent.length ? '' : sessions.length + ' sessions loaded. Start typing to find yours.';
+      return;
+    }
+
+    var qt = prepQuery(raw);
+    var found = search(raw);
+    els.listHeading.hidden = true;
+    var shown = showAll ? found : found.slice(0, SHOW_FIRST);
+    els.results.innerHTML = shown.map(function (s) { return card(s, qt); }).join('') +
+      (found.length > shown.length
+        ? '<li><button type="button" class="link" id="moreBtn">Show all ' + found.length + ' matches</button></li>' : '');
+    els.status.textContent = !qt.length ? 'Keep typing…'
+      : found.length === 0 ? 'No sessions match. Try a speaker\'s surname, the room, or one word from the title.'
+      : found.length === 1 ? '1 session found' : found.length + ' sessions found';
+  }
+
+  function renderBrowse() {
+    els.listHeading.hidden = true;
+    els.status.textContent = 'All ' + sessions.length + ' sessions, by day and time.';
+    var recent = recentSessions()[0];
+    var openKey = recent ? recent.date + recent.start : '';
+    var byDay = {};
+    sessions.slice().sort(function (a, b) { return sortKey(a).localeCompare(sortKey(b)); }).forEach(function (s) {
+      var d = s.date || 'Other';
+      var slot = s.start ? timeLabel(s) : 'Time to be confirmed';
+      (byDay[d] = byDay[d] || {});
+      (byDay[d][slot] = byDay[d][slot] || []).push(s);
+    });
+    var html = '';
+    Object.keys(byDay).forEach(function (d) {
+      html += '<li class="day-group"><h3>' + esc(d === 'Other' ? 'Other' : dayLabel(d, true)) + '</h3>';
+      Object.keys(byDay[d]).forEach(function (slot) {
+        var list = byDay[d][slot];
+        var open = list[0].date + list[0].start === openKey;
+        html += '<details class="slot"' + (open ? ' open' : '') + '><summary>' + esc(slot) +
+          '<span class="slot-count">' + list.length + ' sessions</span></summary><ul class="results">' +
+          list.map(function (s) { return card(s); }).join('') + '</ul></details>';
+      });
+      html += '</li>';
+    });
+    els.results.innerHTML = html;
+  }
+
+
+  /* ---------- the form ---------- */
+
+  var STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9z"/></svg>';
+
+  function buildQuestions() {
+    var html = '';
+    (CFG.questions || []).forEach(function (q, i) {
+      var name = 'q' + i, req = q.required ? '&nbsp;<span class="req" aria-hidden="true">*</span>' : '';
+      if (q.type === 'rating') {
+        html += '<fieldset class="q" data-i="' + i + '"><legend>' + esc(q.label) + req + '</legend><div class="stars">';
+        for (var n = 1; n <= 5; n++) {
+          html += '<input type="radio" id="' + name + '_' + n + '" name="' + name + '" value="' + n + '"' + (q.required ? ' required' : '') + '>' +
+            '<label for="' + name + '_' + n + '" aria-label="' + n + ' out of 5">' + STAR + '</label>';
+        }
+        html += '</div><div class="scale-ends"><span>' + esc(q.low || '') + '</span><span>' + esc(q.high || '') + '</span></div></fieldset>';
+      } else if (q.type === 'choice') {
+        html += '<fieldset class="q" data-i="' + i + '"><legend>' + esc(q.label) + req + '</legend><div class="choices">';
+        (q.options || []).forEach(function (opt, j) {
+          html += '<input type="radio" id="' + name + '_' + j + '" name="' + name + '" value="' + esc(opt) + '"' + (q.required ? ' required' : '') + '>' +
+            '<label for="' + name + '_' + j + '">' + esc(opt) + '</label>';
+        });
+        html += '</div></fieldset>';
+      } else {
+        html += '<div class="q" data-i="' + i + '"><label for="' + name + '">' + esc(q.label) + req + '</label>' +
+          '<textarea id="' + name + '" name="' + name + '" maxlength="1000" rows="3" placeholder="' + esc(q.placeholder || '') + '"' +
+          (q.required ? ' required' : '') + '></textarea></div>';
+      }
+    });
+    els.questions.innerHTML = html;
+  }
+
+  // Fill stars up to the chosen one
+  function paintStars(fs) {
+    var val = +((fs.querySelector('input:checked') || {}).value || 0);
+    fs.querySelectorAll('.stars label').forEach(function (l, k) { l.classList.toggle('on', k < val); });
+  }
+
+  function showStep(step) {
+    els.stepFind.hidden = step !== 'find';
+    els.stepForm.hidden = step !== 'form';
+    els.stepDone.hidden = step !== 'done';
+    window.scrollTo(0, 0);
+  }
+
+  function choose(s) {
+    selected = s;
+    els.stepForm.reset();
+    els.stepForm.querySelectorAll('.stars').forEach(function (st) { paintStars(st.parentNode); });
+    els.stepForm.querySelectorAll('.invalid').forEach(function (x) { x.classList.remove('invalid'); });
+    els.stepForm.querySelectorAll('.q-error').forEach(function (x) { x.remove(); });
+    els.formError.textContent = '';
+    var change = '<button type="button" class="link" id="changeBtn">Change</button>';
+    if (s.manual) {
+      els.chosen.innerHTML = '<div class="chosen-head"><span class="chosen-label">Your session</span>' + change + '</div>' +
+        '<label for="manualName" class="r-speakers">Session title, speaker or room</label>' +
+        '<input id="manualName" class="manual-input" maxlength="200" autocomplete="off" required>';
+    } else {
+      var already = rated().indexOf(s.id) > -1;
+      els.chosen.innerHTML = '<div class="chosen-head"><span class="chosen-label">You\'re rating</span>' + change + '</div>' +
+        '<span class="r-title">' + esc(s.title) + '</span>' +
+        (s.speakers ? '<span class="r-speakers">' + esc(s.speakers) + '</span>' : '') +
+        '<span class="r-meta"><span class="r-room">' + esc(s.room) + '</span>' +
+        (s.date ? '<span>' + esc(dayLabel(s.date)) + (s.start ? ', ' + esc(timeLabel(s)) : '') + '</span>' : '') + '</span>' +
+        (already ? '<p class="hint" style="margin:8px 0 0">You have already rated this one. Sending again adds a second response.</p>' : '');
+    }
+    showStep('form');
+    history.pushState({ step: 'form' }, '');
+    if (s.manual) $('manualName').focus();
+  }
+
+  function backToFind() {
+    selected = null;
+    showStep('find');
+  }
+
+  function collect() {
+    var answers = {}, firstBad = null;
+    els.stepForm.querySelectorAll('.invalid').forEach(function (x) { x.classList.remove('invalid'); });
+    els.stepForm.querySelectorAll('.q-error').forEach(function (x) { x.remove(); });
+    (CFG.questions || []).forEach(function (q, i) {
+      var val;
+      if (q.type === 'text') val = ($('q' + i).value || '').trim();
+      else val = (els.stepForm.querySelector('input[name="q' + i + '"]:checked') || {}).value || '';
+      if (q.type === 'rating' && val) val = +val;
+      answers[q.column || q.label] = val;
+      if (q.required && val === '') {
+        var box = els.stepForm.querySelector('.q[data-i="' + i + '"]');
+        box.classList.add('invalid');
+        box.insertAdjacentHTML('beforeend', '<p class="q-error">Please answer this one.</p>');
+        firstBad = firstBad || box;
+      }
+    });
+    var manualName = '';
+    if (selected.manual) {
+      manualName = $('manualName').value.trim();
+      if (!manualName) firstBad = firstBad || $('manualName');
+    }
+    return { answers: answers, manualName: manualName, firstBad: firstBad };
+  }
+
+
+  /* ---------- sending (queued, retried, never lost) ---------- */
+
+  function outbox() { return store(OUTBOX_KEY) || []; }
+
+  function send(item) {
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 20000);
+    // text/plain avoids a CORS preflight, which Apps Script cannot answer
+    return fetch(API, {
+      method: 'POST', body: JSON.stringify(item),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      signal: ctrl ? ctrl.signal : undefined
+    }).then(function (r) { return r.json(); })
+      .then(function (j) { clearTimeout(timer); return j; },
+            function (e) { clearTimeout(timer); throw e; });
+  }
+
+  var flushing = false;
+  // Returns a map of rid -> 'sent' | 'rejected' for the items it handled.
+  function flush() {
+    if (DEMO || flushing) return Promise.resolve({});
+    var queue = outbox();
+    if (!queue.length) return Promise.resolve({});
+    flushing = true;
+    var results = {};
+    var chain = Promise.resolve();
+    queue.forEach(function (item) {
+      chain = chain.then(function () {
+        return send(item).then(function (j) {
+          // ok, or a permanent rejection from the server: either way stop retrying it
+          results[item.rid] = j && j.ok ? 'sent' : 'rejected';
+          store(OUTBOX_KEY, outbox().filter(function (x) { return x.rid !== item.rid; }));
+        });
+      });
+    });
+    return chain.catch(function () { /* offline: leave the rest queued */ })
+      .then(function () { flushing = false; return results; });
+  }
+
+  function submit(ev) {
+    ev.preventDefault();
+    if (!selected) return;
+    var c = collect();
+    if (c.firstBad) {
+      els.formError.textContent = 'Please fill in the highlighted question.';
+      c.firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (els.stepForm.elements.website.value) { done('sent'); return; } // bot: pretend it worked
+
+    var s = selected;
+    var item = {
+      rid: uid(),
+      test: TEST,
+      sentAt: new Date().toISOString(),
+      session: s.manual
+        ? { id: 'NOT LISTED', title: c.manualName }
+        : { id: s.id, title: s.title, speakers: s.speakers, room: s.room, date: s.date, start: s.start, end: s.end, track: s.track },
+      answers: c.answers
+    };
+
+    if (!s.manual) {
+      var r = rated();
+      if (r.indexOf(s.id) === -1) { r.push(s.id); store(RATED_KEY, r); }
+    }
+
+    if (DEMO) {
+      console.log('[demo mode] would send:', item);
+      done('demo');
+      return;
+    }
+
+    store(OUTBOX_KEY, outbox().concat([item]));
+    els.submitBtn.disabled = true;
+    els.submitBtn.textContent = 'Sending…';
+    flush().then(function (res) {
+      els.submitBtn.disabled = false;
+      els.submitBtn.textContent = 'Send feedback';
+      done(res[item.rid] || 'queued');
+    });
+  }
+
+  function done(state) {
+    els.doneText.textContent = {
+      sent: 'Your feedback has been sent.',
+      rejected: 'Sorry, that response could not be saved. Please try again, or tell the registration desk.',
+      queued: 'Your connection dropped, so your feedback is saved on this phone. It will send automatically next time you open this page with a connection.',
+      demo: 'Demo mode: nothing was saved. Connect the Google Sheet in config.js to go live.'
+    }[state];
+    $('doneTitle').textContent = state === 'rejected' ? 'Not sent' : 'Thank you!';
+    showStep('done');
+    history.replaceState({ step: 'done' }, '');
+    $('stepDone').focus();
+  }
+
+
+  /* ---------- wiring ---------- */
+
+  // Logos and banner from config.js; anything missing or broken just stays hidden
+  function applyBrand() {
+    var b = CFG.brand || {};
+    var show = function (id, src, alt) {
+      var img = $(id);
+      if (!src || !img) return;
+      img.alt = alt || '';
+      img.onload = function () {
+        img.hidden = false;
+        if (id === 'bannerImg') $('hero').hidden = false;
+        else $('brandbar').hidden = false;
+      };
+      img.src = src;
+    };
+    show('logoLeft', b.logoLeft, b.logoLeftAlt);
+    show('logoRight', b.logoRight, b.logoRightAlt);
+    show('bannerImg', b.banner, '');
+  }
+
+  function init() {
+    els.eventName.textContent = CFG.eventName || 'IFC 2026';
+    applyBrand();
+    if (DEMO) banner('Demo mode: nothing is saved.');
+    else if (TEST) banner('Test mode: responses go to the "Test responses" tab, not the real results.');
+    buildQuestions();
+
+    var timer;
+    els.q.addEventListener('input', function () {
+      browsing = false; showAll = false;
+      clearTimeout(timer);
+      timer = setTimeout(render, 60);
+    });
+    els.q.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var first = els.results.querySelector('.result');
+        if (first) first.focus();
+      }
+    });
+    els.qClear.addEventListener('click', function () {
+      els.q.value = ''; browsing = false; render(); els.q.focus();
+    });
+    els.browseBtn.addEventListener('click', function () {
+      els.q.value = ''; browsing = true; render();
+      els.status.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    els.manualBtn.addEventListener('click', function () { choose({ manual: true }); });
+    els.results.addEventListener('click', function (e) {
+      if (e.target.id === 'moreBtn') { showAll = true; render(); return; }
+      var b = e.target.closest('.result');
+      if (!b) return;
+      var s = sessions.filter(function (x) { return x.id === b.dataset.id; })[0];
+      if (s) choose(s);
+    });
+
+    els.stepForm.addEventListener('change', function (e) {
+      var fs = e.target.closest('.q');
+      if (fs && fs.querySelector('.stars')) paintStars(fs);
+      if (fs && fs.classList.contains('invalid')) {
+        fs.classList.remove('invalid');
+        var err = fs.querySelector('.q-error'); if (err) err.remove();
+        if (!els.stepForm.querySelector('.invalid')) els.formError.textContent = '';
+      }
+    });
+    els.stepForm.addEventListener('click', function (e) {
+      if (e.target.id === 'changeBtn') history.back();
+    });
+    els.stepForm.addEventListener('submit', submit);
+    els.againBtn.addEventListener('click', function () {
+      els.q.value = ''; browsing = false; render(); backToFind();
+    });
+    window.addEventListener('popstate', function () {
+      if (els.stepFind.hidden) { render(); backToFind(); }
+    });
+
+    // Retry anything left in the outbox, and keep the session list fresh
+    window.addEventListener('online', flush);
+    setInterval(flush, 30000);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible') return;
+      flush();
+      if (Date.now() - lastFetch > REFRESH_AFTER_MS) fetchSessions().then(render).catch(function () {});
+    });
+
+    loadSessions();
+    flush();
+  }
+
+  init();
+})();

@@ -1,0 +1,4 @@
+.DS_Store
+__pycache__/
+# internal notes, not for the public repo
+TO-GET.md
