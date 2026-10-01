@@ -45,6 +45,11 @@ var BASE_COLUMNS = ['Timestamp', 'Session ID', 'Session', 'Speakers', 'Room', 'D
 var CACHE_KEY = 'sessions_v1';
 var TIME_BUDGET_MS = 4 * 60 * 1000;     // stop well before Google's 6-minute limit; the next run carries on
 var MAX_ROWS_PER_RUN = 1500;
+// The background robot runs every 5 minutes, and not at all overnight (conference time).
+// Nothing is missed: overnight responses wait in Firebase and the first morning run
+// brings them in. Opening the dashboard always pulls the newest through.
+var RUN_EVERY_MINUTES = 5;
+var QUIET_FROM_HOUR = 22, QUIET_UNTIL_HOUR = 7;
 var CACHE_SECONDS = 60;
 var MAX_ANSWERS = 20;
 var MAX_TEXT = 1000;
@@ -343,11 +348,17 @@ function fromFs_(v) {
 // much of Google's 90-minute daily allowance is used, and emails Shawn if something stalls.
 function processQueue(e) {
   var t0 = Date.now();
+  if (e && quietHours_()) return 0;            // overnight: back to sleep straight away
   try { return processQueue_(); }
   finally {
     if (e) { meter_('runSeconds', (Date.now() - t0) / 1000); checkAlerts_(); }   // e = called by the trigger
     flushSP_();
   }
+}
+
+function quietHours_() {
+  var h = Number(Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'H'));
+  return QUIET_FROM_HOUR > QUIET_UNTIL_HOUR ? (h >= QUIET_FROM_HOUR || h < QUIET_UNTIL_HOUR) : (h >= QUIET_FROM_HOUR && h < QUIET_UNTIL_HOUR);
 }
 
 function processQueue_() {
@@ -644,7 +655,7 @@ function checkAlerts_() {
   var props = SP_();
   var problems = [];
   var since = Number(props.getProperty('FS_ERROR_SINCE') || 0);
-  if (since && Date.now() - since > 15 * 60000) problems.push('Copying from Firebase to the Sheet has been failing for ' +
+  if (since && Date.now() - since > 20 * 60000) problems.push('Copying from Firebase to the Sheet has been failing for ' +
     Math.round((Date.now() - since) / 60000) + ' minutes: ' + props.getProperty('FS_LAST_ERROR'));
   var u = usage_();
   if (u.runMinutes > 70) problems.push('Background run time today is ' + u.runMinutes + ' of 90 minutes.');
@@ -666,12 +677,12 @@ function turnOnAutomation() {
     var f = t.getHandlerFunction();
     if (f === 'backupNow' || f === 'processQueue') ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger('processQueue').timeBased().everyMinutes(1).create();
+  ScriptApp.newTrigger('processQueue').timeBased().everyMinutes(RUN_EVERY_MINUTES).create();
   ScriptApp.newTrigger('backupNow').timeBased().everyHours(1).create();
   processQueue_();
   flushSP_();
   backup_();
-  SpreadsheetApp.getUi().alert('Done. New responses now move into the Responses tab every minute, and the whole ' +
+  SpreadsheetApp.getUi().alert('Done. New responses now move into the Responses tab every ' + RUN_EVERY_MINUTES + ' minutes from ' + QUIET_UNTIL_HOUR + ':00 to ' + QUIET_FROM_HOUR + ':00 (and whenever the dashboard is open), and the whole ' +
     'spreadsheet is copied to the "' + BACKUP_FOLDER + '" folder in your Google Drive every hour.');
 }
 
@@ -701,6 +712,12 @@ function clearTestResponses() {
 
 function backupNow(e) {
   var t0 = Date.now();
+  if (e) {                                       // scheduled: skip if nothing has changed since the last copy
+    var raw = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RAW_LOG);
+    var size = String(raw ? raw.getLastRow() : 0);
+    if (SP_().getProperty('BACKUP_AT_ROWS') === size) return;
+    SP_().setProperty('BACKUP_AT_ROWS', size);
+  }
   try { backup_(); } finally { if (e) meter_('runSeconds', (Date.now() - t0) / 1000); flushSP_(); }
 }
 

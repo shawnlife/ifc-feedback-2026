@@ -31,6 +31,10 @@ Delete its row. Any feedback already given stays in Responses.
 
 Menu **IFC Feedback > Check the session list for problems**. It either says "All good" or lists the rows to fix.
 
+## Keep the dashboard open
+
+Have the dashboard open on one laptop during session times. Every refresh (automatic, once a minute) pulls the newest responses into the Sheet, so results stay live. Without it the Sheet still updates on its own every 5 minutes between 07:00 and 22:00.
+
 ## Seeing results
 
 Menu **IFC Feedback > Update the Summary tab**. You get one row per session with the number of responses and the average of each star question. Run it again whenever you want fresh numbers.

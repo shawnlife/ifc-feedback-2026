@@ -34,6 +34,8 @@ Status as of 1 Oct 2026. ✅ done · 🟡 needs Shawn · ⬜ to do
 
 | Background-job limits on the Google script (90 min/day run time, ~50,000 settings calls/day) | Idle runs now do one quick Firebase check and stop; settings read/written once per run; a usage meter on the dashboard shows real minutes and reads used today; email alert to Shawn if copying fails 15+ min or usage passes 70 min / 40,000 reads | ✅ simulated, 🟡 real minutes measured from 2 Oct |
 
+**2 Oct change (Shawn):** background robot every 5 minutes, asleep 22:00-07:00, backups skipped when nothing changed. Expected background time: under 10 of 90 minutes a day. The dashboard pulls responses through on every refresh (doesn't use the allowance), so with it open results are live.
+
 ## Simulated worst-case Thursday (real script code, stand-in Google, tools/gas_harness.js)
 6 blocks x 800 responses + 96 leader reports = 4,896 sent -> **all 4,896 in the Sheet**, Firebase reads 6,337 of 50,000, settings calls 4,320 of ~50,000.
 

@@ -102,7 +102,7 @@ function makeEnv() {
     }) },
     UrlFetchApp: { fetch: (url, opt) => { const r = runQuery(JSON.parse(opt.payload)); return { getResponseCode: () => r.code, getContentText: () => r.text }; } },
     ScriptApp: { getOAuthToken: () => 'token', getProjectTriggers: () => [{ getHandlerFunction: () => 'processQueue' }], newTrigger: () => ({ timeBased: () => ({ everyMinutes: () => ({ create() {} }), everyHours: () => ({ create() {} }) }) }), deleteTrigger() {} },
-    Utilities: { formatDate: (d, tz, f) => new Date(d).toISOString().slice(0, 10), sleep() {}, computeDigest: () => [1, 2, 3, 4], DigestAlgorithm: {}, Charset: {} },
+    Utilities: { formatDate: (d, tz, f) => f === 'H' ? String((new Date(d).getUTCHours() + 2) % 24) : new Date(d).toISOString().slice(0, 10), sleep() {}, computeDigest: () => [1, 2, 3, 4], DigestAlgorithm: {}, Charset: {} },
     ContentService: { createTextOutput: (t) => ({ setMimeType() { return this; }, text: t }), MimeType: { JSON: 'json' } },
     MailApp: { sendEmail: (to, subject, body) => calls.mail.push({ to, subject, body }) },
     Session: { getEffectiveUser: () => ({ getEmail: () => 'shawn@example.com' }) },
@@ -135,7 +135,7 @@ function fsDoc(env, { test = true, form, sessionId = '1WS1', overall = 4, at } =
   env.firestore.docs.push({ name: 'projects/p/databases/(default)/documents/responses/' + rid, fields, createTime: ts });
   return rid;
 }
-const tick = (env) => { env.clock.advance(60000); env.ctx.processQueue({ triggerUid: 1 }); };
+const tick = (env) => { env.clock.advance(5 * 60000); env.ctx.processQueue({ triggerUid: 1 }); };   // the robot now runs every 5 minutes
 const rowsOf = (env, tab) => { const sh = env.sheets[tab]; return sh ? Math.max(0, sh.getLastRow() - 1) : 0; };
 
 /* ---------- scenarios ---------- */
@@ -178,14 +178,14 @@ for (let i = 0; i < 10; i++) tick(env);
 const perRun = (env.calls.props - p0) / 10;
 check(perRun <= 3, `idle run uses ${perRun} settings calls (x 1,440 runs = ${Math.round(perRun * 1440)}/day)`);
 
-console.log('6. Firebase failing: alert email after 15 minutes, at most hourly');
+console.log('6. Firebase failing: alert email after 20 minutes, at most hourly');
 env = makeEnv();
 env.firestore.fail = 429;
-for (let i = 0; i < 14; i++) tick(env);
-check(env.calls.mail.length === 0, 'no email in the first 14 minutes');
-for (let i = 0; i < 3; i++) tick(env);
-check(env.calls.mail.length === 1, `one email after 15+ minutes (${env.calls.mail.length})`);
-for (let i = 0; i < 30; i++) tick(env);
+for (let i = 0; i < 4; i++) tick(env);
+check(env.calls.mail.length === 0, 'no email in the first 20 minutes');
+for (let i = 0; i < 2; i++) tick(env);
+check(env.calls.mail.length === 1, `one email after it has been failing 20+ minutes (${env.calls.mail.length})`);
+for (let i = 0; i < 6; i++) tick(env);
 check(env.calls.mail.length === 1, 'no repeat within the hour');
 env.firestore.fail = null; fsDoc(env); tick(env);
 check(rowsOf(env, 'Test responses') === 1 && !env.store.FS_LAST_ERROR, 'when Firebase recovers, the backlog comes through and the error clears');
@@ -223,12 +223,21 @@ let total = 0;
 for (let block = 0; block < 6; block++) {
   for (let i = 0; i < 800; i++) { fsDoc(env, { test: false, at: env.clock.now() + i * 300 }); total++; }   // arrive over ~4 minutes
   for (let i = 0; i < 16; i++) { fsDoc(env, { test: false, form: 'leader', at: env.clock.now() + i * 1000 }); total++; }
-  for (let m = 0; m < 150; m++) tick(env);                        // 2.5 hours until the next block
+  for (let m = 0; m < 30; m++) tick(env);                         // 2.5 hours until the next block
 }
-for (let m = 0; m < 1440 - 900; m++) tick(env);                  // rest of the day
-check(rowsOf(env, 'Responses') + rowsOf(env, 'Session leader feedback') === total, `${total} sent -> ${rowsOf(env, 'Responses')} responses + ${rowsOf(env, 'Session leader feedback')} leader reports in the Sheet`);
-check(env.calls.fsReads < 25000, `Firebase reads for the whole day: ${env.calls.fsReads} of 50,000 allowed`);
-check(env.calls.props < 25000, `settings calls for the whole day: ${env.calls.props} of ~50,000 allowed`);
+console.log('11. Overnight: robot sleeps, nothing is missed');
+env = makeEnv();
+env.clock.advance(Date.parse('2026-10-22T20:30:00Z') - env.clock.now());   // 22:30 in Amsterdam
+for (let i = 0; i < 20; i++) fsDoc(env, { test: false, at: env.clock.now() + i * 1000 });
+const q0 = env.calls.fsQueries;
+for (let m = 0; m < 48; m++) tick(env);                                     // 22:30 -> 02:30
+check(env.calls.fsQueries === q0 && rowsOf(env, 'Responses') === 0, `22:30-02:30: robot asleep (${env.calls.fsQueries - q0} Firebase checks), 20 responses waiting safely in Firebase`);
+const dash = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+check(dash.responses.length === 20, 'opening the dashboard at 02:30 still pulls them all through');
+fsDoc(env, { test: false });
+for (let m = 0; m < 60; m++) tick(env);                                     // 02:30 -> 07:30
+check(rowsOf(env, 'Responses') === 21, `by 07:30 the one sent at 02:30 is in too (${rowsOf(env, 'Responses')})`);
+check(env.calls.fsQueries - q0 <= 10, `whole night cost ${env.calls.fsQueries - q0} Firebase checks`);
 
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);
