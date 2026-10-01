@@ -1,63 +1,96 @@
 #!/usr/bin/env python3
 """
-Load test: simulate a session block ending, with many phones submitting at once.
-Writes ONLY to the "Test responses" tab (test: true).
+Load test: simulate a session block ending with many phones submitting at once,
+then prove every response reached the Sheet. Writes ONLY to "Test responses".
 
-    python3 tools/load_test.py 300 40       # 300 responses, 40 at the same moment
+    python3 tools/load_test.py 800 100 '<dashboard password>'
+
+  1. fires N responses, C at the same moment
+  2. retries anything that failed the way a phone does (3 s, 6 s, 12 s ... with random spacing)
+  3. asks the dashboard for the Test responses tab and checks every one is there, exactly once
+Afterwards: IFC Feedback > Clear test responses.
 """
-import csv, json, random, sys, time, uuid, urllib.request, re
+import csv, json, random, re, sys, time, uuid, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 API = re.search(r"apiUrl:\s*'([^']+)'", (ROOT / "config.js").read_text())[1]
-N, CONC = int(sys.argv[1]) if len(sys.argv) > 1 else 300, int(sys.argv[2]) if len(sys.argv) > 2 else 40
+N = int(sys.argv[1]) if len(sys.argv) > 1 else 800
+CONC = int(sys.argv[2]) if len(sys.argv) > 2 else 100
+KEY = sys.argv[3] if len(sys.argv) > 3 else ""
+PERMANENT = {"invalid", "too large", "empty", "no answers"}
 sessions = list(csv.DictReader((ROOT / "sessions-ifc2026.csv").open(encoding="utf-8")))
-RUN = time.strftime("%H%M%S")
+RUN = "LT" + time.strftime("%H%M%S")
 
 
-def one(i):
+def post(obj, timeout=45):
+    req = urllib.request.Request(API, data=json.dumps(obj).encode(), headers={"Content-Type": "text/plain;charset=utf-8"})
+    return json.loads(urllib.request.urlopen(req, timeout=timeout).read())
+
+
+def make(i):
     s = random.choice(sessions)
-    item = {"rid": f"load-{RUN}-{i}-{uuid.uuid4().hex[:6]}", "test": True, "sentAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "session": {"id": s["ID"], "title": s["Title"], "speakers": s["Speakers"], "room": s["Room"], "date": s["Date"],
-                        "start": s["Start"], "end": s["End"], "track": s["Track"]},
+    return {"rid": f"{RUN}-{i}-{uuid.uuid4().hex[:6]}", "test": True,
+            "sentAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "session": {"id": s["ID"], "title": s["Title"], "speakers": s["Speakers"], "room": s["Room"],
+                        "date": s["Date"], "start": s["Start"], "end": s["End"], "track": s["Track"]},
             "answers": {"Overall (1-5)": random.randint(2, 5), "Speakers (1-5)": random.randint(2, 5),
-                        "Key takeaway": f"LOAD TEST {RUN} #{i}", "Came from": "Load test"}}
+                        "Key takeaway": f"{RUN} #{i}", "Came from": "Load test"}}
+
+
+def send(item):
     t = time.time()
     try:
-        req = urllib.request.Request(API, data=json.dumps(item).encode(), headers={"Content-Type": "text/plain;charset=utf-8"})
-        j = json.loads(urllib.request.urlopen(req, timeout=60).read())
-        return (bool(j.get("ok")), time.time() - t, "" if j.get("ok") else str(j)[:120], item)
+        j = post(item)
+        if j.get("ok"):
+            return "ok", time.time() - t, ""
+        return ("rejected" if j.get("error") in PERMANENT else "busy"), time.time() - t, str(j.get("error"))[:80]
     except Exception as e:
-        return (False, time.time() - t, f"{type(e).__name__}: {str(e)[:100]}", item)
+        return "failed", time.time() - t, type(e).__name__ + ": " + str(e)[:60]
 
 
+items = [make(i) for i in range(N)]
+pending = list(range(N))
+attempts = {i: 0 for i in range(N)}
+first_lat, errors = [], {}
 t0 = time.time()
-with ThreadPoolExecutor(CONC) as ex:
-    res = list(ex.map(one, range(N)))
-dur = time.time() - t0
-ok = [r for r in res if r[0]]
-lat = sorted(r[1] for r in res)
-print(f"{N} responses, {CONC} at once, run {RUN}: {len(ok)} saved first time, {N - len(ok)} failed, {dur:.0f}s total")
-print(f"time per response: median {lat[len(lat)//2]:.1f}s, 95% under {lat[int(len(lat)*.95)]:.1f}s, slowest {lat[-1]:.1f}s")
-errs = {}
-for r in res:
-    if not r[0]: errs[r[2]] = errs.get(r[2], 0) + 1
-for e, c in errs.items(): print(f"  {c} x {e}")
+for rnd, wait in enumerate([0, 3, 6, 12, 20, 30, 45, 60, 60, 60]):
+    if not pending:
+        break
+    if wait:
+        time.sleep(wait * random.uniform(0.6, 1.4))
+    with ThreadPoolExecutor(CONC) as ex:
+        res = list(ex.map(lambda i: (i, send(items[i])), pending))
+    still = []
+    for i, (st, lat, err) in res:
+        attempts[i] += 1
+        if rnd == 0:
+            first_lat.append(lat)
+        if st != "ok":
+            errors[err or st] = errors.get(err or st, 0) + 1
+            if st != "rejected":
+                still.append(i)
+    print(f"round {rnd + 1}: sent {len(pending)}, {len(pending) - len(still)} accepted, {len(still)} to retry  ({time.time() - t0:.0f}s)")
+    pending = still
 
-# Phones retry failures; do the same, and resend some successes to check duplicates are ignored
-retry = [r[3] for r in res if not r[0]] + [r[3] for r in ok[:20]]
-if retry:
-    with ThreadPoolExecutor(10) as ex:
-        res2 = list(ex.map(lambda it: one.__wrapped__(it) if hasattr(one, "__wrapped__") else None, []))
-    def resend(item):
-        try:
-            req = urllib.request.Request(API, data=json.dumps(item).encode(), headers={"Content-Type": "text/plain;charset=utf-8"})
-            return json.loads(urllib.request.urlopen(req, timeout=60).read())
-        except Exception as e:
-            return {"ok": False, "error": str(e)}
-    with ThreadPoolExecutor(10) as ex:
-        res2 = list(ex.map(resend, retry))
-    print(f"retry round: {sum(1 for j in res2 if j.get('ok'))}/{len(res2)} ok, "
-          f"{sum(1 for j in res2 if j.get('duplicate'))} recognised as duplicates")
-print("RUN", RUN)
+lat = sorted(first_lat)
+print(f"\n{N} responses, {CONC} at the same moment ({RUN})")
+print(f"first try: {sum(1 for i in range(N) if attempts[i] == 1 and i not in pending)} accepted straight away")
+print(f"time to answer on first try: median {lat[len(lat)//2]:.1f}s, 95% under {lat[int(len(lat)*.95)]:.1f}s, slowest {lat[-1]:.1f}s")
+print(f"needed retries: {sum(1 for a in attempts.values() if a > 1)}, never accepted: {len(pending)}")
+for e, c in sorted(errors.items(), key=lambda x: -x[1]):
+    print(f"  {c} x {e}")
+
+if KEY:
+    print("\nChecking the Sheet (dashboard also triggers processing)…")
+    for k in range(8):
+        time.sleep(20 if k else 5)
+        d = post({"action": "dashboard", "key": KEY, "test": True}, timeout=120)
+        found = [r for r in d.get("responses", []) if str(r.get("Key takeaway", "")).startswith(RUN + " #")]
+        nums = [int(str(r["Key takeaway"]).split("#")[1]) for r in found]
+        print(f"  {len(set(nums))} of {N} in Test responses, {len(nums) - len(set(nums))} duplicates, raw log waiting: {d.get('health', {}).get('waiting')}")
+        if len(set(nums)) >= N - len(pending):
+            break
+    missing = sorted(set(range(N)) - set(nums))
+    print("RESULT:", "EVERY RESPONSE ARRIVED, NO DUPLICATES" if not missing and len(nums) == len(set(nums)) else f"MISSING {missing[:20]}")

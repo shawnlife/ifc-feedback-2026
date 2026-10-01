@@ -167,19 +167,38 @@ function doPost(e) {
     if (p.action === 'event') {
       var type = String(p.type || '');
       if (EVENT_TYPES.indexOf(type) === -1) return json_({ ok: false, error: 'unknown event' });
-      rawSheet_().appendRow([new Date(), '', 'EVENT', JSON.stringify({ type: type, test: p.test === true }), '']);
-      return json_({ ok: true });
+      return json_(rawAppend_([new Date(), '', 'EVENT', JSON.stringify({ type: type, test: p.test === true }), '']));
     }
 
     var rid = String(p.rid || '').slice(0, 64);
     if (!rid || !p.session || !p.session.title || typeof p.answers !== 'object') return json_({ ok: false, error: 'invalid' });
     var cache = CacheService.getScriptCache();
     if (cache.get('rid_' + rid)) return json_({ ok: true, duplicate: true });   // a retry of something already saved
-    rawSheet_().appendRow([new Date(), rid, p.test === true ? 'TEST' : 'RESPONSE', JSON.stringify(p), '']);
-    cache.put('rid_' + rid, '1', 21600);
-    return json_({ ok: true });
+    var res = rawAppend_([new Date(), rid, p.test === true ? 'TEST' : 'RESPONSE', JSON.stringify(p), '']);
+    if (res.ok) cache.put('rid_' + rid, '1', 21600);
+    return json_(res);
   } catch (err) {
     return json_({ ok: false, error: String(err).slice(0, 200) });
+  }
+}
+
+// IMPORTANT: Google Sheets loses rows when several requests append at the same
+// instant (load test 1 Oct: 800 sent, all told "saved", only 114 written).
+// So every write waits its turn for this lock. The work inside is one row, kept
+// as short as possible. If the lock can't be had in 25 s the phone is told
+// "busy" and retries, so nothing is ever reported as saved unless it was.
+function rawAppend_(row) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(25000)) return { ok: false, error: 'busy' };
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RAW_LOG) || rawSheet_();
+    sh.appendRow(row);
+    SpreadsheetApp.flush();                 // make sure it is written before we say "saved"
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: 'busy' };
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -201,8 +220,8 @@ function rawSheet_() {
 /* ---------- processing: Raw log -> Responses / Test responses / Events ---------- */
 
 function processQueue() {
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(1000)) return 0;          // another run is already doing it
+  var lock = LockService.getDocumentLock();   // separate from the intake lock, so phones are never kept waiting by this
+  if (!lock || !lock.tryLock(1000)) return 0; // another run is already doing it
   try {
     var raw = rawSheet_();
     var props = PropertiesService.getScriptProperties();
