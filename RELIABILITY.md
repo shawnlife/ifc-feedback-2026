@@ -32,6 +32,11 @@ Status as of 1 Oct 2026. ✅ done · 🟡 needs Shawn · ⬜ to do
 
 | Firebase free-plan read limit (50,000/day) | 1 Oct: the copy job re-read the 800 test responses every minute and used the whole day's allowance by 15:50. Writes were unaffected; copying paused until the 09:00 reset. **Fixed**: exact bookmark, each response read once, plus an hourly 20-minute safety sweep. Expected event use ~5,000 reads/day | 🟡 verify after reset |
 
+| Background-job limits on the Google script (90 min/day run time, ~50,000 settings calls/day) | Idle runs now do one quick Firebase check and stop; settings read/written once per run; a usage meter on the dashboard shows real minutes and reads used today; email alert to Shawn if copying fails 15+ min or usage passes 70 min / 40,000 reads | ✅ simulated, 🟡 real minutes measured from 2 Oct |
+
+## Simulated worst-case Thursday (real script code, stand-in Google, tools/gas_harness.js)
+6 blocks x 800 responses + 96 leader reports = 4,896 sent -> **all 4,896 in the Sheet**, Firebase reads 6,337 of 50,000, settings calls 4,320 of ~50,000.
+
 ## 2. Tests run so far
 - 70 automated checks on the form, in Chrome, Safari and Firefox engines, (search, locking, sending, offline queue, duplicates, back button, QR tracking, backup list, layout at phone width): all pass
 - Dashboard: wrong password rejected, all tabs render with 869 made-up responses, no errors

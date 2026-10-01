@@ -234,18 +234,23 @@ function rawSheet_() {
 function syncFirestore_(started) {
   if (!FIREBASE_PROJECT_ID) return 0;
   started = started || Date.now();
-  var props = PropertiesService.getScriptProperties();
+  var props = SP_();
   var url = 'https://firestore.googleapis.com/v1/projects/' + FIREBASE_PROJECT_ID + '/databases/(default)/documents:runQuery';
   // Bookmark = the exact last response copied (time + document name). Each run reads only
   // what is newer, so every response is read once (free plan: 50,000 reads a day).
   var cursor = JSON.parse(props.getProperty('FS_CURSOR') || 'null');
-  // Once an hour, also re-check the last 20 minutes in case a write became visible late.
-  var sweep = Date.now() - Number(props.getProperty('FS_LAST_SWEEP') || 0) > 60 * 60000;
+  // Belt and braces: every 3 hours re-check the last 10 minutes. (Firebase guarantees
+  // older writes are visible before newer ones, so this should never find anything.)
+  if (!props.getProperty('FS_LAST_SWEEP')) props.setProperty('FS_LAST_SWEEP', String(Date.now()));   // first run reads everything anyway
+  var sweep = Date.now() - Number(props.getProperty('FS_LAST_SWEEP')) > 3 * 60 * 60000;
   var added = 0;
   try {
-    var raw = rawSheet_();
-    var known = {};
-    if (raw.getLastRow() > 1) raw.getRange(2, 2, raw.getLastRow() - 1, 1).getValues().forEach(function (r) { if (r[0]) known[r[0]] = 1; });
+    var raw = null, known = null;
+    var loadKnown = function () {              // only done when Firebase actually returned something
+      if (known) return;
+      raw = rawSheet_(); known = {};
+      if (raw.getLastRow() > 1) raw.getRange(2, 2, raw.getLastRow() - 1, 1).getValues().forEach(function (r) { if (r[0]) known[r[0]] = 1; });
+    };
     var query = function (from, after) {
       var q = {
         from: [{ collectionId: 'responses' }],
@@ -260,9 +265,13 @@ function syncFirestore_(started) {
         payload: JSON.stringify({ structuredQuery: q })
       });
       if (res.getResponseCode() !== 200) throw new Error('Firebase ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200));
-      return JSON.parse(res.getContentText()).filter(function (x) { return x.document; });
+      var docs = JSON.parse(res.getContentText()).filter(function (x) { return x.document; });
+      meter_('fsReads', Math.max(1, docs.length));          // Firebase bills at least 1 read per query
+      return docs;
     };
     var take = function (docs) {
+      if (!docs.length) return true;
+      loadKnown();
       var rows = [];
       docs.forEach(function (x) {
         var d = fromFs_({ mapValue: { fields: x.document.fields } });
@@ -294,15 +303,17 @@ function syncFirestore_(started) {
       props.setProperty('FS_CURSOR', JSON.stringify(cursor));
       if (docs.length < 500 || Date.now() - started > TIME_BUDGET_MS / 2) break;
     }
-    // 2. hourly safety sweep
+    // 2. occasional safety sweep
     if (sweep) {
-      take(query(new Date(Date.now() - 20 * 60000).toISOString(), null));
+      take(query(new Date(Date.now() - 10 * 60000).toISOString(), null));
       props.setProperty('FS_LAST_SWEEP', String(Date.now()));
     }
     props.setProperty('FS_LAST_SYNC', new Date().toISOString());
     props.deleteProperty('FS_LAST_ERROR');
+    props.deleteProperty('FS_ERROR_SINCE');
   } catch (err) {
     props.setProperty('FS_LAST_ERROR', new Date().toISOString() + ' ' + String(err).slice(0, 300));
+    if (!props.getProperty('FS_ERROR_SINCE')) props.setProperty('FS_ERROR_SINCE', String(Date.now()));
   }
   return added;
 }
@@ -328,14 +339,26 @@ function fromFs_(v) {
 
 /* ---------- processing: Raw log -> Responses / Test responses / Events ---------- */
 
-function processQueue() {
+// Triggered every minute. Measures its own run time so the dashboard can show how
+// much of Google's 90-minute daily allowance is used, and emails Shawn if something stalls.
+function processQueue(e) {
+  var t0 = Date.now();
+  try { return processQueue_(); }
+  finally {
+    if (e) { meter_('runSeconds', (Date.now() - t0) / 1000); checkAlerts_(); }   // e = called by the trigger
+    flushSP_();
+  }
+}
+
+function processQueue_() {
   var lock = LockService.getDocumentLock();   // separate from the intake lock, so phones are never kept waiting by this
   if (!lock || !lock.tryLock(1000)) return 0; // another run is already doing it
+  SP_CACHE = null;                            // re-read settings now we hold the lock (another run may have just saved)
   try {
     var started = Date.now();
     syncFirestore_(started);                  // bring in anything that arrived through Firebase first
     var raw = rawSheet_();
-    var props = PropertiesService.getScriptProperties();
+    var props = SP_();
     var last = raw.getLastRow();
     var from = Number(props.getProperty('RAW_NEXT_ROW') || 2);
     if (last < from) { props.setProperty('LAST_PROCESSED', new Date().toISOString()); return 0; }
@@ -376,7 +399,7 @@ function processQueue() {
     props.setProperty('LAST_PROCESSED', new Date().toISOString());
     return status.filter(function (x) { return x[0] === 'saved'; }).length;
   } finally {
-    lock.releaseLock();
+    try { flushSP_(); } finally { lock.releaseLock(); }   // save our place before anyone else can start
   }
 }
 
@@ -489,7 +512,8 @@ function auth_(p) {
 function dashboard_(p) {
   var denied = auth_(p);
   if (denied) return json_(denied);
-  try { processQueue(); } catch (err) { /* the minute trigger will catch up */ }
+  try { processQueue_(); } catch (err) { /* the minute trigger will catch up */ }
+  try { flushSP_(); } catch (err) { /* next run */ }
   var ss = SpreadsheetApp.getActiveSpreadsheet(), tz = ss.getSpreadsheetTimeZone();
   var readTab = function (name) {
     var sh = ss.getSheetByName(name), list = [];
@@ -516,13 +540,14 @@ function dashboard_(p) {
       if ((r[2] === 'test') === (p.test === true)) events[r[1]] = (events[r[1]] || 0) + 1;
     });
   }
-  var props = PropertiesService.getScriptProperties();
+  var props = SP_();
   var raw = ss.getSheetByName(RAW_LOG);
   var waiting = raw ? Math.max(0, raw.getLastRow() + 1 - Number(props.getProperty('RAW_NEXT_ROW') || 2)) : 0;
   return json_({
     ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, leaders: leaders, events: events,
     health: { lastProcessed: props.getProperty('LAST_PROCESSED'), waiting: waiting,
               firebase: FIREBASE_PROJECT_ID ? { lastSync: props.getProperty('FS_LAST_SYNC'), error: props.getProperty('FS_LAST_ERROR') } : null,
+              usage: usage_(),
               automatic: ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'processQueue'; }) }
   });
 }
@@ -571,6 +596,69 @@ function setDashboardPassword() {
 }
 
 
+/* ---------- settings store, batched ----------
+ * Google allows ~50,000 settings reads/writes a day. The every-minute job reads all
+ * settings once and writes changes once per run instead of ~15 separate calls.
+ */
+var SP_CACHE = null, SP_DIRTY = {}, SP_DELETE = {};
+function SP_() {
+  if (!SP_CACHE) SP_CACHE = PropertiesService.getScriptProperties().getProperties();
+  return {
+    getProperty: function (k) { return k in SP_CACHE ? SP_CACHE[k] : null; },
+    setProperty: function (k, v) { SP_CACHE[k] = String(v); SP_DIRTY[k] = String(v); delete SP_DELETE[k]; },
+    deleteProperty: function (k) { if (k in SP_CACHE) { delete SP_CACHE[k]; delete SP_DIRTY[k]; SP_DELETE[k] = 1; } }
+  };
+}
+function flushSP_() {
+  var store = PropertiesService.getScriptProperties();
+  if (Object.keys(SP_DIRTY).length) store.setProperties(SP_DIRTY);
+  Object.keys(SP_DELETE).forEach(function (k) { store.deleteProperty(k); });
+  SP_DIRTY = {}; SP_DELETE = {};
+}
+
+
+/* ---------- usage meter and email alerts ---------- */
+
+// Daily counters. Firebase's free allowance resets at midnight US Pacific time,
+// Google's script allowance roughly daily; both are shown on the dashboard.
+function meterDay_(kind) {
+  var tz = kind === 'fsReads' ? 'America/Los_Angeles' : SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+  return Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+}
+function meter_(kind, add) {
+  var props = SP_();
+  var key = 'M_' + kind + '_' + meterDay_(kind);
+  props.setProperty(key, String(Number(props.getProperty(key) || 0) + add));
+}
+function usage_() {
+  var props = SP_();
+  return {
+    runMinutes: Math.round(Number(props.getProperty('M_runSeconds_' + meterDay_('runSeconds')) || 0) / 6) / 10,
+    runLimit: 90,
+    firebaseReads: Number(props.getProperty('M_fsReads_' + meterDay_('fsReads')) || 0),
+    firebaseReadLimit: 50000
+  };
+}
+
+function checkAlerts_() {
+  var props = SP_();
+  var problems = [];
+  var since = Number(props.getProperty('FS_ERROR_SINCE') || 0);
+  if (since && Date.now() - since > 15 * 60000) problems.push('Copying from Firebase to the Sheet has been failing for ' +
+    Math.round((Date.now() - since) / 60000) + ' minutes: ' + props.getProperty('FS_LAST_ERROR'));
+  var u = usage_();
+  if (u.runMinutes > 70) problems.push('Background run time today is ' + u.runMinutes + ' of 90 minutes.');
+  if (u.firebaseReads > 40000) problems.push('Firebase reads today: ' + u.firebaseReads + ' of 50,000.');
+  if (!problems.length) return;
+  var last = Number(props.getProperty('ALERT_SENT') || 0);
+  if (Date.now() - last < 60 * 60000) return;          // at most one email an hour
+  props.setProperty('ALERT_SENT', String(Date.now()));
+  MailApp.sendEmail(Session.getEffectiveUser().getEmail(), 'IFC feedback form: needs attention',
+    problems.join('\n\n') + '\n\nResponses are safe (they are kept in Firebase and on phones). ' +
+    'Open the dashboard for details, or forward this email to Claude.\n\n' + SpreadsheetApp.getActiveSpreadsheet().getUrl());
+}
+
+
 /* ---------- automatic jobs ---------- */
 
 function turnOnAutomation() {
@@ -580,8 +668,9 @@ function turnOnAutomation() {
   });
   ScriptApp.newTrigger('processQueue').timeBased().everyMinutes(1).create();
   ScriptApp.newTrigger('backupNow').timeBased().everyHours(1).create();
-  processQueue();
-  backupNow();
+  processQueue_();
+  flushSP_();
+  backup_();
   SpreadsheetApp.getUi().alert('Done. New responses now move into the Responses tab every minute, and the whole ' +
     'spreadsheet is copied to the "' + BACKUP_FOLDER + '" folder in your Google Drive every hour.');
 }
@@ -610,7 +699,12 @@ function clearTestResponses() {
 }
 
 
-function backupNow() {
+function backupNow(e) {
+  var t0 = Date.now();
+  try { backup_(); } finally { if (e) meter_('runSeconds', (Date.now() - t0) / 1000); flushSP_(); }
+}
+
+function backup_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var folders = DriveApp.getFoldersByName(BACKUP_FOLDER);
   var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(BACKUP_FOLDER);

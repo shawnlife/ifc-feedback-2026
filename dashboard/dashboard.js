@@ -582,6 +582,8 @@
       ? (fresh ? 'Live · ' : 'Not updating · ') + 'updated ' + ago(Date.now() - state.lastOk) +
         ($('showTest').checked ? ' · showing TEST responses' : '')
       : 'Loading…';
+    var u = state.data && state.data.health && state.data.health.usage;
+    if (u) $('updated').textContent += ' · today: ' + u.runMinutes + ' of 90 background min, ' + u.firebaseReads.toLocaleString() + ' of 50,000 Firebase reads';
   }
 
   // Warn if responses are piling up in the Raw log instead of reaching the Sheet tabs
@@ -591,6 +593,8 @@
     if (!h.automatic) return 'Automatic processing is OFF. In the Sheet: IFC Feedback > Turn on automatic processing + hourly backups. (Nothing is lost: responses wait safely in the Raw log.)';
     var age = h.lastProcessed ? Date.now() - Date.parse(h.lastProcessed) : Infinity;
     if (h.waiting > 0 && age > 5 * 60000) return h.waiting + ' responses are waiting in the Raw log and processing last ran ' + ago(age) + '. They are safe; check the script triggers.';
+    var u = h.usage;
+    if (u && (u.runMinutes > 70 || u.firebaseReads > 40000)) return 'Getting close to a daily Google limit: background time ' + u.runMinutes + ' of 90 min, Firebase reads ' + u.firebaseReads + ' of 50,000. Responses are safe; tell Shawn.';
     return '';
   }
 
