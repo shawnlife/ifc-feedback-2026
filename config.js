@@ -18,8 +18,8 @@ window.IFC_CONFIG = {
   // From the Firebase console: Project settings > General > Your apps > Web app config.
   // Leave empty to send straight to the Google Sheet instead.
   firebase: {
-    projectId: '',
-    apiKey: ''
+    projectId: 'ifc-feedback-2026',
+    apiKey: 'AIzaSyBYFk7rSrwMAEFfzQntnyRawGOLISPasb0'
   },
 
   eventName: 'IFC 2026',

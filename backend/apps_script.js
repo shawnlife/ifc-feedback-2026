@@ -26,7 +26,7 @@
  */
 
 // Firebase project ID (Firebase console > Project settings). Leave '' if not using Firebase.
-var FIREBASE_PROJECT_ID = '';
+var FIREBASE_PROJECT_ID = 'ifc-feedback-2026';
 
 var SESSIONS = 'Sessions';
 var RESPONSES = 'Responses';
