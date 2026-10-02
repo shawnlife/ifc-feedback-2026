@@ -226,7 +226,7 @@
     var last = list.reduce(function (m, r) { var t = Date.parse(r.when); return t > m ? t : m; }, 0);
 
     var html = '<div class="tiles">' +
-      tile('Responses', list.length.toLocaleString(), last ? 'Last one ' + ago(Date.now() - last) : 'None yet') +
+      tile('Responses', list.length.toLocaleString(), last ? 'Last one ' + localTime(new Date(last).toISOString()) + (Date.now() >= last ? ' (' + ago(Date.now() - last) + ')' : '') : 'None yet') +
       tile('Sessions with feedback', ratedN + ' <small>of ' + ses.length + '</small>', pct(ratedN, ses.length) + ' of sessions') +
       tile('Average overall', st.avgs[0] == null ? '–' : fmt1(st.avgs[0]) + ' <small>/ 5</small>', 'From ' + list.filter(function (r) { return num(r.raw[OVERALL]) != null; }).length + ' ratings') +
       (PRACTICE ? tile('Will put into practice', pct(st.practiceYes, st.practiceN), '“' + esc(PRACTICE.options[0]) + '”, of ' + st.practiceN + ' who answered') : '') +
