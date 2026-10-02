@@ -313,7 +313,7 @@
     list.forEach(function (r) { src[r.source] = (src[r.source] || 0) + 1; });
     var ev = state.data.events || {}, u = (state.data.health || {}).usage || {};
     var html = '<h2 class="section">How people got to the form</h2><p class="sub">Per response, with the filters above applied.</p><div class="tiles">' +
-      ['QR code', 'NFC tag', 'Link', 'Home screen'].map(function (k) {
+      ['QR code', 'NFC tag', 'Session Leader badge', 'Link', 'Home screen'].map(function (k) {
         return tile(k, String(src[k] || 0), pct(src[k] || 0, list.length) + ' of responses');
       }).join('') + '</div>' +
       '<h2 class="section">Clicks and installs</h2><p class="sub">Anonymous counts (not filtered). Installs can only be counted on Android; ' +

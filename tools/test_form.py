@@ -309,6 +309,10 @@ with sync_playwright() as p:
     check("Nothing has started" in rp.inner_text("#roomAsk"), "before anything starts: says so, search still there")
     rp.goto(BASE + "?room=room4&qr&now=2026-10-14T12:40"); rp.wait_for_selector("#roomAsk:not([hidden])")
     check("Is this your session" in rp.inner_text("#roomAsk"), "room name matching ignores spaces/capitals (works for room QR codes too)")
+    rp.goto(BASE + "?badge&now=2026-10-14T12:40"); rp.wait_for_selector(".result")
+    check("badge" not in rp.url and rp.is_hidden("#roomAsk") and "just finished" in rp.inner_text(".results").lower(), "badge tag: normal form with 'Just finished', no room question")
+    rp.locator(".result").first.click(); rp.click("label[for=q0_4]"); rp.click("#submitBtn"); rp.wait_for_selector("#stepDone:not([hidden])")
+    check(received()[-1]["answers"].get("Came from") == "Session Leader badge", "recorded as 'Session Leader badge'")
     rc.close()
 
     print("Session leader form (/sessionleader)")

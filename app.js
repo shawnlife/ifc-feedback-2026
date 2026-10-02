@@ -34,13 +34,13 @@
   // "Is this your session?" straight away. Read once, then tidied out of the address bar.
   var ROOM = (params.get('room') || '').trim();
   var SOURCE = (function () {
-    var src = params.has('nfc') ? 'NFC tag' : params.has('qr') ? 'QR code' : params.has('app') ? 'Home screen' : null;
+    var src = params.has('badge') ? 'Session Leader badge' : params.has('nfc') ? 'NFC tag' : params.has('qr') ? 'QR code' : params.has('app') ? 'Home screen' : null;
     try {
       if (src) sessionStorage.setItem('ifc26-src', src);
       else src = sessionStorage.getItem('ifc26-src');
     } catch (e) { /* private browsing: fine */ }
-    if (params.has('qr') || params.has('app') || params.has('nfc') || params.has('room')) {
-      params.delete('qr'); params.delete('app'); params.delete('nfc'); params.delete('room');
+    if (params.has('qr') || params.has('app') || params.has('nfc') || params.has('room') || params.has('badge')) {
+      params.delete('qr'); params.delete('app'); params.delete('nfc'); params.delete('room'); params.delete('badge');
       var qs = params.toString();
       history.replaceState(null, '', location.pathname + (qs ? '?' + qs.replace(/=(?=&|$)/g, '') : '') + location.hash);
     }
