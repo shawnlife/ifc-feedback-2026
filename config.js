@@ -84,16 +84,16 @@ window.IFC_CONFIG = {
   ],
 
   // SESSION LEADER FORM (at /sessionleader). Same rules as above.
-  // type 'name' = a one-line answer (remembered on the leader's phone for next time).
+  // type 'name' = a one-line answer (remembered on the Session Leader's phone for next time).
   leaderQuestions: [
     {
-      column: 'Session leader name',
+      column: 'Session Leader name',
       type: 'name',
       label: 'Your name',
       required: true
     },
     {
-      column: 'Leader: Overall (1-5)',
+      column: 'Session Leader: Overall (1-5)',
       type: 'rating',
       label: 'Overall rating',
       help: 'How would you rate this session overall? Was it insightful? Did people seem to enjoy it? Would you recommend it to other delegates?',
@@ -101,7 +101,7 @@ window.IFC_CONFIG = {
       required: true
     },
     {
-      column: 'Leader: Audience engagement (1-5)',
+      column: 'Session Leader: Audience engagement (1-5)',
       type: 'rating',
       label: 'Audience engagement',
       help: 'Did the audience seem engaged in the topic? Was there good discussion and questions? Were the delegates checked out?',
@@ -109,7 +109,7 @@ window.IFC_CONFIG = {
       required: true
     },
     {
-      column: 'Leader: Content clarity (1-5)',
+      column: 'Session Leader: Content clarity (1-5)',
       type: 'rating',
       label: 'Content clarity',
       help: 'How clear was the content? Did the speakers communicate effectively? Was there too much information or not enough?',
@@ -117,14 +117,14 @@ window.IFC_CONFIG = {
       required: true
     },
     {
-      column: 'Leader: Key issues',
+      column: 'Session Leader: Key issues',
       type: 'text',
       label: 'Key issues',
       help: 'Any key issues that need to be addressed about this session, the speakers, the topics, etc.',
       placeholder: 'Optional'
     },
     {
-      column: 'Leader: Final comments',
+      column: 'Session Leader: Final comments',
       type: 'text',
       label: 'Final comments',
       help: 'Did anything of note happen (room was packed, lots of delegates left in the middle, a heated debate)? Did a speaker do an exceptionally good job? Did you learn something that should be explored further? Your overall thoughts in a sentence or two.',

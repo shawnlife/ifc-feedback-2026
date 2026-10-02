@@ -32,8 +32,8 @@
   var ANALYTICS = true;    // last tab: how people use the tool (not front and centre)
   var state = {
     key: null, data: null, lastOk: 0, tab: 'overview',
-    sortBy: 'avg0', sortDir: -1, minN: 3, scorecard: '', commentsShown: 100,
-    lSortBy: 'when', lSortDir: 1, picked: [], withLeaders: false
+    sortBy: 'rank', sortDir: 1, minN: 3, scorecard: '', commentsShown: 100,
+    lSortBy: 'when', lSortDir: 1, picked: [], withLeaders: true
   };
   var sessions = [], byId = {}, rows = [], leaders = [];
 
@@ -396,12 +396,30 @@
     });
   }
 
+  // Rank = best overall score (as shown, one decimal), then more responses. Same score AND same
+  // number of responses = tied. The rank stays with the session whatever column is sorted.
+  function rankAll(data) {
+    var ok = data.filter(function (d) { return d.st.n >= state.minN && d.st.avgs[0] != null; });
+    var score = function (d) { return Math.round(d.st.avgs[0] * 10) / 10; };
+    ok.sort(function (a, b) { return score(b) - score(a) || b.st.n - a.st.n; });
+    ok.forEach(function (d, i) {
+      var prev = ok[i - 1];
+      d.rank = prev && score(prev) === score(d) && prev.st.n === d.st.n ? prev.rank : i + 1;
+    });
+    ok.forEach(function (d) { d.tied = ok.filter(function (x) { return x.rank === d.rank; }).length > 1; });
+    data.forEach(function (d) { if (ok.indexOf(d) === -1) { d.rank = null; d.tied = false; } });
+    return ok;
+  }
+  function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+
   function renderRankings() {
     var data = rankingData();
+    rankAll(data);
     var hasRate = data.some(function (d) { return d.rate != null; });
     var shown = data.filter(function (d) { return d.st.n >= state.minN; });
     var key = state.sortBy, dir = state.sortDir;
     var val = function (d) {
+      if (key === 'rank') return d.rank == null ? 1e9 : d.rank;
       if (key === 'n') return d.st.n;
       if (key === 'rate') return d.rate == null ? -1 : d.rate;
       if (key === 'practice') return d.st.practiceN ? d.st.practiceYes / d.st.practiceN : -1;
@@ -425,12 +443,12 @@
       }).join('') + '</select> responses</label>' +
       '<span class="few">' + shown.length + ' of ' + data.length + ' sessions shown. Scores from very few people are not reliable.</span>' +
       '<span class="spacer"></span><button type="button" class="secondary small" id="exportBtn">Download ranking (spreadsheet)</button></div>';
-    html += '<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="num">#</th>' + th('title', 'Session') + th('when', state.combine ? 'When / runs' : 'When / room') + th('n', 'Responses', 1) +
+    html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + th('rank', 'Rank', 1) + th('title', 'Session') + th('when', state.combine ? 'When / runs' : 'When / room') + th('n', 'Responses', 1) +
       (hasRate ? th('rate', 'Response rate', 1) : '') +
       RATINGS.map(function (q, i) { return th('avg' + i, esc(col(q).replace(' (1-5)', '')), 1); }).join('') +
-      (PRACTICE ? th('practice', 'Will apply', 1) : '') + (L_OVERALL ? th('leader', 'Leader scores', 1) : '') + '</tr></thead><tbody>';
-    html += shown.map(function (d, i) {
-      return '<tr><td class="num rank">' + (i + 1) + '</td><td><button type="button" class="linkish" data-card="' + esc(d.s.id) + '">' + esc(d.s.title) + '</button>' +
+      (PRACTICE ? th('practice', 'Will apply', 1) : '') + (L_OVERALL ? th('leader', 'Session Leader scores', 1) : '') + '</tr></thead><tbody>';
+    html += shown.map(function (d) {
+      return '<tr><td class="num rank">' + (d.rank == null ? '–' : ordinal(d.rank) + (d.tied ? '<div class="t-sub">tied</div>' : '')) + '</td><td><button type="button" class="linkish" data-card="' + esc(d.s.id) + '">' + esc(d.s.title) + '</button>' +
         (d.s.speakers ? '<div class="t-sub">' + esc(d.s.speakers) + '</div>' : '') + '</td>' +
         '<td>' + esc(dayLabel(d.s.date)) + ', ' + esc(d.s.start) + '<div class="t-sub">' + esc(d.s.room) + '</div></td>' +
         '<td class="num">' + d.st.n + '</td>' +
@@ -448,17 +466,16 @@
   function exportCSV() {
     // Ranked best to worst by overall score; sessions below the minimum responses come last, unranked
     var data = rankingData();
-    var ok = data.filter(function (d) { return d.st.n >= state.minN && d.st.avgs[0] != null; })
-      .sort(function (a, b) { return b.st.avgs[0] - a.st.avgs[0] || b.st.n - a.st.n; });
+    var ok = rankAll(data);
     var rest = data.filter(function (d) { return ok.indexOf(d) === -1; }).sort(function (a, b) { return b.st.n - a.st.n; });
-    ok.forEach(function (d, i) { d.rank = i + 1; });
-    rest.forEach(function (d) { d.rank = d.st.n ? 'fewer than ' + state.minN + ' responses' : 'no responses'; });
+    ok.forEach(function (d) { d.rankLabel = d.rank + (d.tied ? ' (tied)' : ''); });
+    rest.forEach(function (d) { d.rankLabel = d.st.n ? 'fewer than ' + state.minN + ' responses' : 'no responses'; });
     data = ok.concat(rest);
     var head = ['Rank', 'Session ID', 'Session', 'Speakers', state.combine ? 'Room / runs' : 'Room', 'Day', 'Start', 'Track', 'Responses']
       .concat(RATINGS.map(function (q) { return 'Average ' + col(q); }))
-      .concat(PRACTICE ? ['% ' + PRACTICE.options[0]] : []).concat(L_OVERALL ? ['Leader scores'] : []);
+      .concat(PRACTICE ? ['% ' + PRACTICE.options[0]] : []).concat(L_OVERALL ? ['Session Leader scores'] : []);
     var lines = [head].concat(data.map(function (d) {
-      return [d.rank, d.s.id, d.s.title, d.s.speakers, d.s.room, d.s.date, d.s.start, d.s.track, d.st.n]
+      return [d.rankLabel, d.s.id, d.s.title, d.s.speakers, d.s.room, d.s.date, d.s.start, d.s.track, d.st.n]
         .concat(d.st.avgs.map(function (a) { return a == null ? '' : a.toFixed(2); }))
         .concat(PRACTICE ? [d.st.practiceN ? Math.round(100 * d.st.practiceYes / d.st.practiceN) : ''] : [])
         .concat(L_OVERALL ? [d.leaderAll.join(' / ')] : []);
@@ -536,7 +553,7 @@
     var lsort = function (a, b) { var x = lval(a), y = lval(b); return (x > y ? 1 : x < y ? -1 : 0) * state.lSortDir || (a.date + a.start).localeCompare(b.date + b.start); };
     list.sort(lsort); issues.sort(lsort);
     var html = '<div class="tiles">' +
-      tile('Leader reports', String(list.length), Object.keys(covered).length + ' of ' + fSessions().length + ' sessions covered') +
+      tile('Session Leader reports', String(list.length), Object.keys(covered).length + ' of ' + fSessions().length + ' sessions covered') +
       L_RATINGS.map(function (q) {
         var vals = list.map(function (l) { return num(l.raw[col(q)]); }).filter(function (v) { return v != null; });
         return tile('Average ' + q.label.toLowerCase(), vals.length ? fmt1(mean(vals)) + ' <small>/ 5</small>' : '–', vals.length + ' ratings');
@@ -556,7 +573,7 @@
       var sorted = state.lSortBy === k ? ' aria-sort="' + (state.lSortDir > 0 ? 'ascending' : 'descending') + '"' : '';
       return '<th class="' + (numCol ? 'num' : '') + '"><button type="button" data-lsort="' + esc(k) + '"' + sorted + '>' + esc(label) + '</button></th>';
     };
-    var head = '<thead><tr>' + lth('title', 'Session') + lth('when', 'When') + lth('name', 'Leader') +
+    var head = '<thead><tr>' + lth('title', 'Session') + lth('when', 'When') + lth('name', 'Session Leader') +
       L_RATINGS.map(function (q) { return lth(col(q), q.label, 1); }).join('') + lth('issue', 'Comments') + '</tr></thead>';
     if (issues.length) html += '<h2 class="section">Key issues to look at</h2><div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + issues.map(row).join('') + '</tbody></table></div>';
     html += '<h2 class="section">All leader reports</h2>' + (list.length
@@ -664,22 +681,16 @@
       if (hit) state.picked = [hit.key];
       state.scorecard = '';
     }
+    // Everything shown is exported (use the day / track / room filters to narrow it).
+    // Clicking a session elsewhere opens just that one, with a way back to all.
     var picked = (state.picked || []).filter(function (k) { return ws.some(function (w) { return w.key === k; }); });
-    var html = '<div class="controls no-print"><span><strong>' + ws.length + '</strong> sessions/workshops with feedback (repeat runs combined). ' +
-      'Tick the ones you want, or leave all unticked to show everything.</span></div>' +
-      '<div class="picker no-print"><div class="picker-head"><button type="button" class="link" id="pickAll">Tick all shown</button>' +
-      '<button type="button" class="link" id="pickNone">Clear</button></div><ul>' +
-      ws.map(function (w) {
-        var n = 0; w.runs.forEach(function (s) { n += (sd.byRun[s.id] || []).length; });
-        return '<li><label><input type="checkbox" data-pick="' + esc(w.key) + '"' + (picked.indexOf(w.key) > -1 ? ' checked' : '') + '> ' +
-          esc(w.title) + ' <span class="few">' + (w.runs.length > 1 ? w.runs.length + ' runs · ' : esc(runLabel(w.runs[0])) + ' · ') + n + (n === 1 ? ' response' : ' responses') + '</span></label></li>';
-      }).join('') + '</ul></div>' +
-      '<div class="controls no-print export-bar">' +
-      '<label class="toggle"><input type="checkbox" id="withLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader reports <span class="few">(IFC team only, leave off for speakers)</span></label>' +
-      '<button type="button" class="secondary small" id="wordBtn">Download for editing (Word)</button>' +
-      '<button type="button" class="secondary small" id="printBtn">Print or save as PDF</button>' +
-      '<span class="few" id="exportNote">' + (picked.length ? picked.length + ' ticked' : 'Nothing ticked: exports everything shown') + '</span></div>';
     var show = picked.length ? ws.filter(function (w) { return picked.indexOf(w.key) > -1; }) : ws;
+    var html = '<div class="controls no-print export-bar">' +
+      '<span><strong>' + show.length + '</strong> ' + (show.length === 1 ? 'session' : 'sessions') + ' shown' +
+      (picked.length ? ' · <button type="button" class="link" id="pickNone">Show all ' + ws.length + '</button>' : ' (repeat runs combined)') + '</span>' +
+      '<label class="toggle"><input type="checkbox" id="withLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader reports</label>' +
+      '<button type="button" class="secondary small" id="wordBtn">Download for editing (Word)</button>' +
+      '<button type="button" class="secondary small" id="printBtn">Print or save as PDF</button></div>';
     html += show.length ? show.map(function (w) { return workshopCard(w, sd.byRun, state.withLeaders); }).join('')
       : '<p class="empty">No sessions with feedback match these filters.</p>';
     $('tab-scorecards').innerHTML = html;
@@ -1009,7 +1020,7 @@
         state.lSortDir = state.lSortBy === k ? -state.lSortDir : (k === 'when' || k === 'title' || k === 'name' ? 1 : -1);
         state.lSortBy = k; renderLeaders();
       } else if (el.dataset.sort) {
-        state.sortDir = state.sortBy === el.dataset.sort ? -state.sortDir : (el.dataset.sort === 'title' || el.dataset.sort === 'when' ? 1 : -1);
+        state.sortDir = state.sortBy === el.dataset.sort ? -state.sortDir : (/^(title|when|rank)$/.test(el.dataset.sort) ? 1 : -1);
         state.sortBy = el.dataset.sort; renderRankings();
       } else if (el.closest('[data-card]')) {
         state.scorecard = el.closest('[data-card]').dataset.card; renderScorecards(); showTab('scorecards'); window.scrollTo(0, 0);
@@ -1022,7 +1033,6 @@
       else if (el.id === 'exportBtn') exportCSV();
       else if (el.id === 'moreComments') { state.commentsShown += 100; renderComments(); }
       else if (el.id === 'wordBtn') exportWord();
-      else if (el.id === 'pickAll') { state.picked = scorecardData().ws.map(function (w) { return w.key; }); renderScorecards(); }
       else if (el.id === 'pickNone') { state.picked = []; renderScorecards(); }
       else if (el.id === 'printBtn') {
         var panel = $('tab-scorecards'); panel.classList.add('printing'); window.print(); panel.classList.remove('printing');
@@ -1031,12 +1041,6 @@
     document.querySelector('#app').addEventListener('change', function (e) {
       if (e.target.id === 'minN') { state.minN = +e.target.value; renderRankings(); }
       if (e.target.id === 'combine') { state.combine = e.target.checked; renderRankings(); }
-      if (e.target.dataset && e.target.dataset.pick !== undefined) {
-        var k = e.target.dataset.pick, i = state.picked.indexOf(k);
-        if (e.target.checked && i === -1) state.picked.push(k);
-        if (!e.target.checked && i > -1) state.picked.splice(i, 1);
-        renderScorecards();
-      }
       if (e.target.id === 'withLeaders') { state.withLeaders = e.target.checked; renderScorecards(); }
     });
 

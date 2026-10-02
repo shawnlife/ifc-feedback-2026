@@ -300,8 +300,8 @@ with sync_playwright() as p:
     check(lp.is_visible("#stepForm") and "highlighted" in lp.inner_text("#formError"), "name is required")
     lp.fill("#q0", "Test Leader"); lp.click("#submitBtn"); lp.wait_for_selector("#stepDone:not([hidden])")
     last = received()[-1]
-    check(last.get("form") == "leader" and last["answers"].get("Session leader name") == "Test Leader"
-          and last["answers"].get("Leader: Overall (1-5)") == 4 and last["answers"].get("Leader: Final comments"), "leader report sent, marked as leader, answers in the right columns")
+    check(last.get("form") == "leader" and last["answers"].get("Session Leader name") == "Test Leader"
+          and last["answers"].get("Session Leader: Overall (1-5)") == 4 and last["answers"].get("Session Leader: Final comments"), "leader report sent, marked as leader, answers in the right columns")
     check(lp.is_hidden("#homeTip"), "no home-screen tip for leaders")
     lp.click("#againBtn"); lp.locator(".result").nth(1).click()
     check(lp.input_value("#q0") == "Test Leader", "leader's name remembered for the next session")

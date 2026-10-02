@@ -953,10 +953,10 @@
     els.eventName.textContent = CFG.eventName || 'IFC 2026';
     if (LEADER) {
       document.title = (CFG.eventName || 'IFC 2026') + ' Session Leader Feedback';
-      document.querySelector('h1').textContent = 'Session leader feedback';
+      document.querySelector('h1').textContent = 'Session Leader feedback';
       $('findLabel').textContent = 'Which session were you leading?';
       document.querySelector('#stepForm .privacy').textContent = 'Your name is only seen by the IFC team.';
-      $('anonNote').textContent = 'For IFC 2026 session leaders.';
+      $('anonNote').textContent = 'For IFC 2026 Session Leaders.';
       els.againBtn.textContent = 'Report on another session';
     }
     applyBrand();

@@ -59,11 +59,11 @@ for s in sessions:
     if rnd.random() < 0.45:
         o = rnd.randint(2, 5)
         items.append({"rid": "seed-" + uuid.uuid4().hex[:10], "test": True, "form": "leader", "sentAt": "seed", "session": sess(s),
-                      "answers": {"Session leader name": rnd.choice(NAMES), "Leader: Overall (1-5)": o,
-                                  "Leader: Audience engagement (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
-                                  "Leader: Content clarity (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
-                                  "Leader: Key issues": rnd.choices(ISSUES + [""], [1, 1, 1, 14])[0],
-                                  "Leader: Final comments": rnd.choice(NOTES), "Came from": "Link"}})
+                      "answers": {"Session Leader name": rnd.choice(NAMES), "Session Leader: Overall (1-5)": o,
+                                  "Session Leader: Audience engagement (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
+                                  "Session Leader: Content clarity (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
+                                  "Session Leader: Key issues": rnd.choices(ISSUES + [""], [1, 1, 1, 14])[0],
+                                  "Session Leader: Final comments": rnd.choice(NOTES), "Came from": "Link"}})
 for typed in ["the one about legacies in the big room", "Matt Derby session", "Evening drinks talk"]:
     items.append({"rid": "seed-" + uuid.uuid4().hex[:10], "test": True, "form": "attendee", "sentAt": "seed",
                   "session": {"id": "NOT LISTED", "title": typed},

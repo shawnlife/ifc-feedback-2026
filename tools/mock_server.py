@@ -90,11 +90,11 @@ def fake_leaders():
             o = rnd.randint(2, 5)
             out.append(to_row({"session": {"id": s["ID"], "title": s["Title"], "speakers": s["Speakers"], "room": s["Room"],
                                            "date": s["Date"], "start": s["Start"], "end": s["End"], "track": s["Track"]},
-                               "answers": {"Session leader name": rnd.choice(names), "Leader: Overall (1-5)": o,
-                                           "Leader: Audience engagement (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
-                                           "Leader: Content clarity (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
-                                           "Leader: Key issues": rnd.choices(issues, [1, 1, 1, 12])[0],
-                                           "Leader: Final comments": rnd.choice(notes), "Came from": "Link"}},
+                               "answers": {"Session Leader name": rnd.choice(names), "Session Leader: Overall (1-5)": o,
+                                           "Session Leader: Audience engagement (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
+                                           "Session Leader: Content clarity (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
+                                           "Session Leader: Key issues": rnd.choices(issues, [1, 1, 1, 12])[0],
+                                           "Session Leader: Final comments": rnd.choice(notes), "Came from": "Link"}},
                               f"{s['Date']}T{s['End'] or s['Start']}:00"))
     return out
 

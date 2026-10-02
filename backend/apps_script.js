@@ -9,7 +9,7 @@
  *                     up changes within about a minute.
  *   Responses       : one row per feedback submission. Do not edit the header row.
  *   Test responses  : anything sent from the form with ?test on the end of the URL.
- *   Session leader feedback : reports from the /sessionleader form (Test leader feedback for ?test).
+ *   Session Leader feedback : reports from the /sessionleader form (Test Session Leader feedback for ?test).
  *   Summary         : per-session averages, rebuilt from the "IFC Feedback" menu.
  *   Raw log         : (hidden) MASTER COPY. Every response lands here first, exactly as
  *                     sent, then moves to Responses within a minute. Never edit it.
@@ -34,8 +34,8 @@ var RESPONSES = 'Responses';
 var TEST_RESPONSES = 'Test responses';
 var SUMMARY = 'Summary';
 var RAW_LOG = 'Raw log';
-var LEADER = 'Session leader feedback';
-var TEST_LEADER = 'Test leader feedback';
+var LEADER = 'Session Leader feedback';
+var TEST_LEADER = 'Test Session Leader feedback';
 var BACKUP_FOLDER = 'IFC 2026 Feedback backups';
 var BACKUPS_TO_KEEP = 48;
 
@@ -698,7 +698,7 @@ function turnOnBackups() { turnOnAutomation(); }
 
 function clearTestResponses() {
   var ui = SpreadsheetApp.getUi();
-  if (ui.alert('Clear test responses?', 'Deletes every row in the "Test responses" and "Test leader feedback" tabs (the real tabs are not touched).', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  if (ui.alert('Clear test responses?', 'Deletes every row in the "Test responses" and "Test Session Leader feedback" tabs (the real tabs are not touched).', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
   [TEST_RESPONSES, TEST_LEADER].forEach(function (name) {
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
     if (sh && sh.getLastRow() > 1) {

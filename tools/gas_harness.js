@@ -168,7 +168,7 @@ console.log('4. Leader reports go to their own tab, attendees to theirs');
 env = makeEnv();
 fsDoc(env, { form: 'leader' }); fsDoc(env, { form: 'leader', test: false }); fsDoc(env, { test: false }); fsDoc(env);
 tick(env);
-check(rowsOf(env, 'Test leader feedback') === 1 && rowsOf(env, 'Session leader feedback') === 1 && rowsOf(env, 'Responses') === 1 && rowsOf(env, 'Test responses') === 1,
+check(rowsOf(env, 'Test Session Leader feedback') === 1 && rowsOf(env, 'Session Leader feedback') === 1 && rowsOf(env, 'Responses') === 1 && rowsOf(env, 'Test responses') === 1,
   'leader/test-leader/real/test each landed in the right tab');
 
 console.log('5. Settings calls stay low (Google allows ~50,000 a day)');
@@ -244,7 +244,7 @@ env = makeEnv();
 fsDoc(env, { test: false, form: 'leader', sessionId: '1WS1' }); fsDoc(env, { test: false, form: 'leader', sessionId: '1WS1' });
 tick(env);
 const two = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
-check(rowsOf(env, 'Session leader feedback') === 2 && two.leaders.filter((l) => l['Session ID'] === '1WS1').length === 2, 'both reports kept and returned for that session');
+check(rowsOf(env, 'Session Leader feedback') === 2 && two.leaders.filter((l) => l['Session ID'] === '1WS1').length === 2, 'both reports kept and returned for that session');
 
 console.log('13. Typed-in: No match keeps the row, Restore brings it back');
 env = makeEnv();
