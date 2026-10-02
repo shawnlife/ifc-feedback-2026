@@ -14,12 +14,15 @@
   var REFRESH_MS = 60 * 1000;
 
   var Q = CFG.questions || [];
-  var RATINGS = Q.filter(function (q) { return q.type === 'rating'; });
+  // star questions; the per-speaker question counts via its average column
+  var RATINGS = Q.filter(function (q) { return q.type === 'rating' || q.type === 'speakers'; });
+  var SPEAKERQ = Q.filter(function (q) { return q.type === 'speakers'; })[0] || null;
   var CHOICES = Q.filter(function (q) { return q.type === 'choice'; });
   var TEXTS = Q.filter(function (q) { return q.type === 'text'; });
   var col = function (q) { return q.column || q.label; };
   var OVERALL = RATINGS[0] ? col(RATINGS[0]) : null;
-  var PRACTICE = CHOICES[0] || null;          // "Will you put something into practice?"
+  var PRACTICE = CHOICES[0] || null;          // the yes/no-style question (now "Did you learn anything new?")
+  var PRACTICE_SHORT = PRACTICE ? col(PRACTICE) : '';
   // Session leader form
   var LQ = CFG.leaderQuestions || [];
   var L_NAME = LQ.filter(function (q) { return q.type === 'name'; }).map(col)[0];
@@ -230,7 +233,7 @@
       tile('Responses', list.length.toLocaleString(), last ? 'Last one ' + localTime(new Date(last).toISOString()) + (Date.now() >= last ? ' (' + ago(Date.now() - last) + ')' : '') : 'None yet') +
       tile('Sessions with feedback', ratedN + ' <small>of ' + ses.length + '</small>', pct(ratedN, ses.length) + ' of sessions') +
       tile('Average overall', st.avgs[0] == null ? '–' : fmt1(st.avgs[0]) + ' <small>/ 5</small>', 'From ' + list.filter(function (r) { return num(r.raw[OVERALL]) != null; }).length + ' ratings') +
-      (PRACTICE ? tile('Will put into practice', pct(st.practiceYes, st.practiceN), '“' + esc(PRACTICE.options[0]) + '”, of ' + st.practiceN + ' who answered') : '') +
+      (PRACTICE ? tile(PRACTICE_SHORT, pct(st.practiceYes, st.practiceN), 'said “' + esc(PRACTICE.options[0]) + '”, of ' + st.practiceN + ' who answered') : '') +
       '</div>';
 
     // responses per time block
@@ -447,7 +450,7 @@
     html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + th('rank', 'Rank', 1) + th('title', 'Session') + th('when', state.combine ? 'When / runs' : 'When / room') + th('n', 'Responses', 1) +
       (hasRate ? th('rate', 'Response rate', 1) : '') +
       RATINGS.map(function (q, i) { return th('avg' + i, esc(col(q).replace(' (1-5)', '')), 1); }).join('') +
-      (PRACTICE ? th('practice', 'Will apply', 1) : '') + (L_OVERALL ? th('leader', 'Session Leader scores', 1) : '') + '</tr></thead><tbody>';
+      (PRACTICE ? th('practice', PRACTICE_SHORT, 1) : '') + (L_OVERALL ? th('leader', 'Session Leader scores', 1) : '') + '</tr></thead><tbody>';
     html += shown.map(function (d) {
       return '<tr><td class="num rank">' + (d.rank == null ? '–' : ordinal(d.rank) + (d.tied ? '<div class="t-sub">tied</div>' : '')) + '</td><td><button type="button" class="linkish" data-card="' + esc(d.s.id) + '">' + esc(d.s.title) + '</button>' +
         (d.s.speakers ? '<div class="t-sub">' + esc(d.s.speakers) + '</div>' : '') + '</td>' +
@@ -590,6 +593,45 @@
     $('tab-leaders').innerHTML = html;
   }
 
+  /* ---------- per-speaker ratings ("Jane Doe: 4; John Roe: 5") ---------- */
+
+  function speakerScores(list) {
+    var by = {}, order = [];
+    if (!SPEAKERQ || !SPEAKERQ.detailColumn) return [];
+    list.forEach(function (r) {
+      String(r.raw[SPEAKERQ.detailColumn] || '').split(/\s*;\s*/).forEach(function (part) {
+        var m = part.match(/^(.*\S)\s*:\s*([1-5](?:\.\d)?)$/);
+        if (!m) return;
+        if (!by[m[1]]) { by[m[1]] = []; order.push(m[1]); }
+        by[m[1]].push(+m[2]);
+      });
+    });
+    return order.map(function (nm) { return { name: nm, avg: mean(by[nm]), n: by[nm].length }; });
+  }
+  // Values for a star breakdown: for the per-speaker question, every individual speaker rating
+  // (a response rating two speakers 3 and 4 adds one 3 and one 4); otherwise whole-star answers.
+  function starValues(list, q) {
+    var out = [];
+    list.forEach(function (r) {
+      if (q.type === 'speakers' && q.detailColumn && String(r.raw[q.detailColumn] || '').trim()) {
+        String(r.raw[q.detailColumn]).split(/\s*;\s*/).forEach(function (part) {
+          var m = part.match(/:\s*([1-5])$/); if (m) out.push(+m[1]);
+        });
+      } else {
+        var v = num(r.raw[col(q)]); if (v != null) out.push(Math.round(v));
+      }
+    });
+    return out;
+  }
+
+  function speakerLine(list) {
+    var sc = speakerScores(list);
+    if (!sc.length) return '';
+    return '<div class="by-speaker"><span class="k">By speaker:</span> ' + sc.map(function (x) {
+      return '<span>' + esc(x.name) + ' <strong>' + fmt1(x.avg) + '</strong> <small>(' + x.n + ')</small></span>';
+    }).join(' · ') + '</div>';
+  }
+
   /* ---------- workshops: the same session run more than once ---------- */
 
   // Same title + same speakers = the same workshop (speaker order ignored).
@@ -627,7 +669,7 @@
     if (multi) {
       html += '<div class="qname">How each run compared</div><div class="tbl-wrap compare"><table class="tbl"><thead><tr><th>Run</th><th class="num">Responses</th>' +
         RATINGS.map(function (q) { return '<th class="num">' + esc(col(q).replace(' (1-5)', '')) + '</th>'; }).join('') +
-        (PRACTICE ? '<th class="num">Will apply</th>' : '') + '</tr></thead><tbody>' +
+        (PRACTICE ? '<th class="num">' + esc(PRACTICE_SHORT) + '</th>' : '') + '</tr></thead><tbody>' +
         w.runs.map(function (s, i) {
           var rs = statsFor(byRun[s.id] || []);
           return '<tr><td>Run ' + (i + 1) + ': ' + esc(runLabel(s)) + '</td><td class="num">' + rs.n + '</td>' +
@@ -644,13 +686,14 @@
     }).join('');
     if (!all.length) return html + '<p class="empty">No attendee feedback yet.</p></article>';
     html += '<div class="qname">' + (multi ? 'All runs together' : 'Scores') + '</div><div class="row">' + RATINGS.map(function (q, i) {
-      var vals = all.map(function (r) { return num(r.raw[col(q)]); }).filter(function (v) { return v != null; });
+      var vals = starValues(all, q);
       var counts = [5, 4, 3, 2, 1].map(function (n) { return vals.filter(function (v) { return v === n; }).length; });
       var mx = Math.max.apply(null, counts.concat(1));
-      return '<div><div class="qname">' + esc(q.label) + '</div><div class="avg">' + fmt1(st.avgs[i]) + ' <small>/ 5 · ' + vals.length + ' ratings</small></div>' +
+      var label = q.type === 'speakers' ? (q.generalLabel || 'Speakers') : q.label;
+      return '<div><div class="qname">' + esc(label) + '</div><div class="avg">' + fmt1(st.avgs[i]) + ' <small>/ 5 · ' + vals.length + ' ratings</small></div>' +
         '<div class="dist">' + counts.map(function (c, k) {
           return '<span>' + (5 - k) + '★</span><span class="b"><i style="width:' + (c / mx * 100) + '%"></i></span><span class="n">' + c + '</span>';
-        }).join('') + '</div></div>';
+        }).join('') + '</div>' + (q.type === 'speakers' ? speakerLine(all) : '') + '</div>';
     }).join('') + CHOICES.map(function (q) {
       var vals = all.map(function (r) { return r.raw[col(q)]; }).filter(Boolean);
       var mx = Math.max.apply(null, q.options.map(function (o) { return vals.filter(function (v) { return v === o; }).length; }).concat(1));
@@ -770,7 +813,7 @@
     out.push(P(''));
     if (multi) {
       out.push(P('How each run compared', { para: { heading: D.HeadingLevel.HEADING_2 } }));
-      var head = ['Run', 'Responses'].concat(RATINGS.map(function (q) { return col(q).replace(' (1-5)', ''); })).concat(PRACTICE ? ['Will apply'] : []);
+      var head = ['Run', 'Responses'].concat(RATINGS.map(function (q) { return col(q).replace(' (1-5)', ''); })).concat(PRACTICE ? [PRACTICE_SHORT] : []);
       var rowsT = [new D.TableRow({ tableHeader: true, children: head.map(function (h) { return cell(h, true); }) })];
       w.runs.forEach(function (s, i) {
         var rs = statsFor(byRun[s.id] || []);
@@ -784,10 +827,14 @@
     }
     out.push(P(multi ? 'Scores (all runs together)' : 'Scores', { para: { heading: D.HeadingLevel.HEADING_2 } }));
     RATINGS.forEach(function (q, i) {
-      var vals = all.map(function (r) { return num(r.raw[col(q)]); }).filter(function (v) { return v != null; });
+      var vals = starValues(all, q);
       var counts = [5, 4, 3, 2, 1].map(function (n) { return n + '★ ' + vals.filter(function (v) { return v === n; }).length; }).join('   ');
-      out.push(new D.Paragraph({ children: [new D.TextRun({ text: q.label + '  ', bold: true }), new D.TextRun({ text: fmt1(st.avgs[i]) + ' / 5 (' + vals.length + ' ratings)' })] }));
+      var label = q.type === 'speakers' ? (q.generalLabel || 'Speakers') : q.label;
+      out.push(new D.Paragraph({ children: [new D.TextRun({ text: label + '  ', bold: true }), new D.TextRun({ text: fmt1(st.avgs[i]) + ' / 5 (' + vals.length + ' ratings)' })] }));
       out.push(P(counts, { run: { color: '545454', size: 18 } }));
+      if (q.type === 'speakers') speakerScores(all).forEach(function (x) {
+        out.push(new D.Paragraph({ bullet: { level: 0 }, children: [new D.TextRun({ text: x.name + ': ' }), new D.TextRun({ text: fmt1(x.avg) + ' / 5', bold: true }), new D.TextRun({ text: ' (' + x.n + ' ratings)' })] }));
+      });
     });
     CHOICES.forEach(function (q) {
       var vals = all.map(function (r) { return r.raw[col(q)]; }).filter(Boolean);

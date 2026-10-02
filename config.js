@@ -52,9 +52,14 @@ window.IFC_CONFIG = {
       required: true
     },
     {
-      column: 'Speakers (1-5)',
-      type: 'rating',
-      label: 'How would you rate the speaker(s)?',
+      // One star rating PER SPEAKER, using the names in the session list
+      // ("How would you rate the speaker, Jane Doe?"). Sessions without named
+      // speakers get the single general question below instead.
+      column: 'Speakers (1-5)',               // average of this person's speaker ratings
+      detailColumn: 'Speaker ratings',        // each one: "Jane Doe: 4; John Roe: 5"
+      type: 'speakers',
+      label: 'How would you rate the speaker, {name}?',
+      generalLabel: 'How would you rate the speaker(s)?',
       low: 'Poor', high: 'Excellent'
     },
     {
@@ -64,21 +69,15 @@ window.IFC_CONFIG = {
       low: 'Not at all', high: 'Very'
     },
     {
-      column: 'Will apply',
+      column: 'Learned something new',
       type: 'choice',
-      label: 'Will you put something from this session into practice?',
-      options: ['Yes, definitely', 'Maybe', 'No']
+      label: 'Did you learn anything new?',
+      options: ['Yes', 'No', 'Not sure']
     },
     {
-      column: 'Key takeaway',
+      column: 'Anything else',
       type: 'text',
-      label: 'What is your key takeaway?',
-      placeholder: 'Optional'
-    },
-    {
-      column: 'Suggestions',
-      type: 'text',
-      label: 'Anything that would have made it better?',
+      label: 'Anything else you would like to add?',
       placeholder: 'Optional'
     }
   ],

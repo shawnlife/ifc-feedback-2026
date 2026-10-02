@@ -606,13 +606,42 @@
 
   var STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9z"/></svg>';
 
+  function starRow(name, legend, q, extraAttr) {
+    var html = '<fieldset class="q"' + (extraAttr || '') + '><legend>' + legend + '</legend><div class="stars">';
+    for (var n = 1; n <= 5; n++) {
+      html += '<input type="radio" id="' + name + '_' + n + '" name="' + name + '" value="' + n + '"' + (q.required ? ' required' : '') + '>' +
+        '<label for="' + name + '_' + n + '" aria-label="' + n + ' out of 5">' + STAR + '</label>';
+    }
+    return html + '</div><div class="scale-ends"><span>' + esc(q.low || '') + '</span><span>' + esc(q.high || '') + '</span></div></fieldset>';
+  }
+
+  // Names from the session list, e.g. "Jane Doe, John Roe" -> ['Jane Doe', 'John Roe']
+  function speakerNames(s) {
+    return String((s && s.speakers) || '').split(/\s*,\s*/).map(function (x) { return x.trim(); }).filter(Boolean);
+  }
+
+  // Per-speaker questions depend on the session, so they are filled in when one is chosen
+  function fillSpeakers(s) {
+    QUESTIONS.forEach(function (q, i) {
+      if (q.type !== 'speakers') return;
+      var box = $('q' + i + '_wrap'); if (!box) return;
+      var names = speakerNames(s);
+      box.dataset.names = JSON.stringify(names);
+      box.innerHTML = names.length
+        ? names.map(function (nm, j) { return starRow('q' + i + '_s' + j, esc(q.label.replace('{name}', nm)), q); }).join('')
+        : starRow('q' + i + '_s0', esc(q.generalLabel || 'How would you rate the speaker(s)?'), q);
+    });
+  }
+
   function buildQuestions() {
     var html = '';
     QUESTIONS.forEach(function (q, i) {
       var name = 'q' + i, req = q.required ? '&nbsp;<span class="req" aria-hidden="true">*</span>' : '';
       var help = q.help ? '<p class="q-help" id="' + name + '_help">' + esc(q.help) + '</p>' : '';
       var desc = q.help ? ' aria-describedby="' + name + '_help"' : '';
-      if (q.type === 'rating') {
+      if (q.type === 'speakers') {
+        html += '<div class="q-speakers" id="' + name + '_wrap" data-i="' + i + '"></div>';
+      } else if (q.type === 'rating') {
         html += '<fieldset class="q" data-i="' + i + '"' + desc + '><legend>' + esc(q.label) + req + '</legend>' + help + '<div class="stars">';
         for (var n = 1; n <= 5; n++) {
           html += '<input type="radio" id="' + name + '_' + n + '" name="' + name + '" value="' + n + '"' + (q.required ? ' required' : '') + '>' +
@@ -662,6 +691,7 @@
   function choose(s) {
     selected = s;
     els.stepForm.reset();
+    fillSpeakers(s.manual ? null : s);
     prefillName();
     els.stepForm.querySelectorAll('.stars').forEach(function (st) { paintStars(st.parentNode); });
     els.stepForm.querySelectorAll('.invalid').forEach(function (x) { x.classList.remove('invalid'); });
@@ -697,6 +727,18 @@
     els.stepForm.querySelectorAll('.q-error').forEach(function (x) { x.remove(); });
     QUESTIONS.forEach(function (q, i) {
       var val;
+      if (q.type === 'speakers') {
+        var box = $('q' + i + '_wrap'), names = JSON.parse((box && box.dataset.names) || '[]'), got = [], parts = [];
+        (names.length ? names : [null]).forEach(function (nm, j) {
+          var v = (els.stepForm.querySelector('input[name="q' + i + '_s' + j + '"]:checked') || {}).value;
+          if (!v) return;
+          got.push(+v);
+          if (nm) parts.push(nm + ': ' + v);
+        });
+        answers[q.column] = got.length ? Math.round(got.reduce(function (x, y) { return x + y; }, 0) / got.length * 10) / 10 : '';
+        if (q.detailColumn) answers[q.detailColumn] = parts.join('; ');
+        return;
+      }
       if (q.type === 'text' || q.type === 'name') val = ($('q' + i).value || '').trim();
       else val = (els.stepForm.querySelector('input[name="q' + i + '"]:checked') || {}).value || '';
       if (q.type === 'rating' && val) val = +val;

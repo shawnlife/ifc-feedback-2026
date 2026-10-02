@@ -66,11 +66,13 @@ def fake_rows(n):
             start = datetime.fromisoformat(f"{s['Date']}T{s['End'] or s['Start']}") + timedelta(minutes=rnd.randint(-10, 90))
             rows.append(to_row({"session": {"id": s["ID"], "title": s["Title"], "speakers": s["Speakers"], "room": s["Room"],
                                             "date": s["Date"], "start": s["Start"], "end": s["End"], "track": s["Track"]},
-                                "answers": {"Overall (1-5)": o, "Speakers (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 0, 1]))),
+                                "answers": {"Overall (1-5)": o,
+                                            "Speakers (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 0, 1]))),
+                                            "Speaker ratings": "; ".join(f"{n.strip()}: {max(1, min(5, o + rnd.choice([-1, 0, 1])))}" for n in s["Speakers"].split(",") if n.strip()),
                                             "Relevance (1-5)": rnd.choice(["", max(1, min(5, o + rnd.choice([-1, 0, 1])))]),
-                                            "Will apply": rnd.choices(["Yes, definitely", "Maybe", "No", ""], [o, 2, 0.5, 1])[0],
-                                            "Key takeaway": rnd.choice(take), "Suggestions": rnd.choice(better),
-                                            "Came from": rnd.choices(["QR code", "Link", "Home screen"], [7, 2, 1])[0]}},
+                                            "Learned something new": rnd.choices(["Yes", "No", "Not sure", ""], [o, 2, 1, 1])[0],
+                                            "Anything else": rnd.choice(take + better),
+                                            "Came from": rnd.choices(["QR code", "NFC tag", "Link", "Home screen"], [5, 3, 2, 1])[0]}},
                                start.isoformat()))
     for t in ["Evening keynote", "the one about legacies in the big room", "Matt Derby session"]:
         rows.append(to_row({"session": {"id": "NOT LISTED", "title": t}, "answers": {"Overall (1-5)": 4, "Came from": "QR code"}},

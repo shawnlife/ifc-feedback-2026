@@ -424,7 +424,7 @@ function clean_(p, ids) {
   Object.keys(answers).slice(0, MAX_ANSWERS).forEach(function (k) {
     var col = safe_(String(k).slice(0, 60));
     var v = answers[k];
-    if (typeof v === 'number') v = (v >= 1 && v <= 5) ? Math.round(v) : '';
+    if (typeof v === 'number') v = (v >= 1 && v <= 5) ? Math.round(v * 10) / 10 : '';   // one decimal: speaker averages like 4.5
     else v = safe_(String(v == null ? '' : v).slice(0, MAX_TEXT));
     if (v !== '' && col !== 'Came from') hasAnswer = true;
     clean[col] = v;

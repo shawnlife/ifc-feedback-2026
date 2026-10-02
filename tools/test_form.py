@@ -136,7 +136,13 @@ with sync_playwright() as p:
     check("highlighted" in page.inner_text("#formError"), "required question blocks sending")
     page.click("label[for=q0_4]")
     check(page.locator(".stars label.on").count() == 4, "4 stars light up")
-    page.click("label[for=q1_5]")
+    names = [n.strip() for n in page.inner_text("#chosen .r-speakers").split(",")] if page.locator("#chosen .r-speakers").count() else []
+    rows_ = page.locator("#q1_wrap fieldset")
+    legends = [x.inner_text() for x in rows_.locator("legend").all()]
+    check(rows_.count() == max(1, len(names)) and all(("speaker, " + n) in l for n, l in zip(names, legends)),
+          f"one named question per speaker ({legends})")
+    page.click("label[for=q1_s0_5]")
+    if rows_.count() > 1: page.click("label[for=q1_s1_4]")
     page.click("label[for=q3_0]")
     page.fill("#q4", "=HYPERLINK(\"evil\") takeaway")
     before = len(received())
@@ -147,9 +153,13 @@ with sync_playwright() as p:
     check(len(got) == before + 1, "response reached the backend")
     last = got[-1]
     check(last["session"]["room"] == "Room 4" and last["session"]["start"] == "11:15", "correct session details sent")
-    check(last["answers"]["Overall (1-5)"] == 4 and last["answers"]["Speakers (1-5)"] == 5
-          and last["answers"]["Relevance (1-5)"] == "" and last["answers"]["Will apply"] == "Yes, definitely",
-          "answers mapped to the right columns")
+    a_ = last["answers"]
+    exp_avg = 4.5 if len(names) > 1 else 5
+    check(a_["Overall (1-5)"] == 4 and a_["Speakers (1-5)"] == exp_avg and a_["Relevance (1-5)"] == ""
+          and a_["Learned something new"] == "Yes" and "takeaway" in a_["Anything else"],
+          f"answers mapped to the right columns (speaker average {a_['Speakers (1-5)']})")
+    check((a_["Speaker ratings"] == f"{names[0]}: 5; {names[1]}: 4") if len(names) > 1 else (a_["Speaker ratings"] in ("", f"{names[0]}: 5" if names else "")),
+          f"each speaker's own rating kept: '{a_['Speaker ratings']}'")
     check(last["test"] is False, "not flagged as a test")
     check(last["answers"].get("Came from") == "Link", "plain visit recorded as 'Link'")
 
@@ -162,6 +172,20 @@ with sync_playwright() as p:
     page.click("#submitBtn"); page.wait_for_selector("#stepDone:not([hidden])", timeout=40000)
     check(via()["sheet"] == before + 1 and "has been sent" in page.inner_text("#doneText"), "Firebase unreachable: saved through the Sheet route instead, person told 'sent'")
     set_fsfail(False)
+
+    print("Two speakers, two named questions")
+    page.click("#againBtn")
+    page.evaluate("document.getElementById('q').value=''")
+    page.click("#browseBtn"); page.wait_for_timeout(200)
+    multi = [x for x in page.locator(".result").all() if "," in (x.locator(".r-speakers").inner_text() if x.locator(".r-speakers").count() else "") and not x.is_disabled()][0]
+    two = [n.strip() for n in multi.locator(".r-speakers").inner_text().split(",")]
+    multi.click()
+    lg = [x.inner_text() for x in page.locator("#q1_wrap legend").all()]
+    check(len(lg) == len(two) and all(n in l for n, l in zip(two, lg)), f"{len(two)} speakers -> {len(lg)} named questions")
+    page.click("label[for=q0_5]"); page.click("label[for=q1_s0_3]"); page.click("label[for=q1_s1_4]")
+    page.click("#submitBtn"); page.wait_for_selector("#stepDone:not([hidden])")
+    a2 = received()[-1]["answers"]
+    check(a2["Speakers (1-5)"] == 3.5 and a2["Speaker ratings"] == f"{two[0]}: 3; {two[1]}: 4", f"average 3.5 and each kept: '{a2['Speaker ratings']}'")
 
     print("Back button")
     page.click("#againBtn")

@@ -44,6 +44,30 @@ SL_NOTES = ["Packed room, great energy throughout", "Lively Q&A, we ran out of t
             "Quiet room, audience seemed tired after lunch"]
 
 
+ANYTHING_GOOD = ["Brilliant session, thank you", "Would love the slides shared afterwards", "Could easily have been longer",
+                 "Great mix of theory and real examples", "More time for questions please", ""]
+ANYTHING_BAD = ["Speaker mostly read from the slides", "Too theoretical, not enough practical examples",
+                "Felt like a sales pitch for their agency", "Couldn't hear at the back", "Content was very basic for this audience"]
+
+
+def answers_for(s, o, rnd, quality):
+    """James and Ruby's questions: overall, a rating per speaker, relevance, learned anything new, anything else."""
+    names = [n.strip() for n in s["Speakers"].split(",") if n.strip()]
+    per = {n: max(1, min(5, round(o + rnd.choice([-1, 0, 0, 1]) + (rnd.choice([-1, 1]) if i and rnd.random() < 0.3 else 0))))
+           for i, n in enumerate(names)}
+    if names:
+        rated = {n: v for n, v in per.items() if rnd.random() > 0.08}          # a few skip a speaker
+        spk = round(sum(rated.values()) / len(rated), 1) if rated else ""
+        detail = "; ".join(f"{n}: {v}" for n, v in rated.items())
+    else:
+        spk, detail = rnd.choice(["", max(1, min(5, o + rnd.choice([-1, 0, 1])))]), ""
+    return {"Overall (1-5)": o, "Speakers (1-5)": spk, "Speaker ratings": detail,
+            "Relevance (1-5)": rnd.choice(["", max(1, min(5, o + rnd.choice([-1, 0, 1])))]),
+            "Learned something new": rnd.choices(["Yes", "No", "Not sure", ""], [o * 1.3, 4 - o * 0.6 if o < 4 else 0.4, 1.5, 0.8])[0],
+            "Anything else": rnd.choice(ANYTHING_GOOD + [""] * 4) if o >= 4 else rnd.choice(ANYTHING_BAD + [""] * 2),
+            "Came from": rnd.choices(["QR code", "NFC tag", "Link", "Home screen"], [45, 30, 15, 6 if s["Date"] < "2026-10-22" else 14])[0]}
+
+
 def iso(local):
     return (local - LOCAL_OFFSET).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -82,14 +106,8 @@ for s in sessions:
         if when > CUTOFF or when < start:
             continue
         o = max(1, min(5, round(rnd.gauss(quality, 0.75))))
-        src = rnd.choices(["QR code", "NFC tag", "Link", "Home screen"], [45, 30, 15, 6 if s["Date"] < "2026-10-22" else 14])[0]
         items.append({"rid": "sim-" + uuid.uuid4().hex[:12], "test": True, "form": "attendee", "sentAt": iso(when), "session": sess(s),
-                      "answers": {"Overall (1-5)": o, "Speakers (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 0, 1]))),
-                                  "Relevance (1-5)": rnd.choice(["", max(1, min(5, o + rnd.choice([-1, 0, 1])))]),
-                                  "Will apply": rnd.choices(["Yes, definitely", "Maybe", "No", ""], [o * 1.2, 2, 3 - o * 0.5 if o < 4 else 0.3, 1])[0],
-                                  "Key takeaway": rnd.choice(TAKE + [""] * 5) if o >= 3 else rnd.choice([""] * 3 + TAKE[:3]),
-                                  "Suggestions": rnd.choice(GOOD + [""] * 6) if o >= 4 else rnd.choice(BAD + GOOD[:2] + [""] * 2),
-                                  "Came from": src}})
+                      "answers": answers_for(s, o, rnd, quality)})
     # Session Leader reports (sometimes two, who don't always agree)
     if end <= CUTOFF and rnd.random() < 0.8:
         for k in range(2 if rnd.random() < 0.18 else 1):
@@ -105,12 +123,13 @@ for typed, when in [("Matt Derby talk", "2026-10-22T10:20"), ("the drinks thing 
                     ("open discussion about wellbeing", "2026-10-21T18:10"), ("The AI one", "2026-10-21T16:55")]:
     items.append({"rid": "sim-" + uuid.uuid4().hex[:12], "test": True, "form": "attendee", "sentAt": iso(datetime.fromisoformat(when)),
                   "session": {"id": "NOT LISTED", "title": typed},
-                  "answers": {"Overall (1-5)": rnd.randint(3, 5), "Key takeaway": rnd.choice(TAKE), "Came from": "QR code"}})
+                  "answers": {"Overall (1-5)": rnd.randint(3, 5), "Anything else": rnd.choice(TAKE), "Came from": "QR code"}})
 
 
 def to_fs(v):
     if isinstance(v, bool): return {"booleanValue": v}
     if isinstance(v, int): return {"integerValue": str(v)}
+    if isinstance(v, float): return {"doubleValue": v}
     if isinstance(v, dict): return {"mapValue": {"fields": {k: to_fs(x) for k, x in v.items()}}}
     return {"stringValue": str(v)}
 

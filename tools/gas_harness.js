@@ -286,5 +286,13 @@ check(!rep['Issue status'] && rowsOf(env, 'Session Leader feedback') === 1, 'reo
 const nopw = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'resolve', key: 'x', row: rep._row, timestamp: rep.Timestamp, note: 'y' }) } }).text);
 check(!nopw.ok, 'needs the dashboard password');
 
+console.log('16. Per-speaker ratings: average keeps its decimal, detail kept as text');
+env = makeEnv();
+env.ctx.doPost({ postData: { contents: JSON.stringify({ rid: 'spk1', test: false, session: { id: '1WS1', title: 'X' },
+  answers: { 'Overall (1-5)': 4, 'Speakers (1-5)': 4.5, 'Speaker ratings': 'Jane Doe: 4; John Roe: 5' } }) } });
+tick(env);
+const row = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text).responses[0];
+check(row['Speakers (1-5)'] === 4.5 && row['Speaker ratings'] === 'Jane Doe: 4; John Roe: 5', `stored ${row['Speakers (1-5)']} and "${row['Speaker ratings']}"`);
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);

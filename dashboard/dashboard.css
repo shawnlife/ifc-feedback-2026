@@ -132,3 +132,5 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
 .handled-note { color: var(--ok); font-weight: 700; font-size: 14px; }
 .handled-note .link { min-height: 0; padding: 0 0 0 8px; font-size: 13px; font-weight: 400; }
 [data-resolve] { margin-top: 8px; }
+.by-speaker { margin-top: 8px; font-size: 14px; line-height: 1.6; }
+.by-speaker .k { font-weight: 700; color: var(--accent-text); }
