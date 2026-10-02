@@ -1079,6 +1079,9 @@
       store('local', KEY_STORE, state.key);
       history.replaceState(null, '', location.pathname + location.search);
     }
+    // ?test in the link opens with test responses showing (for demos to the team)
+    if (/[?&]test(=|&|$)/.test(location.search)) $('showTest').checked = true;
+    $('testBanner').hidden = !$('showTest').checked;
     state.key = state.key || store('session', KEY_STORE) || store('local', KEY_STORE);
     if (state.key) start(); else $('login').hidden = false;
 
@@ -1107,6 +1110,7 @@
     $('refreshBtn').addEventListener('click', load);
     $('showTest').addEventListener('change', function () {
       state.data = null; state.lastOk = 0;
+      $('testBanner').hidden = !$('showTest').checked;
       ['overview', 'rankings', 'comments', 'leaders', 'scorecards', 'typed', 'analytics'].forEach(function (t) {
         $('tab-' + t).innerHTML = '<p class="empty">Loading ' + ($('showTest').checked ? 'test' : 'real') + ' responses…</p>';
       });
