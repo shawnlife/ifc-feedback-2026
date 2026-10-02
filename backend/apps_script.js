@@ -439,7 +439,7 @@ function clean_(p, ids) {
       'Speakers': safe_(String(s.speakers || '').slice(0, 300)),
       'Room': safe_(String(s.room || '').slice(0, 100)),
       'Date': safe_(String(s.date || '').slice(0, 20)),
-      'Time': safe_([s.start, s.end].filter(String).join('–').slice(0, 20)),
+      'Time': safe_([s.start, s.end].filter(String).join('\u2013').slice(0, 20)),
       'Track': safe_(String(s.track || '').slice(0, 100)),
       'Note': note
     },
@@ -593,7 +593,7 @@ function assign_(p) {
     var typed = String(get('Note')).indexOf('Typed in') === 0 && get('Session ID') === 'NOT LISTED' ? get('Session') : '';
     var set = {
       'Session ID': s.ID, 'Session': safe_(s.Title || ''), 'Speakers': safe_(s.Speakers || ''), 'Room': safe_(s.Room || ''),
-      'Date': s.Date || '', 'Time': [s.Start, s.End].filter(String).join('–'), 'Track': safe_(s.Track || ''),
+      'Date': s.Date || '', 'Time': [s.Start, s.End].filter(String).join('\u2013'), 'Track': safe_(s.Track || ''),
       'Note': 'Typed in as "' + safe_(String(typed || get('Session'))).replace(/^'/, '') + '", matched on dashboard'
     };
     Object.keys(set).forEach(function (h) {
@@ -794,7 +794,7 @@ function checkSessions() {
   var ui = SpreadsheetApp.getUi();
   if (!problems.length) ui.alert('All good: ' + rows.length + ' sessions, no problems found.');
   else ui.alert(problems.length + ' thing(s) to fix:\n\n' + problems.slice(0, 40).join('\n') +
-    (problems.length > 40 ? '\n…and ' + (problems.length - 40) + ' more' : ''));
+    (problems.length > 40 ? '\n\u2026and ' + (problems.length - 40) + ' more' : ''));
 }
 
 function buildSummary() {

@@ -1029,6 +1029,29 @@
     state.tab = name;
     document.querySelectorAll('.tabs [role=tab]').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.tab === name); });
     document.querySelectorAll('.panel').forEach(function (p) { p.hidden = p.id !== 'tab-' + name; });
+    var on = document.querySelector('.tabs [aria-selected=true]');       // phones: tabs scroll sideways, keep the chosen one in view
+    if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
+  // Phones show each table row as a card, so every cell needs its column name
+  function labelTables(root) {
+    root.querySelectorAll('table.tbl').forEach(function (t) {
+      var heads = [].map.call(t.querySelectorAll('thead th'), function (th) { return th.textContent.trim(); });
+      t.querySelectorAll('tbody tr').forEach(function (tr) {
+        [].forEach.call(tr.children, function (td, i) {
+          if (!heads[i] || td.hasAttribute('data-label')) return;
+          td.setAttribute('data-label', heads[i]);
+          var box = document.createElement('div');                       // keeps the cell's contents together beside its label
+          box.className = 'cell';
+          while (td.firstChild) box.appendChild(td.firstChild);
+          td.appendChild(box);
+        });
+      });
+    });
+  }
+  if (window.MutationObserver) {
+    new MutationObserver(function () { labelTables(document); })
+      .observe(document.getElementById('app'), { childList: true, subtree: true });
   }
 
   function signOut(msg) {
