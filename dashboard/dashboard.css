@@ -128,3 +128,7 @@ tr.has-issue td:first-child { box-shadow: inset 4px 0 0 var(--danger); }
 .diff.up { color: var(--ok); }
 .diff.down { color: var(--danger); }
 .runhead { font-size: 13px; font-weight: 700; color: var(--accent-text); margin: 8px 0 0; text-transform: uppercase; letter-spacing: .03em; }
+p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line-through; }
+.handled-note { color: var(--ok); font-weight: 700; font-size: 14px; }
+.handled-note .link { min-height: 0; padding: 0 0 0 8px; font-size: 13px; font-weight: 400; }
+[data-resolve] { margin-top: 8px; }

@@ -25,7 +25,7 @@ from urllib.parse import urlparse, parse_qs
 
 ROOT = Path(__file__).parent.parent
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
-received, state, events, assigned, notes = [], {"fail": False, "fsfail": False}, [], {}, {}
+received, state, events, assigned, notes, resolved = [], {"fail": False, "fsfail": False}, [], {}, {}, {}
 FIREBASE = os.environ.get("MOCK_FIREBASE", "1") == "1"     # pretend Firebase is set up (the normal case)
 via = {"firebase": 0, "sheet": 0}
 DASH_KEY = "test-password"
@@ -196,6 +196,10 @@ class Handler(SimpleHTTPRequestHandler):
                 mine = [r for r in received if bool(r.get("test")) == bool(item.get("test"))]
                 rows = FAKE + [to_row(r) for r in mine if r.get("form") != "leader"]
                 leaders = FAKE_LEADERS + [to_row(r) for r in mine if r.get("form") == "leader"]
+                leaders = [dict(r, _row=i + 2) for i, r in enumerate(leaders)]
+                for r in leaders:
+                    if resolved.get(r["_row"]):
+                        r["Issue status"], r["Issue note"] = "Handled Thu 22 Oct 14:05", resolved[r["_row"]]
                 rows = [dict(r, _row=i + 2) for i, r in enumerate(rows)]
                 for i, r in enumerate(rows):
                     if r["_row"] in notes:
@@ -220,6 +224,13 @@ class Handler(SimpleHTTPRequestHandler):
                 if not s:
                     return self.send_json({"ok": False, "error": "session not found"})
                 assigned[item["row"]] = s
+                return self.send_json({"ok": True})
+            if item.get("action") == "resolve":
+                if item.get("key") != DASH_KEY:
+                    return self.send_json({"ok": False, "error": "wrong password"})
+                if not item.get("reopen") and not str(item.get("note", "")).strip():
+                    return self.send_json({"ok": False, "error": "a short note is needed"})
+                resolved[item["row"]] = None if item.get("reopen") else item["note"]
                 return self.send_json({"ok": True})
             if item.get("action") == "event":
                 events.append(item)

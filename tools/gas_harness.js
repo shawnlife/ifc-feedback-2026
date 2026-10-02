@@ -269,5 +269,22 @@ const tsTest = env.sheets['Test responses'].rows[1][0], tsReal = env.sheets['Res
 check(new Date(tsTest).toISOString() === '2026-10-21T14:05:00.000Z', 'test rehearsal row uses its pretend time');
 check(new Date(tsReal).toISOString() !== '2026-10-21T14:05:00.000Z', 'a real response can never set its own time');
 
+console.log('15. Session Leader key issue: mark handled with a note, then reopen');
+env = makeEnv();
+env.ctx.doPost({ postData: { contents: JSON.stringify({ rid: 'kl1', test: false, form: 'leader', session: { id: '1WS1', title: 'X' }, answers: { 'Session Leader: Key issues': 'Projector failed', 'Session Leader: Overall (1-5)': 3 } }) } });
+tick(env);
+const dl = () => JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text).leaders[0];
+let rep = dl();
+const noNote = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'resolve', key: 'pw12345678', row: rep._row, timestamp: rep.Timestamp, note: '' }) } }).text);
+check(!noNote.ok, 'a note is required');
+const res = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'resolve', key: 'pw12345678', row: rep._row, timestamp: rep.Timestamp, note: 'Projector replaced' }) } }).text);
+rep = dl();
+check(res.ok && /^Handled/.test(rep['Issue status']) && rep['Issue note'] === 'Projector replaced' && rep['Session Leader: Key issues'] === 'Projector failed', 'marked handled with its note; the issue text itself is kept');
+env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'resolve', key: 'pw12345678', row: rep._row, timestamp: rep.Timestamp, reopen: true }) } });
+rep = dl();
+check(!rep['Issue status'] && rowsOf(env, 'Session Leader feedback') === 1, 'reopen clears it, report still there');
+const nopw = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'resolve', key: 'x', row: rep._row, timestamp: rep.Timestamp, note: 'y' }) } }).text);
+check(!nopw.ok, 'needs the dashboard password');
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);

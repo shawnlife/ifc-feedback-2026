@@ -157,7 +157,8 @@
     leaders = (state.data.leaders || []).map(function (r) {
       var id = String(r['Session ID'] || ''), s = byId[id];
       return {
-        raw: r, id: id, when: r.Timestamp, name: r[L_NAME] || '',
+        raw: r, row: r._row, id: id, when: r.Timestamp, name: r[L_NAME] || '',
+        handled: String(r['Issue status'] || '').indexOf('Handled') === 0, handledNote: r['Issue note'] || '', handledWhen: String(r['Issue status'] || '').replace('Handled ', ''),
         title: s ? s.title : r.Session || '', speakers: s ? s.speakers : r.Speakers || '',
         room: s ? s.room : r.Room || '', date: s ? s.date : String(r.Date || '').slice(0, 10),
         start: s ? s.start : String(r.Time || '').split(/[–-]/)[0].trim(), track: s ? s.track : r.Track || '', type: s ? s.type : ''
@@ -538,8 +539,10 @@
     var list = leaders.filter(function (l) {
       return matches(l, l.name + ' ' + L_TEXTS.map(function (q) { return l.raw[col(q)] || ''; }).join(' '));
     }).sort(function (a, b) { return (a.date + a.start + a.room).localeCompare(b.date + b.start + b.room); });
-    var issues = list.filter(function (l) { return L_ISSUES && String(l.raw[L_ISSUES] || '').trim(); });
-    $('issueCount').textContent = leaders.filter(function (l) { return L_ISSUES && String(l.raw[L_ISSUES] || '').trim(); }).length || '';
+    var hasIssue = function (l) { return L_ISSUES && String(l.raw[L_ISSUES] || '').trim(); };
+    var issues = list.filter(function (l) { return hasIssue(l) && !l.handled; });
+    var handledN = list.filter(function (l) { return hasIssue(l) && l.handled; }).length;
+    $('issueCount').textContent = leaders.filter(function (l) { return hasIssue(l) && !l.handled; }).length || '';
     var covered = {}; list.forEach(function (l) { covered[l.id] = 1; });
     // sort by the chosen column (click a heading); ties keep day/time order
     var lval = function (l) {
@@ -558,7 +561,7 @@
         var vals = list.map(function (l) { return num(l.raw[col(q)]); }).filter(function (v) { return v != null; });
         return tile('Average ' + q.label.toLowerCase(), vals.length ? fmt1(mean(vals)) + ' <small>/ 5</small>' : '–', vals.length + ' ratings');
       }).join('') +
-      tile('Key issues raised', String(issues.length), issues.length ? 'Listed first below' : 'None so far') + '</div>';
+      tile('Open key issues', String(issues.length), (issues.length ? 'Listed first below' : 'Nothing waiting') + (handledN ? ' · ' + handledN + ' handled' : '')) + '</div>';
     var row = function (l) {
       return '<tr' + (issues.indexOf(l) > -1 ? ' class="has-issue"' : '') + '><td><button type="button" class="linkish" data-card="' + esc(l.id) + '">' + esc(l.title) + '</button></td>' +
         '<td>' + esc(dayLabel(l.date) + ', ' + l.start) + '<div class="t-sub">' + esc(l.room) + '</div></td>' +
@@ -566,8 +569,13 @@
         L_RATINGS.map(function (q) { return '<td class="num">' + (num(l.raw[col(q)]) || '–') + '</td>'; }).join('') +
         '<td>' + L_TEXTS.map(function (q) {
           var v = l.raw[col(q)];
-          return v ? '<p class="' + (col(q) === L_ISSUES ? 'issue' : '') + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' : '';
-        }).join('') + '</td></tr>';
+          var cls = col(q) === L_ISSUES ? (l.handled ? 'issue handled' : 'issue') : '';
+          return v ? '<p class="' + cls + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' : '';
+        }).join('') +
+        (hasIssue(l) && !l.handled ? '<button type="button" class="secondary small" data-resolve="' + l.row + '" data-ts="' + esc(l.when) + '">Mark as handled</button>' : '') +
+        (l.handled ? '<p class="handled-note">Handled ' + esc(l.handledWhen) + (l.handledNote ? ': ' + esc(l.handledNote) : '') +
+          ' <button type="button" class="link" data-reopen="' + l.row + '" data-ts="' + esc(l.when) + '">Reopen</button></p>' : '') +
+        '</td></tr>';
     };
     var lth = function (k, label, numCol) {
       var sorted = state.lSortBy === k ? ' aria-sort="' + (state.lSortDir > 0 ? 'ascending' : 'descending') + '"' : '';
@@ -842,7 +850,7 @@
       }).join('') + '</tbody></table></div>'
       : '<p class="empty">Nothing waiting to be matched.' + (matched ? '' : ' Good sign: the list is complete.') + '</p>';
     if (dismissed.length) {
-      html += '<details class="dismissed"><summary>' + dismissed.length + ' marked "no match" (still kept in the Google Sheet)</summary>' +
+      html += '<details class="dismissed"><summary>' + dismissed.length + ' marked "no match" (still kept in the database)</summary>' +
         '<div class="tbl-wrap"><table class="tbl"><tbody>' + dismissed.map(function (r) {
           return '<tr><td>' + esc(localTime(r.when)) + '</td><td class="t-title">' + esc(r.title) + '</td><td class="num">' + (num(r.raw[OVERALL]) || '–') + '</td>' +
             '<td><button type="button" class="link" data-restore="' + r.row + '" data-ts="' + esc(r.when) + '">Restore</button></td></tr>';
@@ -887,24 +895,56 @@
     return score >= 8 ? best : '';     // ties are fine: same session often runs twice, we pick the first
   }
 
+  // Session Leader key issue: mark handled (with a note) or reopen. The row goes at once;
+  // the save carries on in the background and the row comes back if it fails.
+  function resolveIssue(btn, reopen) {
+    var note = '';
+    if (!reopen) {
+      note = prompt('What was done about this? A few words, e.g. "Projector replaced".');
+      if (note === null) return;
+      note = note.trim();
+      if (!note) { alert('Please add a short note so the team knows what happened.'); return; }
+    }
+    var tr = btn.closest('tr');
+    if (tr && !reopen) tr.hidden = true;
+    var cnt = $('issueCount'); var before = cnt.textContent;
+    if (!reopen) cnt.textContent = Math.max(0, (+before || 0) - 1) || '';
+    btn.disabled = true;
+    fetch(API, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'resolve', key: state.key, test: $('showTest').checked, row: +(btn.dataset.resolve || btn.dataset.reopen),
+        timestamp: btn.dataset.ts, note: note, reopen: !!reopen })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.ok) throw new Error(j.error || 'not saved');
+      load();
+    }).catch(function (e) {
+      if (tr) tr.hidden = false; cnt.textContent = before; btn.disabled = false;
+      alert('Not saved: ' + e.message + '. Please try again.');
+    });
+  }
+
   function assign(btn, special) {
     var row = btn.dataset.assign || btn.dataset.nomatch || btn.dataset.restore, sessionId = special;
     if (!special) {
       var sel = document.querySelector('select[data-row="' + row + '"]');
       if (!sel.value) { sel.focus(); return; }
       var s = byId[sel.value];
-      if (!confirm('Match this response to "' + s.title + '" (' + s.room + ', ' + dayLabel(s.date) + ' ' + s.start + ')?\n\nThis updates the Google Sheet.')) return;
+      if (!confirm('Match this response to "' + s.title + '" (' + s.room + ', ' + dayLabel(s.date) + ' ' + s.start + ')?\n\nThis updates the database.')) return;
       sessionId = sel.value;
     }
     var label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Saving…';
+    // the row goes straight away; it comes back if the save fails
+    var tr = btn.closest('tr'), cnt = $('typedCount'), before = cnt.textContent;
+    if (tr && special !== '__RESTORE__') { tr.hidden = true; cnt.textContent = Math.max(0, (+before || 0) - 1) || ''; }
+    if (tr && special === '__RESTORE__') tr.hidden = true;
     fetch(API, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'assign', key: state.key, test: $('showTest').checked, row: +row, timestamp: btn.dataset.ts, sessionId: sessionId })
     }).then(function (r) { return r.json(); }).then(function (j) {
-      if (!j.ok) { alert('Not saved: ' + (j.error || 'unknown problem') + '.'); btn.disabled = false; btn.textContent = label; return; }
+      if (!j.ok) { if (tr) tr.hidden = false; cnt.textContent = before; alert('Not saved: ' + (j.error || 'unknown problem') + '.'); btn.disabled = false; btn.textContent = label; return; }
       load();
-    }).catch(function () { alert('Could not reach the Google Sheet. Try again.'); btn.disabled = false; btn.textContent = label; });
+    }).catch(function () { if (tr) tr.hidden = false; cnt.textContent = before; alert('Could not reach the database. Please try again.'); btn.disabled = false; btn.textContent = label; });
   }
 
 
@@ -1029,6 +1069,8 @@
         el.textContent = box.hidden ? 'Show as a table' : 'Hide table';
       } else if (el.dataset.assign) assign(el);
       else if (el.dataset.nomatch) assign(el, '__NO_MATCH__');
+      else if (el.dataset.resolve) resolveIssue(el, false);
+      else if (el.dataset.reopen) resolveIssue(el, true);
       else if (el.dataset.restore) assign(el, '__RESTORE__');
       else if (el.id === 'exportBtn') exportCSV();
       else if (el.id === 'moreComments') { state.commentsShown += 100; renderComments(); }

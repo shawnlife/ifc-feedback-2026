@@ -177,6 +177,7 @@ function doPost(e) {
     var p = JSON.parse(e.postData.contents);
     if (p.action === 'dashboard') return dashboard_(p);
     if (p.action === 'assign') return assign_(p);
+    if (p.action === 'resolve') return resolve_(p);
     if (p.action === 'event') {
       var type = String(p.type || '');
       if (EVENT_TYPES.indexOf(type) === -1) return json_({ ok: false, error: 'unknown event' });
@@ -599,6 +600,35 @@ function assign_(p) {
       var c = head.indexOf(h);
       if (c > -1) sh.getRange(row, c + 1).setValue(set[h]);
     });
+    return json_({ ok: true });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Dashboard "Mark as handled" on a Session Leader key issue: adds a status and a note
+// to that report's row (two extra columns). Nothing is deleted; "Reopen" clears them.
+function resolve_(p) {
+  var denied = auth_(p);
+  if (denied) return json_(denied);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = sheetFor_(p.test === true ? TEST_LEADER : LEADER);
+    var row = Number(p.row);
+    if (!(row >= 2 && row <= sh.getLastRow())) return json_({ ok: false, error: 'row not found' });
+    var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+    var ts = sh.getRange(row, head.indexOf('Timestamp') + 1).getValue();
+    if (!(ts instanceof Date) || ts.toISOString() !== p.timestamp) return json_({ ok: false, error: 'row changed, refresh and try again' });
+    ['Issue status', 'Issue note'].forEach(function (h) {
+      if (head.indexOf(h) === -1) { head.push(h); sh.getRange(1, head.length).setValue(h).setFontWeight('bold'); }
+    });
+    var reopen = p.reopen === true;
+    var note = safe_(String(p.note || '').trim().slice(0, 300));
+    if (!reopen && !note) return json_({ ok: false, error: 'a short note is needed' });
+    var stamp = Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'EEE d MMM HH:mm');
+    sh.getRange(row, head.indexOf('Issue status') + 1).setValue(reopen ? '' : 'Handled ' + stamp);
+    sh.getRange(row, head.indexOf('Issue note') + 1).setValue(reopen ? '' : note);
     return json_({ ok: true });
   } finally {
     lock.releaseLock();
