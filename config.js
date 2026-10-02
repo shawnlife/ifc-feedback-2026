@@ -31,7 +31,7 @@ window.IFC_CONFIG = {
     logoLeftAlt: 'IFC 2026',
     logoRight: 'assets/brand/presented-by-resource-alliance-white.webp',
     logoRightAlt: 'Presented by the Resource Alliance',
-    banner: ''         // e.g. 'assets/brand/banner.jpg' (wide image, shown short on phones)
+    banner: 'assets/brand/banner.jpg'   // venue photo strip under the logos ('' to hide it)
   },
 
   // Session times in the Sheet are local conference time. This is what lets the
