@@ -50,7 +50,7 @@ Status as of 1 Oct 2026. ✅ done · 🟡 needs Shawn · ⬜ to do
 3. ✅ Browser tests in Safari (WebKit) and Firefox engines: all pass
 4. ⏸ **Second backup endpoint** (parked: Shawn unsure; revisit after the 800 load test): a second copy of the script on a *different* Google account; the form switches to it automatically if the main one fails twice in a row
 5. ✅ **Privacy notice** at privacy.html (controller: The Resource Alliance, contact@resource-alliance.org as on their own privacy policy). 🟡 Shawn/RA to confirm wording
-6. ⬜ Final web address + QR code (decode-checked) + printed sign test with 2 phones
+6. ✅ Web address ifc2026survey.com live with HTTPS; room + general QR codes regenerated and scan-checked. 🟡 Shawn: printed sign test with 2 phones, NFC tags tested through the finished signs
 7. ⬜ Event-week checklist: who watches the dashboard, what to do if the "Live" dot turns red, phone numbers
 
 ## 4. During the event

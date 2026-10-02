@@ -50,19 +50,17 @@ If the Cvent programme changes before the event, run `python3 tools/fetch_cvent.
 
 ## Step 4: Test before the event
 
-Open the form with `?test` on the end, for example `https://feedback.example.com/?test`. An orange banner says "Test mode" and every response goes to the **Test responses** tab, not the real results. Submit a few, check they appear.
+Open the form with `?test` on the end: `https://ifc2026survey.com/?test`. An orange banner says "Test mode" and every response goes to the **Test responses** tab, not the real results. Submit a few, check they appear.
 
 To see the "just finished" list as it will look on the day, add a pretend time: `?test&now=2026-10-14T12:40`.
 
-## Step 5: The QR code
+## Step 5: Web address, QR codes and NFC tags
 
-Once the address is final:
+Live at **https://ifc2026survey.com** (GoDaddy DNS: four A records to GitHub's 185.199.108-111.153, `www` CNAME to `shawnlife.github.io`; the repo's `CNAME` file holds the domain, don't delete it). Old shawnlife.github.io links redirect automatically.
 
-```
-python3 tools/make_qr.py https://your-final-address/
-```
-
-This makes `qr/feedback-qr.png` (for slides), `qr/feedback-qr.svg` (for print) and an A5 room sign. Scan the printed one with two different phones before printing 150 copies.
+- Form: `ifc2026survey.com` · Session Leader form: `ifc2026survey.com/sessionleader` · Dashboard: `ifc2026survey.com/dashboard`
+- Room QR codes, a general QR code and every NFC tag link: `python3 tools/make_room_signs.py https://ifc2026survey.com/` -> `print/room-qr/` (each code is scan-checked; it stops if one fails).
+- Writing NFC tags: open `https://ifc2026survey.com/tags/` on your phone, tap Copy, paste into NXP TagWriter / NFC Tools, write, then lock the tag. Test every tag through the finished sign with an iPhone and an Android.
 
 ## Step 6: Dashboard and backups (after the script update on 1 Oct)
 
