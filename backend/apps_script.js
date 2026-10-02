@@ -394,6 +394,8 @@ function processQueue_() {
         var c = clean_(p, ids);
         if (!c) { status.push(['rejected']); return; }
         c.base.Timestamp = r[0];
+        // Rehearsal data ("sim-" IDs, test only) keeps its pretend send time so the timing analytics look real
+        if (kind === 'TEST' && /^sim-/.test(r[1]) && p.sentAt && !isNaN(Date.parse(p.sentAt))) c.base.Timestamp = new Date(p.sentAt);
         var test = kind === 'TEST', leader = p.form === 'leader';
         out[leader ? (test ? TEST_LEADER : LEADER) : (test ? TEST_RESPONSES : RESPONSES)].push(c);
         saved[r[1]] = 1;

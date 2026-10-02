@@ -259,5 +259,15 @@ env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'assign', key: '
 const back = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text).responses.find((r) => r.Session === 'Evening drinks talk');
 check(back && back.Note === 'Typed in by attendee', 'Restore puts it back in the to-be-matched list');
 
+console.log('14. Rehearsal data keeps its pretend send time (test only)');
+env = makeEnv();
+const simPayload = (rid, test) => ({ rid, test, sentAt: '2026-10-21T14:05:00Z', session: { id: '1WS1', title: 'Fundraising Benchmarks' }, answers: { 'Overall (1-5)': 4 } });
+env.ctx.doPost({ postData: { contents: JSON.stringify(simPayload('sim-abc', true)) } });
+env.ctx.doPost({ postData: { contents: JSON.stringify(simPayload('sim-real', false)) } });
+tick(env);
+const tsTest = env.sheets['Test responses'].rows[1][0], tsReal = env.sheets['Responses'].rows[1][0];
+check(new Date(tsTest).toISOString() === '2026-10-21T14:05:00.000Z', 'test rehearsal row uses its pretend time');
+check(new Date(tsReal).toISOString() !== '2026-10-21T14:05:00.000Z', 'a real response can never set its own time');
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);
