@@ -42,6 +42,8 @@
 
   <!-- STEP 1: find the session -->
   <section id="stepFind" aria-labelledby="findLabel">
+    <!-- Filled in when the form is opened from a room sign (NFC tag or room QR) -->
+    <div class="room-ask" id="roomAsk" hidden aria-live="polite"></div>
     <label class="search-label" id="findLabel" for="q">Which session did you attend?</label>
     <p class="hint" id="qHint">Type anything you remember: speaker, room, topic or time.</p>
     <div class="search">

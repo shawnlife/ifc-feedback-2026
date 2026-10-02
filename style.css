@@ -72,6 +72,14 @@ h2 { font-weight: 700; }
   background: #fff4e5; border-left: 4px solid var(--accent); font-size: 15px;
 }
 
+/* "Is this your session?" from a room sign */
+.room-ask { margin: 0 0 26px; padding: 18px; background: #fff4e5; border-left: 5px solid var(--accent); }
+.room-q { margin: 0 0 12px; font-size: 19px; font-weight: 700; }
+.room-card { background: var(--bg); padding: 14px 16px; margin-bottom: 16px; }
+.room-btns { display: grid; gap: 8px; }
+.room-btns .link { justify-self: center; }
+.room-none { margin: 0; font-size: 16px; }
+
 /* Search */
 .search-label { display: block; font-size: 20px; font-weight: 700; }
 .hint { margin: 4px 0 12px; color: var(--muted); font-size: 15px; }

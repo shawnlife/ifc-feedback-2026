@@ -30,14 +30,17 @@
 
   // QR codes point at the address with ?qr on the end. Remember that for this visit,
   // then tidy it out of the address bar so a copied/shared link counts as a link.
+  // Room signs (NFC tag or per-room QR) add ?room=Erasmus%203 so the form can ask
+  // "Is this your session?" straight away. Read once, then tidied out of the address bar.
+  var ROOM = (params.get('room') || '').trim();
   var SOURCE = (function () {
-    var src = params.has('qr') ? 'QR code' : params.has('app') ? 'Home screen' : null;
+    var src = params.has('nfc') ? 'NFC tag' : params.has('qr') ? 'QR code' : params.has('app') ? 'Home screen' : null;
     try {
       if (src) sessionStorage.setItem('ifc26-src', src);
       else src = sessionStorage.getItem('ifc26-src');
     } catch (e) { /* private browsing: fine */ }
-    if (params.has('qr') || params.has('app')) {
-      params.delete('qr'); params.delete('app');
+    if (params.has('qr') || params.has('app') || params.has('nfc') || params.has('room')) {
+      params.delete('qr'); params.delete('app'); params.delete('nfc'); params.delete('room');
       var qs = params.toString();
       history.replaceState(null, '', location.pathname + (qs ? '?' + qs.replace(/=(?=&|$)/g, '') : '') + location.hash);
     }
@@ -502,11 +505,49 @@
 
   var showAll = false;
 
+  /* ---------- "Is this your session?" (room signs) ---------- */
+
+  var roomAsked = false;
+  function roomKey(r) { return norm(String(r).split('(')[0]).replace(/[^a-z0-9]/g, ''); }
+
+  // The session in this room that people are most likely leaving: in progress, or the
+  // latest one that ended in the last 2.5 hours.
+  function roomSession(room) {
+    var key = roomKey(room), now = nowMinutes(), best = null;
+    sessions.forEach(function (s) {
+      if (roomKey(s.room) !== key) return;
+      var start = toMinutes(s.date, s.start), end = toMinutes(s.date, s.end || s.start);
+      if (isNaN(start) || start > now || now - end > RECENT_WINDOW_MIN) return;
+      if (!best || start > toMinutes(best.date, best.start)) best = s;
+    });
+    return best;
+  }
+
+  function askRoom() {
+    roomAsked = true;
+    var box = $('roomAsk'), s = roomSession(ROOM);
+    if (!s) {
+      box.innerHTML = '<p class="room-none">Nothing has started in <strong>' + esc(ROOM) + '</strong> yet. Find your session below.</p>';
+      box.hidden = false;
+      return;
+    }
+    box.innerHTML = '<p class="room-q">You\'re in <strong>' + esc(s.room) + '</strong>. Is this your session?</p>' +
+      '<div class="room-card"><span class="r-title">' + esc(s.title) + '</span>' +
+      (s.speakers ? '<span class="r-speakers">' + esc(s.speakers) + '</span>' : '') +
+      '<span class="r-meta"><span>' + esc(dayLabel(s.date)) + ', ' + esc(timeLabel(s)) + '</span></span></div>' +
+      '<div class="room-btns"><button type="button" class="primary" id="roomYes">Yes, rate this session</button>' +
+      '<button type="button" class="link" id="roomNo">No, find my session</button></div>';
+    box.hidden = false;
+    $('roomYes').addEventListener('click', function () { box.hidden = true; choose(s); });
+    $('roomNo').addEventListener('click', function () { box.hidden = true; els.q.focus(); });
+  }
+
   function render() {
     if (browsing) return renderBrowse();
     var raw = els.q.value;
     els.qClear.hidden = !raw;
     if (!sessions.length) return;
+    if (ROOM && !roomAsked) askRoom();
 
     if (!raw.trim()) {
       var fin = justFinished(), live = inProgress();
@@ -971,6 +1012,7 @@
       installPrompt.userChoice.then(function () { installPrompt = null; $('homeTip').hidden = true; });
     });
     els.againBtn.addEventListener('click', function () {
+      $('roomAsk').hidden = true;
       els.q.value = ''; browsing = false; render(); backToFind();
     });
     window.addEventListener('popstate', function () {
