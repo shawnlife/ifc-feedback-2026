@@ -614,24 +614,21 @@ function resolve_(p) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
-    // Two kinds: a Session Leader key issue ("Handled"), or an attendee who asked to be contacted ("Contacted")
-    var contact = p.kind === 'contact';
-    var sh = contact ? responsesSheet_(p.test === true) : sheetFor_(p.test === true ? TEST_LEADER : LEADER);
-    var cols = contact ? ['Contact status', 'Contact note'] : ['Issue status', 'Issue note'];
+    var sh = sheetFor_(p.test === true ? TEST_LEADER : LEADER);
     var row = Number(p.row);
     if (!(row >= 2 && row <= sh.getLastRow())) return json_({ ok: false, error: 'row not found', code: 'S121' });
     var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
     var ts = sh.getRange(row, head.indexOf('Timestamp') + 1).getValue();
     if (!(ts instanceof Date) || ts.toISOString() !== p.timestamp) return json_({ ok: false, error: 'row changed, refresh and try again', code: 'S122' });
-    cols.forEach(function (h) {
+    ['Issue status', 'Issue note'].forEach(function (h) {
       if (head.indexOf(h) === -1) { head.push(h); sh.getRange(1, head.length).setValue(h).setFontWeight('bold'); }
     });
     var reopen = p.reopen === true;
     var note = safe_(String(p.note || '').trim().slice(0, 300));
     if (!reopen && !note) return json_({ ok: false, error: 'a short note is needed', code: 'S125' });
     var stamp = Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'EEE d MMM HH:mm');
-    sh.getRange(row, head.indexOf(cols[0]) + 1).setValue(reopen ? '' : (contact ? 'Contacted ' : 'Handled ') + stamp);
-    sh.getRange(row, head.indexOf(cols[1]) + 1).setValue(reopen ? '' : note);
+    sh.getRange(row, head.indexOf('Issue status') + 1).setValue(reopen ? '' : 'Handled ' + stamp);
+    sh.getRange(row, head.indexOf('Issue note') + 1).setValue(reopen ? '' : note);
     return json_({ ok: true });
   } finally {
     lock.releaseLock();
