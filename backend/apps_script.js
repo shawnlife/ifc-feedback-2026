@@ -172,27 +172,27 @@ var EVENT_TYPES = ['help', 'shawnlife', 'installed', 'tip-shown'];
 
 function doPost(e) {
   try {
-    if (!e || !e.postData || !e.postData.contents) return json_({ ok: false, error: 'empty' });
-    if (e.postData.contents.length > 20000) return json_({ ok: false, error: 'too large' });
+    if (!e || !e.postData || !e.postData.contents) return json_({ ok: false, error: 'empty', code: 'S101' });
+    if (e.postData.contents.length > 20000) return json_({ ok: false, error: 'too large', code: 'S102' });
     var p = JSON.parse(e.postData.contents);
     if (p.action === 'dashboard') return dashboard_(p);
     if (p.action === 'assign') return assign_(p);
     if (p.action === 'resolve') return resolve_(p);
     if (p.action === 'event') {
       var type = String(p.type || '');
-      if (EVENT_TYPES.indexOf(type) === -1) return json_({ ok: false, error: 'unknown event' });
+      if (EVENT_TYPES.indexOf(type) === -1) return json_({ ok: false, error: 'unknown event', code: 'S104' });
       return json_(rawAppend_([new Date(), '', 'EVENT', JSON.stringify({ type: type, test: p.test === true }), '']));
     }
 
     var rid = String(p.rid || '').slice(0, 64);
-    if (!rid || !p.session || !p.session.title || typeof p.answers !== 'object') return json_({ ok: false, error: 'invalid' });
+    if (!rid || !p.session || !p.session.title || typeof p.answers !== 'object') return json_({ ok: false, error: 'invalid', code: 'S103' });
     var cache = CacheService.getScriptCache();
     if (cache.get('rid_' + rid)) return json_({ ok: true, duplicate: true });   // a retry of something already saved
     var res = rawAppend_([new Date(), rid, p.test === true ? 'TEST' : 'RESPONSE', JSON.stringify(p), '']);
     if (res.ok) cache.put('rid_' + rid, '1', 21600);
     return json_(res);
   } catch (err) {
-    return json_({ ok: false, error: String(err).slice(0, 200) });
+    return json_({ ok: false, error: String(err).slice(0, 200), code: 'S199' });
   }
 }
 
@@ -203,14 +203,14 @@ function doPost(e) {
 // "busy" and retries, so nothing is ever reported as saved unless it was.
 function rawAppend_(row) {
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(25000)) return { ok: false, error: 'busy' };
+  if (!lock.tryLock(25000)) return { ok: false, error: 'busy', code: 'S105' };
   try {
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RAW_LOG) || rawSheet_();
     sh.appendRow(row);
     SpreadsheetApp.flush();                 // make sure it is written before we say "saved"
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: 'busy' };
+    return { ok: false, error: 'busy', code: 'S106' };
   } finally {
     lock.releaseLock();
   }
@@ -512,13 +512,13 @@ function json_(o) {
 function auth_(p) {
   var cache = CacheService.getScriptCache();
   var fails = Number(cache.get('dash_fails') || 0);
-  if (fails >= 20) return { ok: false, error: 'locked', message: 'Too many wrong passwords. Try again in 15 minutes.' };
+  if (fails >= 20) return { ok: false, error: 'locked', code: 'S112', message: 'Too many wrong passwords. Try again in 15 minutes.' };
   var real = PropertiesService.getScriptProperties().getProperty('DASHBOARD_PASSWORD');
-  if (!real) return { ok: false, error: 'no password', message: 'Set a password first: IFC Feedback > Set dashboard password.' };
+  if (!real) return { ok: false, error: 'no password', code: 'S113', message: 'Set a password first: IFC Feedback > Set dashboard password.' };
   if (String(p.key || '') !== real) {
     cache.put('dash_fails', String(fails + 1), 900);
     Utilities.sleep(800);                               // slows down guessing
-    return { ok: false, error: 'wrong password' };
+    return { ok: false, error: 'wrong password', code: 'S111' };
   }
   return null;
 }
@@ -575,21 +575,21 @@ function assign_(p) {
   try {
     var sh = responsesSheet_(p.test === true);
     var row = Number(p.row);
-    if (!(row >= 2 && row <= sh.getLastRow())) return json_({ ok: false, error: 'row not found' });
+    if (!(row >= 2 && row <= sh.getLastRow())) return json_({ ok: false, error: 'row not found', code: 'S121' });
     var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
     var vals = sh.getRange(row, 1, 1, head.length).getValues()[0];
     var get = function (h) { return vals[head.indexOf(h)]; };
     var ts = get('Timestamp');
-    if (!(ts instanceof Date) || ts.toISOString() !== p.timestamp) return json_({ ok: false, error: 'row changed, refresh and try again' });
+    if (!(ts instanceof Date) || ts.toISOString() !== p.timestamp) return json_({ ok: false, error: 'row changed, refresh and try again', code: 'S122' });
     // "No match" / "Restore" only change the Note: the response itself stays in the Sheet
     if (p.sessionId === '__NO_MATCH__' || p.sessionId === '__RESTORE__') {
-      if (get('Session ID') !== 'NOT LISTED') return json_({ ok: false, error: 'not a typed-in response' });
+      if (get('Session ID') !== 'NOT LISTED') return json_({ ok: false, error: 'not a typed-in response', code: 'S123' });
       sh.getRange(row, head.indexOf('Note') + 1).setValue(p.sessionId === '__NO_MATCH__'
         ? 'Typed in, no match (dismissed on dashboard)' : 'Typed in by attendee');
       return json_({ ok: true });
     }
     var s = readSessions_().filter(function (x) { return String(x.ID) === String(p.sessionId); })[0];
-    if (!s) return json_({ ok: false, error: 'session not found' });
+    if (!s) return json_({ ok: false, error: 'session not found', code: 'S124' });
     var typed = String(get('Note')).indexOf('Typed in') === 0 && get('Session ID') === 'NOT LISTED' ? get('Session') : '';
     var set = {
       'Session ID': s.ID, 'Session': safe_(s.Title || ''), 'Speakers': safe_(s.Speakers || ''), 'Room': safe_(s.Room || ''),
@@ -616,16 +616,16 @@ function resolve_(p) {
   try {
     var sh = sheetFor_(p.test === true ? TEST_LEADER : LEADER);
     var row = Number(p.row);
-    if (!(row >= 2 && row <= sh.getLastRow())) return json_({ ok: false, error: 'row not found' });
+    if (!(row >= 2 && row <= sh.getLastRow())) return json_({ ok: false, error: 'row not found', code: 'S121' });
     var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
     var ts = sh.getRange(row, head.indexOf('Timestamp') + 1).getValue();
-    if (!(ts instanceof Date) || ts.toISOString() !== p.timestamp) return json_({ ok: false, error: 'row changed, refresh and try again' });
+    if (!(ts instanceof Date) || ts.toISOString() !== p.timestamp) return json_({ ok: false, error: 'row changed, refresh and try again', code: 'S122' });
     ['Issue status', 'Issue note'].forEach(function (h) {
       if (head.indexOf(h) === -1) { head.push(h); sh.getRange(1, head.length).setValue(h).setFontWeight('bold'); }
     });
     var reopen = p.reopen === true;
     var note = safe_(String(p.note || '').trim().slice(0, 300));
-    if (!reopen && !note) return json_({ ok: false, error: 'a short note is needed' });
+    if (!reopen && !note) return json_({ ok: false, error: 'a short note is needed', code: 'S125' });
     var stamp = Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'EEE d MMM HH:mm');
     sh.getRange(row, head.indexOf('Issue status') + 1).setValue(reopen ? '' : 'Handled ' + stamp);
     sh.getRange(row, head.indexOf('Issue note') + 1).setValue(reopen ? '' : note);
@@ -694,18 +694,18 @@ function checkAlerts_() {
   var props = SP_();
   var problems = [];
   var since = Number(props.getProperty('FS_ERROR_SINCE') || 0);
-  if (since && Date.now() - since > 20 * 60000) problems.push('Copying from Firebase to the Sheet has been failing for ' +
+  if (since && Date.now() - since > 20 * 60000) problems.push('[S201] Copying from Firebase to the Sheet has been failing for ' +
     Math.round((Date.now() - since) / 60000) + ' minutes: ' + props.getProperty('FS_LAST_ERROR'));
   var u = usage_();
-  if (u.runMinutes > 70) problems.push('Background run time today is ' + u.runMinutes + ' of 90 minutes.');
-  if (u.firebaseReads > 40000) problems.push('Firebase reads today: ' + u.firebaseReads + ' of 50,000.');
+  if (u.runMinutes > 70) problems.push('[S301] Background run time today is ' + u.runMinutes + ' of 90 minutes.');
+  if (u.firebaseReads > 40000) problems.push('[S302] Firebase reads today: ' + u.firebaseReads + ' of 50,000.');
   if (!problems.length) return;
   var last = Number(props.getProperty('ALERT_SENT') || 0);
   if (Date.now() - last < 60 * 60000) return;          // at most one email an hour
   props.setProperty('ALERT_SENT', String(Date.now()));
   MailApp.sendEmail(Session.getEffectiveUser().getEmail(), 'IFC feedback form: needs attention',
     problems.join('\n\n') + '\n\nResponses are safe (they are kept in Firebase and on phones). ' +
-    'Open the dashboard for details, or forward this email to Claude.\n\n' + SpreadsheetApp.getActiveSpreadsheet().getUrl());
+    'The codes are explained in the on-the-day guide. Open the dashboard for details, or forward this email to Claude.\n\n' + SpreadsheetApp.getActiveSpreadsheet().getUrl());
 }
 
 

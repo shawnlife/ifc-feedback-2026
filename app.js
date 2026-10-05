@@ -281,7 +281,7 @@
     }).then(fetchSessions).then(render).catch(function () {
       if (sessions.length) return;
       els.status.innerHTML = '';
-      banner('Could not load the session list. Check your connection and reload the page, or tap "My session isn\'t listed" below.');
+      banner('Could not load the session list. Check your connection and reload the page, or tap "My session isn\'t listed" below. (Code F101)');
     });
   }
 
@@ -822,7 +822,7 @@
   // Anything else (busy, timeout, quota, outage) keeps it queued and retries.
   var PERMANENT = ['invalid', 'too large', 'empty', 'no answers'];
 
-  var flushing = false, retryTimer = null, attempt = 0, waitingRid = null;
+  var flushing = false, retryTimer = null, attempt = 0, waitingRid = null, lastCode = '';
   // Returns a map of rid -> 'sent' | 'rejected' for the items it handled.
   function flush() {
     if (DEMO || flushing) return Promise.resolve({});
@@ -836,6 +836,7 @@
       chain = chain.then(function () {
         if (failed) return;
         return send(item).then(function (j) {
+          lastCode = (j && !j.ok && j.code) || '';                       // e.g. S105 busy, S103 invalid: shown with F201/F202
           if (!(j && j.ok) && PERMANENT.indexOf(j && j.error) === -1) throw new Error((j && j.error) || 'busy');
           results[item.rid] = j && j.ok ? 'sent' : 'rejected';
           store(OUTBOX_KEY, outbox().filter(function (x) { return x.rid !== item.rid; }));
@@ -908,8 +909,8 @@
   function done(state) {
     els.doneText.textContent = {
       sent: 'Your feedback has been sent.',
-      rejected: 'Sorry, that response could not be saved. Please try again, or tell the registration desk.',
-      queued: 'Saved on this phone and still sending (the connection is busy). Keep this page open for a moment, or it will finish next time you open the form.',
+      rejected: 'Sorry, that response could not be saved. Please try again, or tell the registration desk. (Code F202' + (lastCode ? ' / ' + lastCode : '') + ')',
+      queued: 'Saved on this phone and still sending (the connection is busy). Keep this page open for a moment, or it will finish next time you open the form. (Code F201' + (lastCode ? ' / ' + lastCode : '') + ')',
       demo: 'Demo mode: nothing was saved. Connect the Google Sheet in config.js to go live.'
     }[state];
     $('doneTitle').textContent = state === 'rejected' ? 'Not sent' : 'Thank you!';
@@ -929,6 +930,10 @@
       var img = $(id);
       if (!src || !img) return;
       img.alt = alt || '';
+      if (id === 'bannerImg') {                       // hold the photo's space from the start so the page doesn't jump when it arrives
+        $('hero').hidden = false;
+        img.onerror = function () { $('hero').hidden = true; };
+      }
       img.onload = function () {
         img.hidden = false;
         if (id === 'bannerImg') $('hero').hidden = false;
@@ -945,9 +950,14 @@
   function setupHelp() {
     var addr = ['shawnlifebiz', 'gmail.com'].join('@');
     var link = $('helpLink');
-    link.href = 'mailto:' + addr + '?subject=' + encodeURIComponent('IFC 2026 feedback form: help') +
-      '&body=' + encodeURIComponent('What happened?\n\n\nWhich session were you trying to rate (if any)?\n\n');
-    link.addEventListener('click', function () { track('help'); });
+    var setHref = function () {
+      var shown = (document.body.innerText.match(/\(Code [A-Z0-9 \/]+\)/) || [''])[0];   // any problem code on screen
+      link.href = 'mailto:' + addr + '?subject=' + encodeURIComponent('IFC 2026 feedback form: help') +
+        '&body=' + encodeURIComponent('What happened?\n\n\nWhich session were you trying to rate (if any)?\n\n' +
+          (shown ? '\n' + shown.replace(/[()]/g, '') + '\n' : ''));
+    };
+    setHref();
+    link.addEventListener('click', function () { setHref(); track('help'); });
     $('shawnLink').addEventListener('click', function () { track('shawnlife'); });
   }
 

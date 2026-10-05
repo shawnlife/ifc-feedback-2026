@@ -194,7 +194,7 @@ class Handler(SimpleHTTPRequestHandler):
             item = json.loads(body)
             if item.get("action") == "dashboard":
                 if item.get("key") != DASH_KEY:
-                    return self.send_json({"ok": False, "error": "wrong password"})
+                    return self.send_json({"ok": False, "error": "wrong password", "code": "S111"})
                 mine = [r for r in received if bool(r.get("test")) == bool(item.get("test"))]
                 rows = FAKE + [to_row(r) for r in mine if r.get("form") != "leader"]
                 leaders = FAKE_LEADERS + [to_row(r) for r in mine if r.get("form") == "leader"]
@@ -218,7 +218,7 @@ class Handler(SimpleHTTPRequestHandler):
                                        "events": ev, "health": {"automatic": True, "waiting": 0, "lastProcessed": None}})
             if item.get("action") == "assign":
                 if item.get("key") != DASH_KEY:
-                    return self.send_json({"ok": False, "error": "wrong password"})
+                    return self.send_json({"ok": False, "error": "wrong password", "code": "S111"})
                 if item.get("sessionId") in ("__NO_MATCH__", "__RESTORE__"):
                     notes[item["row"]] = "Typed in, no match (dismissed on dashboard)" if item["sessionId"] == "__NO_MATCH__" else "Typed in by attendee"
                     return self.send_json({"ok": True})
@@ -229,7 +229,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json({"ok": True})
             if item.get("action") == "resolve":
                 if item.get("key") != DASH_KEY:
-                    return self.send_json({"ok": False, "error": "wrong password"})
+                    return self.send_json({"ok": False, "error": "wrong password", "code": "S111"})
                 if not item.get("reopen") and not str(item.get("note", "")).strip():
                     return self.send_json({"ok": False, "error": "a short note is needed"})
                 resolved[item["row"]] = None if item.get("reopen") else item["note"]
@@ -239,7 +239,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json({"ok": True})
             if state.get("busy"):                       # Google answering "busy" (not a dropped connection)
                 state["busy"] -= 1
-                return self.send_json({"ok": False, "error": "Exception: Service invoked too many times"})
+                return self.send_json({"ok": False, "error": "Exception: Service invoked too many times", "code": "S199"})
             if any(r["rid"] == item["rid"] for r in received):
                 return self.send_json({"ok": True, "duplicate": True})
             received.append(item); via["sheet"] += 1

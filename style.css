@@ -53,8 +53,9 @@ button { cursor: pointer; }
 /* Banner image: wide and short so the search stays above the fold on phones */
 /* White line between the orange logo bar and the photo (covers the bar's black edge) */
 .hero { position: relative; margin-top: -3px; border-top: 3px solid #fff; background: var(--accent-soft); }
+.hero { min-height: 165px; }
 .hero img { display: block; width: 100%; height: 165px; object-fit: cover; object-position: 50% 45%; }
-@media (min-width: 600px) { .hero img { height: 280px; object-position: 50% 32%; } }
+@media (min-width: 600px) { .hero { min-height: 280px; } .hero img { height: 280px; object-position: 50% 32%; } }
 
 .wrap {
   max-width: 560px; margin: 0 auto;

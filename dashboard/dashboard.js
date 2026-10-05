@@ -112,8 +112,8 @@
       if (d.stale) return;                      // a newer request is on its way; ignore this answer
       if (!d.ok) {
         if (d.error === 'wrong password' || d.error === 'locked' || d.error === 'no password') {
-          signOut(d.message || 'That password did not work.');
-        } else showAlert('The Sheet answered with an error: ' + (d.message || d.error) + '. Showing the last data received.');
+          signOut(coded(d.message || 'That password did not work.', d.code));
+        } else showAlert(coded('The database answered with an error: ' + (d.message || d.error) + '. Showing the last data received.', 'D102', d.code));
         return;
       }
       state.data = d; state.lastOk = Date.now(); quickRetry = 0;
@@ -129,8 +129,8 @@
         return;
       }
       quickRetry = 0;
-      showAlert('Could not reach the Google Sheet (tried 3 times). Will keep trying every minute' +
-        (state.data ? '; showing the last data received.' : '.') + ' Responses are still being saved.');
+      showAlert(coded('Could not reach the database (tried 3 times). Will keep trying every minute' +
+        (state.data ? '; showing the last data received.' : '.') + ' Responses are still being saved.', 'D101'));
     }).then(updateStatus);
   }
 
@@ -788,7 +788,7 @@
       })).then(function () { return zip.generateAsync({ type: 'blob' }); })
         .then(function (blob) { save(blob, 'IFC2026 session feedback (' + ws.length + ' files).zip'); });
     }).catch(function (e) {
-      alert('Could not create the Word file (' + (e && e.message || 'no connection to the export library') + '). Try again.');
+      alert(coded('Could not create the Word file (' + (e && e.message || 'no connection to the export library') + '). Try again.', 'D203'));
     }).then(function () { btn.disabled = false; btn.textContent = 'Download for editing (Word)'; });
   }
 
@@ -962,11 +962,12 @@
       body: JSON.stringify({ action: 'resolve', key: state.key, test: $('showTest').checked, row: +(btn.dataset.resolve || btn.dataset.reopen),
         timestamp: btn.dataset.ts, note: note, reopen: !!reopen })
     }).then(function (r) { return r.json(); }).then(function (j) {
-      if (!j.ok) throw new Error(j.error || 'not saved');
+      if (!j.ok) { var err = new Error(j.error || 'not saved'); err.code = j.code; err.answered = true; throw err; }
       load();
     }).catch(function (e) {
       if (tr) tr.hidden = false; cnt.textContent = before; btn.disabled = false;
-      alert('Not saved: ' + e.message + '. Please try again.');
+      alert(e.answered ? coded('Not saved: ' + e.message + '. Please try again.', 'D201', e.code)
+                       : coded('Could not reach the database. Please try again.', 'D202'));
     });
   }
 
@@ -989,9 +990,9 @@
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'assign', key: state.key, test: $('showTest').checked, row: +row, timestamp: btn.dataset.ts, sessionId: sessionId })
     }).then(function (r) { return r.json(); }).then(function (j) {
-      if (!j.ok) { if (tr) tr.hidden = false; cnt.textContent = before; alert('Not saved: ' + (j.error || 'unknown problem') + '.'); btn.disabled = false; btn.textContent = label; return; }
+      if (!j.ok) { if (tr) tr.hidden = false; cnt.textContent = before; alert(coded('Not saved: ' + (j.error || 'unknown problem') + '.', 'D201', j.code)); btn.disabled = false; btn.textContent = label; return; }
       load();
-    }).catch(function () { if (tr) tr.hidden = false; cnt.textContent = before; alert('Could not reach the database. Please try again.'); btn.disabled = false; btn.textContent = label; });
+    }).catch(function () { if (tr) tr.hidden = false; cnt.textContent = before; alert(coded('Could not reach the database. Please try again.', 'D202')); btn.disabled = false; btn.textContent = label; });
   }
 
 
@@ -1014,13 +1015,20 @@
   // Warn if responses are piling up in the Raw log instead of reaching the Sheet tabs
   function healthMessage(h) {
     if (!h) return '';
-    if (h.firebase && h.firebase.error) return 'Copying from Firebase to the Sheet is failing (' + h.firebase.error.slice(25, 140) + '). Responses are safe in Firebase; tell Shawn.';
-    if (!h.automatic) return 'Automatic processing is OFF. In the Sheet: IFC Feedback > Turn on automatic processing + hourly backups. (Nothing is lost: responses wait safely in the Raw log.)';
+    if (h.firebase && h.firebase.error) return coded('Copying from Firebase to the database is failing (' + h.firebase.error.slice(25, 140) + '). Responses are safe in Firebase; tell Shawn.', 'S201');
+    if (!h.automatic) return coded('Automatic processing is OFF. In the Sheet: IFC Feedback > Turn on automatic processing + hourly backups. (Nothing is lost: responses wait safely in the Raw log.)', 'S202');
     var age = h.lastProcessed ? Date.now() - Date.parse(h.lastProcessed) : Infinity;
-    if (h.waiting > 0 && age > 5 * 60000) return h.waiting + ' responses are waiting in the Raw log and processing last ran ' + ago(age) + '. They are safe; check the script triggers.';
+    if (h.waiting > 0 && age > 5 * 60000) return coded(h.waiting + ' responses are waiting in the Raw log and processing last ran ' + ago(age) + '. They are safe; check the script triggers.', 'S203');
     var u = h.usage;
-    if (u && (u.runMinutes > 70 || u.firebaseReads > 40000)) return 'Getting close to a daily Google limit: background time ' + u.runMinutes + ' of 90 min, Firebase reads ' + u.firebaseReads + ' of 50,000. Responses are safe; tell Shawn.';
+    if (u && (u.runMinutes > 70 || u.firebaseReads > 40000)) return coded('Getting close to a daily Google limit: background time ' + u.runMinutes + ' of 90 min, Firebase reads ' + u.firebaseReads + ' of 50,000. Responses are safe; tell Shawn.', u.runMinutes > 70 ? 'S301' : 'S302');
     return '';
+  }
+
+  // Every problem message ends with its code(s), e.g. "(Code D201 / S122)". The codes are
+  // listed in the on-the-day guide, so anyone can look one up or send it to Shawn.
+  function coded(msg) {
+    var codes = [].slice.call(arguments, 1).filter(Boolean);
+    return codes.length ? msg + ' (Code ' + codes.join(' / ') + ')' : msg;
   }
 
   function showAlert(msg) { $('alert').textContent = msg; $('alert').hidden = !msg; }
@@ -1071,7 +1079,7 @@
   }
 
   function init() {
-    if (!API) { $('login').hidden = false; $('loginError').textContent = 'No Google Sheet address in config.js yet.'; return; }
+    if (!API) { $('login').hidden = false; $('loginError').textContent = coded('No database address in config.js yet.', 'D104'); return; }
     // A sign-in link carries the password after #, which never leaves the browser.
     // It is remembered on this device and then tidied out of the address bar.
     if (location.hash.length > 1) {
@@ -1093,7 +1101,7 @@
       fetchData().then(function (d) {
         $('loginBtn').disabled = false;
         if (d.stale) { $('loginBtn').disabled = false; return; }
-        if (!d.ok) { $('loginError').textContent = d.message || 'That password did not work.'; return; }
+        if (!d.ok) { $('loginError').textContent = coded(d.message || 'That password did not work.', d.code); return; }
         store($('remember').checked ? 'local' : 'session', KEY_STORE, key);
         state.data = d; state.lastOk = Date.now();
         $('login').hidden = true; $('app').hidden = false;
@@ -1102,7 +1110,7 @@
         timer = setInterval(function () { if (document.visibilityState === 'visible') load(); else updateStatus(); }, REFRESH_MS);
       }).catch(function () {
         $('loginBtn').disabled = false;
-        $('loginError').textContent = 'Could not reach the Google Sheet. Check your connection and try again.';
+        $('loginError').textContent = coded('Could not reach the database. Check your connection and try again.', 'D103');
       });
     });
 
