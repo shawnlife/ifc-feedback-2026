@@ -321,7 +321,7 @@ with sync_playwright() as p:
     check("leader" in lp.url and lp.inner_text("h1").lower() == "session leader feedback", f"/sessionleader opens the leader form ({lp.url})")
     check("leading" in lp.inner_text("#findLabel"), "asks which session they were leading")
     lp.locator(".result").first.click()
-    check(lp.locator(".name-input").count() == 1 and lp.locator(".q-help").count() >= 4, "name field and question explanations shown")
+    check(lp.locator("#questions .name-input").count() == 1 and lp.locator("#questions .q-help").count() >= 4, "name field and question explanations shown")
     lp.click("label[for=q1_4]"); lp.click("label[for=q2_5]"); lp.click("label[for=q3_3]")
     lp.fill("#q5", "Packed room, brilliant Q&A")
     lp.click("#submitBtn")

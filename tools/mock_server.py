@@ -26,6 +26,7 @@ from urllib.parse import urlparse, parse_qs
 ROOT = Path(__file__).parent.parent
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 received, state, events, assigned, notes, resolved = [], {"fail": False, "fsfail": False}, [], {}, {}, {}
+contacted = {}
 FIREBASE = os.environ.get("MOCK_FIREBASE", "1") == "1"     # pretend Firebase is set up (the normal case)
 via = {"firebase": 0, "sheet": 0}
 DASH_KEY = "test-password"
@@ -72,7 +73,10 @@ def fake_rows(n):
                                             "Relevance (1-5)": rnd.choice(["", max(1, min(5, o + rnd.choice([-1, 0, 1])))]),
                                             "Learned something new": rnd.choices(["Yes", "No", "Not sure", ""], [o, 2, 1, 1])[0],
                                             "Anything else": rnd.choice(take + better),
-                                            "Came from": rnd.choices(["QR code", "NFC tag", "Link", "Home screen"], [5, 3, 2, 1])[0]}},
+                                            "Came from": rnd.choices(["QR code", "NFC tag", "Link", "Home screen"], [5, 3, 2, 1])[0],
+                                            **({"Contact me": "Yes", "Contact name": rnd.choice(["Priya Nair", "Tom Visser", "Ama Owusu", "Luis Ortega"]),
+                                                "Contact email": "test.attendee" + str(rnd.randint(1, 99)) + "@example.org"}
+                                               if rnd.random() < (0.25 if o <= 2 else 0.02) else {})}},
                                start.isoformat()))
     for t in ["Evening keynote", "the one about legacies in the big room", "Matt Derby session"]:
         rows.append(to_row({"session": {"id": "NOT LISTED", "title": t}, "answers": {"Overall (1-5)": 4, "Came from": "QR code"}},
@@ -203,6 +207,9 @@ class Handler(SimpleHTTPRequestHandler):
                     if resolved.get(r["_row"]):
                         r["Issue status"], r["Issue note"] = "Handled Thu 22 Oct 14:05", resolved[r["_row"]]
                 rows = [dict(r, _row=i + 2) for i, r in enumerate(rows)]
+                for r in rows:
+                    if contacted.get(r["_row"]):
+                        r["Contact status"], r["Contact note"] = "Contacted Thu 22 Oct 15:10", contacted[r["_row"]]
                 for i, r in enumerate(rows):
                     if r["_row"] in notes:
                         r["Note"] = notes[r["_row"]]
@@ -232,7 +239,7 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json({"ok": False, "error": "wrong password", "code": "S111"})
                 if not item.get("reopen") and not str(item.get("note", "")).strip():
                     return self.send_json({"ok": False, "error": "a short note is needed"})
-                resolved[item["row"]] = None if item.get("reopen") else item["note"]
+                (contacted if item.get("kind") == "contact" else resolved)[item["row"]] = None if item.get("reopen") else item["note"]
                 return self.send_json({"ok": True})
             if item.get("action") == "event":
                 events.append(item)

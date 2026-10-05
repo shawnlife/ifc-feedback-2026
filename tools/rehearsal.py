@@ -36,6 +36,7 @@ GOOD = ["More time for questions please", "Would love the slides shared afterwar
         "Room was a bit warm", "Needed a microphone for audience questions"]
 BAD = ["Speaker mostly read from the slides", "Too theoretical, not enough practical examples", "Started 10 minutes late and rushed the end",
        "Felt like a sales pitch for their agency", "Couldn't hear at the back", "Content was very basic for this audience"]
+CONTACT_NAMES = ["Priya Nair (test)", "Tom Visser (test)", "Ama Owusu (test)", "Luis Ortega (test)", "Mia Jansen (test)"]
 SL_NAMES = ["Anna de Groot", "Ben Okoro", "Chen Wei", "Dana Levi", "Eva Lindqvist", "Femi Adeyemi", "Grace Mwangi", "Hugo Bakker"]
 SL_ISSUES = ["Projector failed for about 10 minutes", "Room far too small, people standing at the back",
              "Speaker ran 15 minutes over", "Mic kept cutting out"]
@@ -65,7 +66,10 @@ def answers_for(s, o, rnd, quality):
             "Relevance (1-5)": rnd.choice(["", max(1, min(5, o + rnd.choice([-1, 0, 1])))]),
             "Learned something new": rnd.choices(["Yes", "No", "Not sure", ""], [o * 1.3, 4 - o * 0.6 if o < 4 else 0.4, 1.5, 0.8])[0],
             "Anything else": rnd.choice(ANYTHING_GOOD + [""] * 4) if o >= 4 else rnd.choice(ANYTHING_BAD + [""] * 2),
-            "Came from": rnd.choices(["QR code", "NFC tag", "Link", "Home screen"], [45, 30, 15, 6 if s["Date"] < "2026-10-22" else 14])[0]}
+            "Came from": rnd.choices(["QR code", "NFC tag", "Link", "Home screen"], [45, 30, 15, 6 if s["Date"] < "2026-10-22" else 14])[0],
+            # a few ask to be contacted, mostly after a poor session
+            **({"Contact me": "Yes", "Contact name": rnd.choice(CONTACT_NAMES), "Contact email": f"rehearsal.{rnd.randint(1, 999)}@example.org"}
+               if rnd.random() < (0.3 if o <= 2 else 0.02) else {})}
 
 
 def iso(local):

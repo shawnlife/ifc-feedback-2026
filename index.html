@@ -67,11 +67,29 @@
   <form id="stepForm" hidden novalidate>
     <div class="chosen" id="chosen"></div>
     <div id="questions"></div>
+    <!-- Optional "contact me" (attendees only, set in config.js) -->
+    <div class="contact-opt" id="contactOpt" hidden>
+      <div class="check-row">
+        <input type="checkbox" id="contactMe">
+        <label for="contactMe" id="contactLabel"></label>
+      </div>
+      <div class="contact-fields" id="contactFields" hidden>
+        <p class="q-help" id="contactHelp"></p>
+        <div class="q" id="contactNameBox">
+          <label for="contactName">Your name&nbsp;<span class="req" aria-hidden="true">*</span></label>
+          <input type="text" class="name-input" id="contactName" maxlength="100" autocomplete="name">
+        </div>
+        <div class="q" id="contactEmailBox">
+          <label for="contactEmail">Email&nbsp;<span class="req" aria-hidden="true">*</span></label>
+          <input type="email" class="name-input" id="contactEmail" maxlength="200" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false">
+        </div>
+      </div>
+    </div>
     <!-- Honeypot: invisible to people, bots fill it in -->
     <div class="hp" aria-hidden="true"><label>Leave empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
     <p class="form-error" id="formError" role="alert"></p>
     <button type="submit" class="primary" id="submitBtn">Send feedback</button>
-    <p class="privacy">Anonymous. We don't ask for your name or email.</p>
+    <p class="privacy" id="privacyLine">Anonymous. We don't ask for your name or email.</p>
   </form>
 
   <!-- STEP 3: done -->
@@ -98,7 +116,7 @@
       <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.6"/><circle cx="12" cy="16.9" r=".6" fill="currentColor"/></svg>
       Need help or something not working? <a id="helpLink" href="#">Contact us</a>
     </p>
-    <p><a href="privacy.html">Privacy</a> · <span id="anonNote">Anonymous: no name, email or login.</span></p>
+    <p><a href="privacy.html">Privacy</a> · <span id="anonNote">Anonymous, no login. Contact details only if you choose.</span></p>
     <p>Tool made using AI vibe-coding by <a href="https://shawnlife.com" id="shawnLink" target="_blank" rel="noopener noreferrer nofollow">ShawnLife</a></p>
   </footer>
 </div>

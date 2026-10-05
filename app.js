@@ -25,6 +25,7 @@
   // Session leader form: same page, opened via /sessionleader/ (which adds ?leader)
   var LEADER = params.has('leader');
   var QUESTIONS = (LEADER ? CFG.leaderQuestions : CFG.questions) || [];
+  var CONTACT = !LEADER && CFG.contactOptIn ? CFG.contactOptIn : null;    // optional "contact me" box
   var NAME_KEY = 'ifc26-leader-name';
   var NOW_OVERRIDE = params.get('now'); // e.g. ?now=2026-10-14T11:00 to test the "just finished" list
 
@@ -668,6 +669,21 @@
     els.questions.innerHTML = html;
   }
 
+  function setupContact() {
+    if (!CONTACT) return;
+    $('contactLabel').textContent = CONTACT.label;
+    $('contactHelp').textContent = CONTACT.help || '';
+    $('contactOpt').hidden = false;
+    $('privacyLine').textContent = 'Anonymous unless you tick the box above to be contacted.';
+    $('contactMe').addEventListener('change', function () {
+      $('contactFields').hidden = !this.checked;
+      if (this.checked) $('contactName').focus();
+      else ['contactNameBox', 'contactEmailBox'].forEach(function (id) {
+        $(id).classList.remove('invalid'); $(id).querySelectorAll('.q-error').forEach(function (x) { x.remove(); });
+      });
+    });
+  }
+
   // Leaders rate several sessions: fill in their name from last time
   function prefillName() {
     QUESTIONS.forEach(function (q, i) {
@@ -694,6 +710,7 @@
     fillSpeakers(s.manual ? null : s);
     prefillName();
     els.stepForm.querySelectorAll('.stars').forEach(function (st) { paintStars(st.parentNode); });
+    $('contactFields').hidden = true;                                   // the reset unticked "contact me"
     els.stepForm.querySelectorAll('.invalid').forEach(function (x) { x.classList.remove('invalid'); });
     els.stepForm.querySelectorAll('.q-error').forEach(function (x) { x.remove(); });
     els.formError.textContent = '';
@@ -750,6 +767,20 @@
         firstBad = firstBad || box;
       }
     });
+    // Optional contact details: only sent when the box is ticked
+    if (CONTACT && $('contactMe').checked) {
+      var cName = $('contactName').value.trim(), cEmail = $('contactEmail').value.trim();
+      var bad = function (id, msg) {
+        var b = $(id); b.classList.add('invalid');
+        b.insertAdjacentHTML('beforeend', '<p class="q-error">' + msg + '</p>');
+        firstBad = firstBad || b;
+      };
+      if (!cName) bad('contactNameBox', 'Please add your name, or untick the box above.');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cEmail)) bad('contactEmailBox', cEmail ? 'That email address doesn\'t look right.' : 'Please add your email, or untick the box above.');
+      answers['Contact me'] = 'Yes';
+      answers['Contact name'] = cName;
+      answers['Contact email'] = cEmail;
+    }
     var manualName = '';
     if (selected.manual) {
       manualName = $('manualName').value.trim();
@@ -1015,6 +1046,7 @@
     if (DEMO) banner('Demo mode: nothing is saved.');
     else if (TEST) banner('Test mode: responses go to the "Test responses" tab, not the real results.');
     buildQuestions();
+    setupContact();
 
     var timer;
     els.q.addEventListener('input', function () {

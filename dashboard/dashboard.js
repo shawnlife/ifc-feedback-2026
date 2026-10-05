@@ -154,7 +154,10 @@
         title: s ? s.title : r.Session || '', speakers: s ? s.speakers : r.Speakers || '',
         room: s ? s.room : r.Room || '', date: s ? s.date : String(r.Date || '').slice(0, 10),
         start: s ? s.start : (t[0] || '').trim(), track: s ? s.track : r.Track || '', type: s ? s.type : '',
-        source: r['Came from'] || 'Unknown'
+        source: r['Came from'] || 'Unknown',
+        contact: r['Contact me'] === 'Yes', contactName: r['Contact name'] || '', contactEmail: r['Contact email'] || '',
+        contacted: String(r['Contact status'] || '').indexOf('Contacted') === 0, contactNote: r['Contact note'] || '',
+        contactedWhen: String(r['Contact status'] || '').replace('Contacted ', '')
       };
     });
     leaders = (state.data.leaders || []).map(function (r) {
@@ -593,6 +596,43 @@
     $('tab-leaders').innerHTML = html;
   }
 
+  /* ---------- Follow-ups: attendees who asked to be contacted ---------- */
+  // Names and emails appear ONLY here: never in comments, scorecards or Word exports.
+
+  function renderFollowups() {
+    var all = rows.filter(function (r) { return r.contact; });
+    $('followCount').textContent = all.filter(function (r) { return !r.contacted; }).length || '';
+    var list = all.filter(function (r) { return matches(r, r.contactName + ' ' + r.contactEmail + ' ' + commentText(r)); })
+      .sort(function (a, b) { return String(b.when).localeCompare(String(a.when)); });
+    var waiting = list.filter(function (r) { return !r.contacted; }), done = list.filter(function (r) { return r.contacted; });
+    var html = '<p class="sub">Attendees who ticked "contact me" and left their name and email. Only the IFC team sees these; ' +
+      'they never appear in comments, scorecards or Word exports. Lowest ratings are marked in red.</p><div class="tiles">' +
+      tile('Asked to be contacted', String(list.length), all.length ? 'Out of ' + rows.length + ' responses' : 'None yet') +
+      tile('Waiting', String(waiting.length), waiting.length ? 'Listed below, newest first' : 'Nothing waiting') +
+      tile('Contacted', String(done.length), done.length ? 'See the list at the bottom' : '') + '</div>';
+    var head = '<thead><tr><th>When</th><th>Session</th><th>Overall</th><th>Name</th><th>Email</th><th>Their comment</th></tr></thead>';
+    var row = function (r) {
+      var o = num(r.raw[OVERALL]);
+      return '<tr' + (o != null && o <= 2 && !r.contacted ? ' class="has-issue"' : '') + '><td>' + esc(localTime(r.when)) + '</td>' +
+        '<td><span class="t-title">' + esc(r.title) + '</span><div class="t-sub">' + esc(r.room) + (r.date ? ' · ' + esc(dayLabel(r.date)) + (r.start ? ', ' + esc(r.start) : '') : '') + '</div></td>' +
+        '<td>' + (o != null ? '<span class="stars-txt" aria-label="' + o + ' out of 5">' + starsText(o) + '</span>' : '–') + '</td>' +
+        '<td class="t-title">' + esc(r.contactName) + '</td>' +
+        '<td><a href="mailto:' + encodeURIComponent(r.contactEmail).replace(/%40/g, '@') + '?subject=' + encodeURIComponent('Your feedback on "' + r.title + '" at IFC 2026') + '">' + esc(r.contactEmail) + '</a></td>' +
+        '<td>' + (esc(commentText(r).trim()) || '<span class="t-sub">No comment</span>') +
+        (r.contacted
+          ? '<p class="handled-note">Contacted ' + esc(r.contactedWhen) + (r.contactNote ? ': ' + esc(r.contactNote) : '') +
+            ' <button type="button" class="link" data-uncontact="' + r.row + '" data-ts="' + esc(r.when) + '">Reopen</button></p>'
+          : '<div><button type="button" class="secondary small" data-contact="' + r.row + '" data-ts="' + esc(r.when) + '">Mark as contacted</button></div>') +
+        '</td></tr>';
+    };
+    html += '<h2 class="section">Waiting to be contacted</h2>' + (waiting.length
+      ? '<div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + waiting.map(row).join('') + '</tbody></table></div>'
+      : '<p class="empty">' + (all.length ? 'Everyone who asked has been contacted.' : 'Nobody has asked to be contacted yet.') + '</p>');
+    if (done.length) html += '<details class="dismissed"><summary>' + done.length + ' already contacted</summary>' +
+      '<div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + done.map(row).join('') + '</tbody></table></div></details>';
+    $('tab-followups').innerHTML = html;
+  }
+
   /* ---------- per-speaker ratings ("Jane Doe: 4; John Roe: 5") ---------- */
 
   function speakerScores(list) {
@@ -944,22 +984,24 @@
 
   // Session Leader key issue: mark handled (with a note) or reopen. The row goes at once;
   // the save carries on in the background and the row comes back if it fails.
-  function resolveIssue(btn, reopen) {
-    var note = '';
+  function resolveIssue(btn, reopen, kind) {
+    var note = '', contact = kind === 'contact';
     if (!reopen) {
-      note = prompt('What was done about this? A few words, e.g. "Projector replaced".');
+      note = prompt(contact ? 'Who got in touch, and how? A few words, e.g. "James emailed 22 Oct".'
+                            : 'What was done about this? A few words, e.g. "Projector replaced".');
       if (note === null) return;
       note = note.trim();
       if (!note) { alert('Please add a short note so the team knows what happened.'); return; }
     }
     var tr = btn.closest('tr');
     if (tr && !reopen) tr.hidden = true;
-    var cnt = $('issueCount'); var before = cnt.textContent;
+    var cnt = $(contact ? 'followCount' : 'issueCount'); var before = cnt.textContent;
     if (!reopen) cnt.textContent = Math.max(0, (+before || 0) - 1) || '';
     btn.disabled = true;
     fetch(API, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'resolve', key: state.key, test: $('showTest').checked, row: +(btn.dataset.resolve || btn.dataset.reopen),
+      body: JSON.stringify({ action: 'resolve', kind: contact ? 'contact' : 'issue', key: state.key, test: $('showTest').checked,
+        row: +(btn.dataset.resolve || btn.dataset.reopen || btn.dataset.contact || btn.dataset.uncontact),
         timestamp: btn.dataset.ts, note: note, reopen: !!reopen })
     }).then(function (r) { return r.json(); }).then(function (j) {
       if (!j.ok) { var err = new Error(j.error || 'not saved'); err.code = j.code; err.answered = true; throw err; }
@@ -999,7 +1041,7 @@
   /* ---------- page wiring ---------- */
 
   function renderAll() {
-    renderOverview(); renderRankings(); renderComments(); renderLeaders(); renderScorecards(); renderTyped(); renderAnalytics();
+    renderOverview(); renderRankings(); renderComments(); renderLeaders(); renderFollowups(); renderScorecards(); renderTyped(); renderAnalytics();
   }
 
   function updateStatus() {
@@ -1119,7 +1161,7 @@
     $('showTest').addEventListener('change', function () {
       state.data = null; state.lastOk = 0;
       $('testBanner').hidden = !$('showTest').checked;
-      ['overview', 'rankings', 'comments', 'leaders', 'scorecards', 'typed', 'analytics'].forEach(function (t) {
+      ['overview', 'rankings', 'comments', 'leaders', 'followups', 'scorecards', 'typed', 'analytics'].forEach(function (t) {
         $('tab-' + t).innerHTML = '<p class="empty">Loading ' + ($('showTest').checked ? 'test' : 'real') + ' responses…</p>';
       });
       load();
@@ -1153,6 +1195,8 @@
       else if (el.dataset.nomatch) assign(el, '__NO_MATCH__');
       else if (el.dataset.resolve) resolveIssue(el, false);
       else if (el.dataset.reopen) resolveIssue(el, true);
+      else if (el.dataset.contact) resolveIssue(el, false, 'contact');
+      else if (el.dataset.uncontact) resolveIssue(el, true, 'contact');
       else if (el.dataset.restore) assign(el, '__RESTORE__');
       else if (el.id === 'exportBtn') exportCSV();
       else if (el.id === 'moreComments') { state.commentsShown += 100; renderComments(); }
