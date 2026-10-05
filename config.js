@@ -83,12 +83,12 @@ window.IFC_CONFIG = {
   ],
 
   // OPTIONAL CONTACT (attendee form only): a tick box at the end. Only when ticked are a
-  // name and email asked for and sent; everyone else stays anonymous. Shown on the
-  // dashboard's Follow-ups tab, never in comments, scorecards or Word exports.
+  // name and email asked for and sent; everyone else stays anonymous. Shown with that
+  // response in the dashboard's Comments tab, never in scorecards or Word exports.
   // Set to null to remove it.
   contactOptIn: {
-    label: 'I\'d like someone from the IFC team to contact me about this session',
-    help: 'Optional. Your name and email go only to the IFC team, with this response, so they can get in touch.'
+    label: 'I\'m happy to leave my contact details in case the IFC team needs to follow up on my feedback',
+    help: 'Optional. Only the IFC team sees your name and email.'
   },
 
   // SESSION LEADER FORM (at /sessionleader). Same rules as above.

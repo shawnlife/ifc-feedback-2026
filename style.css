@@ -162,11 +162,11 @@ mark { background: rgba(241, 133, 0, .28); color: inherit; padding: 0 1px; }
 .name-input:focus { outline: none; box-shadow: -4px 5px 0 var(--accent); }
 .q-error { margin: 6px 0 0; color: var(--danger); font-size: 14px; font-weight: 700; }
 
-/* Optional "contact me" box at the end of the attendee form */
-.contact-opt { margin: 4px 0 24px; padding: 16px; background: var(--surface); border-left: 5px solid var(--accent); }
+/* Optional contact details: a plain question at the end of the attendee form */
+.contact-opt { margin: 0 0 24px; }
 .check-row { display: flex; align-items: flex-start; gap: 12px; }
 .check-row input { flex: none; width: 24px; height: 24px; margin: 1px 0 0; accent-color: var(--accent); cursor: pointer; }
-.check-row label { font-weight: 700; font-size: 17px; line-height: 1.35; cursor: pointer; }
+.check-row label { font-weight: 700; font-size: 18px; line-height: 1.35; cursor: pointer; }
 .contact-fields { margin-top: 14px; }
 .contact-fields .q-help { margin: 0 0 14px; }
 .contact-fields .q { margin-bottom: 14px; }

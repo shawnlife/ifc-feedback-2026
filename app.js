@@ -674,7 +674,7 @@
     $('contactLabel').textContent = CONTACT.label;
     $('contactHelp').textContent = CONTACT.help || '';
     $('contactOpt').hidden = false;
-    $('privacyLine').textContent = 'Anonymous unless you tick the box above to be contacted.';
+    $('privacyLine').textContent = 'Anonymous unless you choose to leave your contact details.';
     $('contactMe').addEventListener('change', function () {
       $('contactFields').hidden = !this.checked;
       if (this.checked) $('contactName').focus();
