@@ -183,7 +183,10 @@
     var uniq = function (list) { return list.filter(function (v, i, a) { return v && a.indexOf(v) === i; }).sort(); };
     setOpts($('fDay'), uniq(sessions.map(function (s) { return s.date; })).map(function (d) { return [d, dayLabel(d)]; }), 'All days');
     setOpts($('fType'), uniq(sessions.map(function (s) { return s.type; })).map(function (v) { return [v, v]; }), 'All types');
-    setOpts($('fTrack'), uniq(sessions.map(function (s) { return s.track; })).map(function (v) { return [v, v]; }), 'All tracks');
+    // Tracks only: names that are really types (Masterclasses, Keynote) live in the Type filter
+    var types = uniq(sessions.map(function (s) { return s.type; }));
+    setOpts($('fTrack'), uniq(sessions.map(function (s) { return s.track; })).filter(function (v) { return types.indexOf(v) === -1; })
+      .map(function (v) { return [v, v]; }), 'All tracks');
     setOpts($('fRoom'), uniq(sessions.map(function (s) { return s.room.split(' (')[0]; }))
       .sort(function (a, b) { return a.localeCompare(b, undefined, { numeric: true }); }).map(function (v) { return [v, v]; }), 'All rooms');
   }
@@ -422,8 +425,7 @@
 
   // One setting, shown on Session rankings and Scorecards: adds IFC Online feedback to the in-person numbers
   function onlineToggle() {
-    return rows.some(function (r) { return r.online; })
-      ? '<label class="toggle"><input type="checkbox" class="withOnline"' + (state.withOnline ? ' checked' : '') + '> Include online reviews</label>' : '';
+    return '<label class="toggle"><input type="checkbox" class="withOnline"' + (state.withOnline ? ' checked' : '') + '> Include online reviews</label>';
   }
 
   function renderRankings() {

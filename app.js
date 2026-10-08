@@ -56,7 +56,7 @@
   var SESSIONS_KEY = 'ifc26-sessions-v1';
   var OUTBOX_KEY = 'ifc26-outbox-v1';
   var RATED_KEY = LEADER ? 'ifc26-rated-leader-v1' : ONLINE ? 'ifc26-rated-online-v1' : 'ifc26-rated-v1';
-  var RECENT_FIRST = 6;            // recent sessions shown above the search box before "Show all"
+  var RECENT_FIRST = Infinity;     // recent sessions shown above the search box (all of them, James 8 Oct)
   var RECENT_WINDOW_MIN = 150;   // sessions that ended up to 2.5h ago count as "just finished"
   var SHOW_FIRST = 10;           // results shown before "Show all"
   var REFRESH_AFTER_MS = 5 * 60 * 1000;
