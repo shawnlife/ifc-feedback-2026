@@ -145,7 +145,8 @@
     byId = {};
     sessions.forEach(function (s) { byId[s.id] = s; });
 
-    rows = (state.data.responses || []).map(function (r) {
+    rows = (state.data.responses || []).filter(function (r) { return r['Came from'] !== 'Load test'; })   // tools/load_test.py rows: never shown
+      .map(function (r) {
       var id = String(r['Session ID'] || '');
       var s = byId[id];
       var t = String(r.Time || '').split(/[–-]/);
