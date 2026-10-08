@@ -19,7 +19,8 @@
 
 .filters { display: flex; flex-wrap: wrap; gap: 10px 14px; padding: 14px; background: var(--surface); margin-bottom: 14px; }
 .filters label { display: grid; gap: 4px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
-.filters .grow { flex: 1; min-width: 200px; }
+.filters .grow { flex: 1; min-width: 180px; }
+.filters #fTrack { max-width: 260px; }
 .filters select, .filters input { height: 42px; padding: 0 10px; border: 2px solid var(--ink); background: var(--bg); font-size: 15px; text-transform: none; letter-spacing: 0; font-weight: 400; min-width: 150px; border-radius: 0; }
 
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 3px solid var(--ink); margin-bottom: 20px; }
@@ -147,8 +148,7 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
   .statusbar .spacer { flex-basis: 100%; height: 0; }
 
   .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
-  .filters label:nth-child(2), .filters .grow { grid-column: 1 / -1; order: 3; }
-  .filters .grow { order: 4; }
+  .filters .grow { grid-column: 1 / -1; }
   .filters select, .filters input { min-width: 0; width: 100%; }
 
   .tabs { flex-wrap: nowrap; overflow-x: auto; gap: 0; margin: 0 -16px 18px; padding: 0 16px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }

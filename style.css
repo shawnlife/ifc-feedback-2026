@@ -83,7 +83,10 @@ h2 { font-weight: 700; }
 .room-none { margin: 0; font-size: 16px; }
 
 /* Search */
-.search-label { display: block; font-size: 20px; font-weight: 700; }
+.search-label { display: block; margin: 0; font-size: 20px; font-weight: 700; }
+.search-label.sub { margin-top: 22px; font-size: 17px; }
+.results.recent { margin: 4px 0 0; }
+.results.recent:empty { display: none; }
 .hint { margin: 4px 0 12px; color: var(--muted); font-size: 15px; }
 .search { position: relative; }
 .search input {
@@ -261,3 +264,6 @@ mark { background: rgba(241, 133, 0, .28); color: inherit; padding: 0 1px; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* IFC Online form: room names are hidden (viewers are not in a room) */
+body.online .r-room { display: none; }

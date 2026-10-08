@@ -78,6 +78,18 @@ def fake_rows(n):
                                                 "Contact email": "test.attendee" + str(rnd.randint(1, 99)) + "@example.org"}
                                                if rnd.random() < (0.25 if o <= 2 else 0.02) else {})}},
                                start.isoformat()))
+    # IFC Online form responses (Format: Online) for the livestreamed sessions
+    online_ids = ["KEY-OPEN", "1WS11", "2WS6", "3WS10", "4WS3", "5WS14", "6WS7", "7WS12", "KEY-CLOSE"]
+    for s in [x for x in sess if x["ID"] in online_ids]:
+        for _ in range(rnd.randint(3, 12)):
+            o = max(1, min(5, round(rnd.gauss(3.9, 0.8))))
+            when = datetime.fromisoformat(f"{s['Date']}T{s['End'] or s['Start']}") + timedelta(minutes=rnd.randint(0, 40))
+            rows.append(to_row({"session": {"id": s["ID"], "title": s["Title"], "speakers": s["Speakers"], "room": s["Room"],
+                                            "date": s["Date"], "start": s["Start"], "end": s["End"], "track": s["Track"]},
+                                "answers": {"Overall (1-5)": o, "Relevance (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
+                                            "Learned something new": rnd.choice(["Yes", "Yes", "No", "Not sure"]),
+                                            "Anything else": rnd.choice(["Great stream quality", "Audio dropped for a minute", "Loved the Q&A from online viewers", "", ""]),
+                                            "Came from": "Link", "Format": "Online"}}, when.isoformat()))
     for t in ["Evening keynote", "the one about legacies in the big room", "Matt Derby session"]:
         rows.append(to_row({"session": {"id": "NOT LISTED", "title": t}, "answers": {"Overall (1-5)": 4, "Came from": "QR code"}},
                            "2026-10-22T12:00:00"))

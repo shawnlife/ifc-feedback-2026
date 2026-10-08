@@ -51,7 +51,8 @@
 
     <div class="filters" role="group" aria-label="Filters">
       <label>Day <select id="fDay"><option value="">All days</option></select></label>
-      <label>Type / track <select id="fTrack"><option value="">All</option></select></label>
+      <label>Type <select id="fType"><option value="">All types</option></select></label>
+      <label>Track <select id="fTrack"><option value="">All tracks</option></select></label>
       <label>Room <select id="fRoom"><option value="">All rooms</option></select></label>
       <label class="grow">Search <input id="fText" type="search" placeholder="Session, speaker, comment…"></label>
     </div>
@@ -61,6 +62,7 @@
       <button role="tab" data-tab="rankings">Session rankings</button>
       <button role="tab" data-tab="comments">Comments</button>
       <button role="tab" data-tab="leaders">Session Leaders <span class="count warn" id="issueCount" title="Reports with key issues"></span></button>
+      <button role="tab" data-tab="online">IFC Online <span class="count" id="onlineCount" title="Online responses"></span></button>
       <button role="tab" data-tab="scorecards">Scorecards</button>
       <button role="tab" data-tab="typed">Typed in <span class="count" id="typedCount"></span></button>
       <button role="tab" data-tab="analytics" id="analyticsTab">Analytics</button>
@@ -70,6 +72,7 @@
     <div class="panel" id="tab-rankings" role="tabpanel" hidden></div>
     <div class="panel" id="tab-comments" role="tabpanel" hidden></div>
     <div class="panel" id="tab-leaders" role="tabpanel" hidden></div>
+    <div class="panel" id="tab-online" role="tabpanel" hidden></div>
     <div class="panel" id="tab-scorecards" role="tabpanel" hidden></div>
     <div class="panel" id="tab-typed" role="tabpanel" hidden></div>
     <div class="panel" id="tab-analytics" role="tabpanel" hidden></div>

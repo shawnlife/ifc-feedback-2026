@@ -24,6 +24,10 @@
   var TEST = params.has('test');
   // Session leader form: same page, opened via /sessionleader/ (which adds ?leader)
   var LEADER = params.has('leader');
+  // IFC Online form: same page, opened via /online/ (which adds ?online). Only the sessions
+  // listed in config.js (online.sessions), and answers are marked Format: Online.
+  var ONLINE = !LEADER && params.has('online') && !!(CFG.online && CFG.online.sessions);
+  var ONLINE_IDS = ONLINE ? CFG.online.sessions.map(String) : [];
   var QUESTIONS = (LEADER ? CFG.leaderQuestions : CFG.questions) || [];
   var CONTACT = !LEADER && CFG.contactOptIn ? CFG.contactOptIn : null;    // optional "contact me" box
   var NAME_KEY = 'ifc26-leader-name';
@@ -51,7 +55,8 @@
 
   var SESSIONS_KEY = 'ifc26-sessions-v1';
   var OUTBOX_KEY = 'ifc26-outbox-v1';
-  var RATED_KEY = LEADER ? 'ifc26-rated-leader-v1' : 'ifc26-rated-v1';
+  var RATED_KEY = LEADER ? 'ifc26-rated-leader-v1' : ONLINE ? 'ifc26-rated-online-v1' : 'ifc26-rated-v1';
+  var RECENT_FIRST = 6;            // recent sessions shown above the search box before "Show all"
   var RECENT_WINDOW_MIN = 150;   // sessions that ended up to 2.5h ago count as "just finished"
   var SHOW_FIRST = 10;           // results shown before "Show all"
   var REFRESH_AFTER_MS = 5 * 60 * 1000;
@@ -59,6 +64,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var els = {
     q: $('q'), qClear: $('qClear'), status: $('status'), results: $('results'), listHeading: $('listHeading'),
+    recent: $('recent'), qLabel: $('qLabel'),
     stepFind: $('stepFind'), stepForm: $('stepForm'), stepDone: $('stepDone'),
     chosen: $('chosen'), questions: $('questions'), formError: $('formError'), submitBtn: $('submitBtn'),
     browseBtn: $('browseBtn'), manualBtn: $('manualBtn'), againBtn: $('againBtn'),
@@ -69,7 +75,7 @@
   var dayNumbers = {};   // '2026-10-14' -> 2
   var lastFetch = 0;
   var selected = null;   // the chosen session, or {manual:true}
-  var browsing = false;
+  var browsing = false, showRecentAll = false;
 
 
   /* ---------- small helpers ---------- */
@@ -236,6 +242,7 @@
 
   function setSessions(list) {
     sessions = list.map(normaliseSession).filter(Boolean);
+    if (ONLINE) sessions = sessions.filter(function (s) { return ONLINE_IDS.indexOf(s.id) > -1; });
     var dates = sessions.map(function (s) { return s.date; }).filter(Boolean)
       .filter(function (d, i, a) { return a.indexOf(d) === i; }).sort();
     dayNumbers = {};
@@ -514,9 +521,9 @@
   // The session in this room that people are most likely leaving: in progress, or the
   // latest one that ended in the last 2.5 hours.
   function roomSession(room) {
-    var key = roomKey(room), now = nowMinutes(), best = null;
+    var key = room === null ? '' : roomKey(room), now = nowMinutes(), best = null;
     sessions.forEach(function (s) {
-      if (roomKey(s.room) !== key) return;
+      if (room !== null && roomKey(s.room) !== key) return;          // null = any room (IFC Online)
       var start = toMinutes(s.date, s.start), end = toMinutes(s.date, s.end || s.start);
       if (isNaN(start) || start > now || now - end > RECENT_WINDOW_MIN) return;
       if (!best || start > toMinutes(best.date, best.start)) best = s;
@@ -526,13 +533,15 @@
 
   function askRoom() {
     roomAsked = true;
-    var box = $('roomAsk'), s = roomSession(ROOM);
+    var box = $('roomAsk'), s = roomSession(ONLINE ? null : ROOM);
     if (!s) {
+      if (ONLINE) return;                          // between sessions online: the list below does the job
       box.innerHTML = '<p class="room-none">Nothing has started in <strong>' + esc(ROOM) + '</strong> yet. Find your session below.</p>';
       box.hidden = false;
       return;
     }
-    box.innerHTML = '<p class="room-q">You\'re in <strong>' + esc(s.room) + '</strong>. Is this your session?</p>' +
+    box.innerHTML = (ONLINE ? '<p class="room-q">Is this the session you just watched?</p>'
+                            : '<p class="room-q">You\'re in <strong>' + esc(s.room) + '</strong>. Is this your session?</p>') +
       '<div class="room-card"><span class="r-title">' + esc(s.title) + '</span>' +
       (s.speakers ? '<span class="r-speakers">' + esc(s.speakers) + '</span>' : '') +
       '<span class="r-meta"><span>' + esc(dayLabel(s.date)) + ', ' + esc(timeLabel(s)) + '</span></span></div>' +
@@ -548,19 +557,30 @@
     var raw = els.q.value;
     els.qClear.hidden = !raw;
     if (!sessions.length) return;
-    if (ROOM && !roomAsked) askRoom();
+    if ((ROOM || ONLINE) && !roomAsked) askRoom();
 
+    // Just finished and in progress go ABOVE the search box; search results go below it
+    var fin = justFinished(), live = inProgress();
+    var hasRecent = !!(fin.length || live.length);
     if (!raw.trim()) {
-      var fin = justFinished(), live = inProgress();
+      var left = showRecentAll ? Infinity : RECENT_FIRST;
       var group = function (title, list) {
-        return list.length ? '<li class="group"><h2 class="list-heading">' + title + '</h2></li>' +
-          list.map(function (s) { return card(s); }).join('') : '';
+        var part = list.slice(0, Math.max(0, left)); left -= part.length;
+        return part.length ? '<li class="group"><h3 class="list-heading">' + title + '</h3></li>' +
+          part.map(function (s) { return card(s); }).join('') : '';
       };
+      var total = fin.length + live.length;
+      els.recent.innerHTML = group('Just finished', fin) + group('In progress now', live) +
+        (!showRecentAll && total > RECENT_FIRST
+          ? '<li><button type="button" class="link" id="recentMore">Show all ' + total + ' recent sessions</button></li>' : '');
+      els.recent.hidden = !hasRecent;
+      els.qLabel.textContent = hasRecent ? 'Can\'t find your session?' : 'Find your session';
       els.listHeading.hidden = true;
-      els.results.innerHTML = group('Just finished', fin) + group('In progress now', live);
-      els.status.textContent = fin.length || live.length ? '' : 'Each session opens for feedback when it starts. Type above or browse to find yours.';
+      els.results.innerHTML = '';
+      els.status.textContent = hasRecent ? '' : 'Each session opens for feedback when it starts. Type below or browse to find yours.';
       return;
     }
+    els.recent.hidden = true; els.recent.innerHTML = '';   // searching: results appear right under the box
 
     var qt = prepQuery(raw);
     var found = search(raw);
@@ -575,6 +595,7 @@
   }
 
   function renderBrowse() {
+    els.recent.hidden = true; els.recent.innerHTML = '';
     els.listHeading.hidden = true;
     els.status.textContent = 'All ' + sessions.length + ' sessions, by day and time.';
     var recent = justFinished()[0] || inProgress()[0];
@@ -910,7 +931,7 @@
         ? { id: 'NOT LISTED', title: c.manualName }
         : { id: s.id, title: s.title, speakers: s.speakers, room: s.room, date: s.date, start: s.start, end: s.end, track: s.track },
       form: LEADER ? 'leader' : 'attendee',
-      answers: Object.assign({}, c.answers, { 'Came from': SOURCE })
+      answers: Object.assign({}, c.answers, { 'Came from': SOURCE }, ONLINE ? { 'Format': 'Online' } : {})
     };
     QUESTIONS.forEach(function (q) { if (q.type === 'name' && c.answers[q.column || q.label]) store(NAME_KEY, c.answers[q.column || q.label]); });
 
@@ -945,7 +966,7 @@
       demo: 'Demo mode: nothing was saved. Connect the Google Sheet in config.js to go live.'
     }[state];
     $('doneTitle').textContent = state === 'rejected' ? 'Not sent' : 'Thank you!';
-    if (state !== 'rejected' && !LEADER) showHomeTip();
+    if (state !== 'rejected' && !LEADER && !ONLINE) showHomeTip();
     showStep('done');
     history.replaceState({ step: 'done' }, '');
     $('stepDone').focus();
@@ -1042,6 +1063,14 @@
       $('anonNote').textContent = 'For IFC 2026 Session Leaders.';
       els.againBtn.textContent = 'Report on another session';
     }
+    if (ONLINE) {
+      document.title = (CFG.eventName || 'IFC 2026') + ' Online Feedback';
+      document.querySelector('h1').textContent = CFG.online.title || 'IFC Online feedback';
+      $('findLabel').textContent = 'Which session did you watch?';
+      document.body.classList.add('online');                       // rooms mean nothing online: hidden in CSS
+      $('qHint').textContent = 'Type anything you remember: speaker, topic or time.';
+      els.q.placeholder = 'e.g. Rashad, Islamic finance, 10:30';
+    }
     applyBrand();
     if (DEMO) banner('Demo mode: nothing is saved.');
     else if (TEST) banner('Test mode: responses go to the "Test responses" tab, not the real results.');
@@ -1069,13 +1098,16 @@
       els.status.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     els.manualBtn.addEventListener('click', function () { choose({ manual: true }); });
-    els.results.addEventListener('click', function (e) {
+    var pickResult = function (e) {
       if (e.target.id === 'moreBtn') { showAll = true; render(); return; }
+      if (e.target.id === 'recentMore') { showRecentAll = true; render(); return; }
       var b = e.target.closest('.result');
       if (!b) return;
       var s = sessions.filter(function (x) { return x.id === b.dataset.id; })[0];
       if (s) choose(s);
-    });
+    };
+    els.results.addEventListener('click', pickResult);
+    els.recent.addEventListener('click', pickResult);
 
     els.stepForm.addEventListener('change', function (e) {
       var fs = e.target.closest('.q');

@@ -44,12 +44,15 @@
   <section id="stepFind" aria-labelledby="findLabel">
     <!-- Filled in when the form is opened from a room sign (NFC tag or room QR) -->
     <div class="room-ask" id="roomAsk" hidden aria-live="polite"></div>
-    <label class="search-label" id="findLabel" for="q">Which session did you attend?</label>
+    <h2 class="search-label" id="findLabel">Which session did you attend?</h2>
+    <!-- Just finished / in progress, shown first (hidden while searching or browsing) -->
+    <ul class="results recent" id="recent" aria-label="Recent sessions"></ul>
+    <label class="search-label sub" id="qLabel" for="q">Can't find your session?</label>
     <p class="hint" id="qHint">Type anything you remember: speaker, room, topic or time.</p>
     <div class="search">
       <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input id="q" type="search" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
-             enterkeyhint="search" placeholder="e.g. Room 4, Sofia, legacy" aria-describedby="qHint status">
+             enterkeyhint="search" placeholder="e.g. Boston 19, Colin, legacy" aria-describedby="qHint status">
       <button type="button" class="clear" id="qClear" aria-label="Clear search" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>

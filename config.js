@@ -91,6 +91,15 @@ window.IFC_CONFIG = {
     help: 'Optional. Only the IFC team sees your name and email.'
   },
 
+  // IFC ONLINE FORM (at /online): the moderator posts ifc2026survey.com/online in the
+  // livestream chat. It only lists these sessions (IDs from the Sessions tab) and asks
+  // "Is this the session you just watched?" by time. Answers get Format = Online and
+  // show on the dashboard's IFC Online tab, separate from in-person feedback.
+  online: {
+    title: 'IFC Online feedback',
+    sessions: ['KEY-OPEN', '1WS11', '2WS6', '3WS10', '4WS3', '5WS14', '6WS7', '7WS12', 'KEY-CLOSE']
+  },
+
   // SESSION LEADER FORM (at /sessionleader). Same rules as above.
   // type 'name' = a one-line answer (remembered on the Session Leader's phone for next time).
   leaderQuestions: [

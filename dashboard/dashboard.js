@@ -155,7 +155,8 @@
         room: s ? s.room : r.Room || '', date: s ? s.date : String(r.Date || '').slice(0, 10),
         start: s ? s.start : (t[0] || '').trim(), track: s ? s.track : r.Track || '', type: s ? s.type : '',
         source: r['Came from'] || 'Unknown',
-        contact: r['Contact me'] === 'Yes', contactName: r['Contact name'] || '', contactEmail: r['Contact email'] || ''
+        contact: r['Contact me'] === 'Yes', contactName: r['Contact name'] || '', contactEmail: r['Contact email'] || '',
+        online: r.Format === 'Online'                // from the IFC Online form (/online)
       };
     });
     leaders = (state.data.leaders || []).map(function (r) {
@@ -181,8 +182,8 @@
     };
     var uniq = function (list) { return list.filter(function (v, i, a) { return v && a.indexOf(v) === i; }).sort(); };
     setOpts($('fDay'), uniq(sessions.map(function (s) { return s.date; })).map(function (d) { return [d, dayLabel(d)]; }), 'All days');
-    setOpts($('fTrack'), uniq(sessions.map(function (s) { return s.track; }).concat(sessions.map(function (s) { return s.type; })))
-      .map(function (v) { return [v, v]; }), 'All');
+    setOpts($('fType'), uniq(sessions.map(function (s) { return s.type; })).map(function (v) { return [v, v]; }), 'All types');
+    setOpts($('fTrack'), uniq(sessions.map(function (s) { return s.track; })).map(function (v) { return [v, v]; }), 'All tracks');
     setOpts($('fRoom'), uniq(sessions.map(function (s) { return s.room.split(' (')[0]; }))
       .sort(function (a, b) { return a.localeCompare(b, undefined, { numeric: true }); }).map(function (v) { return [v, v]; }), 'All rooms');
   }
@@ -191,10 +192,11 @@
   /* ---------- filtering ---------- */
 
   function matches(x, withText) {
-    var day = $('fDay').value, tr = $('fTrack').value, room = $('fRoom').value;
+    var day = $('fDay').value, ty = $('fType').value, tr = $('fTrack').value, room = $('fRoom').value;
     var text = $('fText').value.trim().toLowerCase();
     if (day && x.date !== day) return false;
-    if (tr && x.track !== tr && x.type !== tr) return false;
+    if (ty && x.type !== ty) return false;
+    if (tr && x.track !== tr) return false;
     if (room && x.room.split(' (')[0] !== room) return false;
     if (text && withText !== false) {
       var hay = (x.title + ' ' + x.speakers + ' ' + x.room + ' ' + (withText || '')).toLowerCase();
@@ -203,7 +205,8 @@
     return true;
   }
   function commentText(r) { return TEXTS.map(function (q) { return r.raw[col(q)] || ''; }).join(' '); }
-  function fRows() { return rows.filter(function (r) { return matches(r, commentText(r)); }); }
+  // In-person feedback only, unless "Include online reviews" is ticked (IFC Online has its own tab)
+  function fRows() { return rows.filter(function (r) { return (state.withOnline || !r.online) && matches(r, commentText(r)); }); }
   function fSessions() { return sessions.filter(function (s) { return matches(s); }); }
 
   function statsFor(list) {
@@ -417,6 +420,12 @@
   }
   function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 
+  // One setting, shown on Session rankings and Scorecards: adds IFC Online feedback to the in-person numbers
+  function onlineToggle() {
+    return rows.some(function (r) { return r.online; })
+      ? '<label class="toggle"><input type="checkbox" class="withOnline"' + (state.withOnline ? ' checked' : '') + '> Include online reviews</label>' : '';
+  }
+
   function renderRankings() {
     var data = rankingData();
     rankAll(data);
@@ -443,6 +452,7 @@
     };
     var html = '<div class="controls">' +
       '<label class="toggle"><input type="checkbox" id="combine"' + (state.combine ? ' checked' : '') + '> Combine repeated workshops</label>' +
+      onlineToggle() +
       '<label>Only sessions with at least <select id="minN">' + [1, 3, 5, 10, 20].map(function (n) {
         return '<option' + (n === state.minN ? ' selected' : '') + '>' + n + '</option>';
       }).join('') + '</select> responses</label>' +
@@ -518,7 +528,7 @@
   function renderComments() {
     // Names and emails show only here (people who ticked "open to being contacted"), never in scorecards or exports
     var all = rows.filter(function (r) {
-      return (commentText(r).trim() || r.contact) && matches(r, commentText(r) + ' ' + r.contactName + ' ' + r.contactEmail);
+      return (state.withOnline || !r.online) && (commentText(r).trim() || r.contact) && matches(r, commentText(r) + ' ' + r.contactName + ' ' + r.contactEmail);
     }).sort(function (a, b) { return String(b.when).localeCompare(String(a.when)); });
     var nContact = all.filter(function (r) { return r.contact; }).length;
     var list = state.onlyContact ? all.filter(function (r) { return r.contact; }) : all;
@@ -526,9 +536,15 @@
     var html = '<div class="controls"><span>' + all.length + ' responses with a written comment or contact details, newest first.</span>' +
       '<label class="toggle"><input type="checkbox" id="onlyContact"' + (state.onlyContact ? ' checked' : '') + '> Only people open to being contacted (' + nContact + ')</label></div>' +
       '<div class="comments">' +
-      shown.map(function (r) {
+      shown.map(commentCard).join('') + '</div>';
+    if (list.length > shown.length) html += '<p><button type="button" class="secondary small" id="moreComments">Show more</button></p>';
+    if (!list.length) html = '<p class="empty">No written comments match these filters yet.</p>';
+    $('tab-comments').innerHTML = html;
+  }
+
+  function commentCard(r) {
         return '<article class="comment"><div class="meta"><button type="button" class="linkish who" data-card="' + esc(r.id) + '">' + esc(r.title) + '</button> · ' +
-          esc(r.room) + ' · ' + esc(dayLabel(r.date)) + ' ' + esc(r.start) +
+          (r.online ? '<strong>Online</strong>' : esc(r.room)) + ' · ' + esc(dayLabel(r.date)) + ' ' + esc(r.start) +
           (num(r.raw[OVERALL]) ? ' · <span class="stars-txt" aria-label="' + num(r.raw[OVERALL]) + ' out of 5">' + starsText(num(r.raw[OVERALL])) + '</span>' : '') +
           ' · ' + esc(localTime(r.when)) + '</div>' +
           answersLine(r) +
@@ -539,10 +555,41 @@
           (r.contact ? '<p class="contact-line"><span class="k">Open to being contacted:</span> ' + esc(r.contactName) + ' · <a href="mailto:' +
             encodeURIComponent(r.contactEmail).replace(/%40/g, '@') + '?subject=' + encodeURIComponent('Your feedback on "' + r.title + '" at IFC 2026') + '">' +
             esc(r.contactEmail) + '</a></p>' : '') + '</article>';
-      }).join('') + '</div>';
-    if (list.length > shown.length) html += '<p><button type="button" class="secondary small" id="moreComments">Show more</button></p>';
-    if (!list.length) html = '<p class="empty">No written comments match these filters yet.</p>';
-    $('tab-comments').innerHTML = html;
+  }
+
+  /* ---------- IFC Online: feedback from the /online form, kept apart from in-person ---------- */
+
+  function renderOnline() {
+    var ids = (CFG.online && CFG.online.sessions || []).map(String);
+    var on = rows.filter(function (r) { return r.online && matches(r, commentText(r) + ' ' + r.contactName + ' ' + r.contactEmail); });
+    $('onlineCount').textContent = rows.filter(function (r) { return r.online; }).length || '';
+    var list = ids.map(function (id) { return byId[id]; }).filter(Boolean).filter(function (s) { return matches(s, false); });
+    var st = statsFor(on), rated = {}; on.forEach(function (r) { rated[r.id] = 1; });
+    var html = '<p class="sub">Feedback from the IFC Online form (ifc2026survey.com/online), kept separate from in-person feedback. ' +
+      'To add it to Session rankings or Scorecards, tick "Include online reviews" there.</p><div class="tiles">' +
+      tile('Online responses', String(on.length), on.length ? '' : 'None yet') +
+      tile('Sessions with feedback', String(list.filter(function (s) { return rated[s.id]; }).length) + ' <small>of ' + list.length + '</small>', 'Online sessions') +
+      tile('Average overall', st.avgs[0] != null ? fmt1(st.avgs[0]) + ' <small>/ 5</small>' : '–', 'From ' + on.filter(function (r) { return num(r.raw[OVERALL]) != null; }).length + ' ratings') +
+      (PRACTICE ? tile(PRACTICE_SHORT, pct(st.practiceYes, st.practiceN), 'said "' + esc(PRACTICE.options[0]) + '"') : '') + '</div>';
+    html += '<h2 class="section">Online sessions</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Session</th><th>When</th>' +
+      '<th class="num">Online responses</th>' + RATINGS.map(function (q) { return '<th class="num">' + esc(col(q).replace(' (1-5)', '')) + '</th>'; }).join('') +
+      (PRACTICE ? '<th class="num">' + esc(PRACTICE_SHORT) + '</th>' : '') + '<th class="num">In-person overall</th></tr></thead><tbody>' +
+      list.map(function (s) {
+        var g = on.filter(function (r) { return r.id === s.id; }), sst = statsFor(g);
+        var live = statsFor(rows.filter(function (r) { return !r.online && r.id === s.id; }));
+        return '<tr><td><button type="button" class="linkish" data-card="' + esc(s.id) + '">' + esc(s.title) + '</button>' +
+          (s.speakers ? '<div class="t-sub">' + esc(s.speakers) + '</div>' : '') + '</td>' +
+          '<td>' + esc(dayLabel(s.date) + ', ' + s.start) + '</td><td class="num">' + g.length + '</td>' +
+          sst.avgs.map(function (v) { return '<td class="num">' + fmt1(v) + '</td>'; }).join('') +
+          (PRACTICE ? '<td class="num">' + pct(sst.practiceYes, sst.practiceN) + '</td>' : '') +
+          '<td class="num">' + (live.n ? fmt1(live.avgs[0]) + ' <span class="t-sub">(' + live.n + ')</span>' : '–') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+    var withText = on.filter(function (r) { return commentText(r).trim() || r.contact; })
+      .sort(function (a, b) { return String(b.when).localeCompare(String(a.when)); });
+    html += '<h2 class="section">Online comments</h2>' + (withText.length
+      ? '<div class="comments">' + withText.map(commentCard).join('') + '</div>'
+      : '<p class="empty">No online comments yet.</p>');
+    $('tab-online').innerHTML = html;
   }
 
 
@@ -765,6 +812,7 @@
       '<span><strong>' + show.length + '</strong> ' + (show.length === 1 ? 'session' : 'sessions') + ' shown' +
       (picked.length ? ' · <button type="button" class="link" id="pickNone">Show all ' + ws.length + '</button>' : ' (repeat runs combined)') + '</span>' +
       '<label class="toggle"><input type="checkbox" id="withLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader reports</label>' +
+      onlineToggle() +
       '<button type="button" class="secondary small" id="wordBtn">Download for editing (Word)</button>' +
       '<button type="button" class="secondary small" id="printBtn">Print or save as PDF</button></div>';
     html += show.length ? show.map(function (w) { return workshopCard(w, sd.byRun, state.withLeaders); }).join('')
@@ -1024,7 +1072,7 @@
   /* ---------- page wiring ---------- */
 
   function renderAll() {
-    renderOverview(); renderRankings(); renderComments(); renderLeaders(); renderScorecards(); renderTyped(); renderAnalytics();
+    renderOverview(); renderRankings(); renderComments(); renderLeaders(); renderOnline(); renderScorecards(); renderTyped(); renderAnalytics();
   }
 
   function updateStatus() {
@@ -1144,12 +1192,12 @@
     $('showTest').addEventListener('change', function () {
       state.data = null; state.lastOk = 0;
       $('testBanner').hidden = !$('showTest').checked;
-      ['overview', 'rankings', 'comments', 'leaders', 'scorecards', 'typed', 'analytics'].forEach(function (t) {
+      ['overview', 'rankings', 'comments', 'leaders', 'online', 'scorecards', 'typed', 'analytics'].forEach(function (t) {
         $('tab-' + t).innerHTML = '<p class="empty">Loading ' + ($('showTest').checked ? 'test' : 'real') + ' responses…</p>';
       });
       load();
     });
-    ['fDay', 'fTrack', 'fRoom'].forEach(function (id) { $(id).addEventListener('change', renderAll); });
+    ['fDay', 'fType', 'fTrack', 'fRoom'].forEach(function (id) { $(id).addEventListener('change', renderAll); });
     var t;
     $('fText').addEventListener('input', function () { clearTimeout(t); t = setTimeout(renderAll, 150); });
     document.querySelector('.tabs').addEventListener('click', function (e) {
@@ -1192,6 +1240,7 @@
       if (e.target.id === 'combine') { state.combine = e.target.checked; renderRankings(); }
       if (e.target.id === 'withLeaders') { state.withLeaders = e.target.checked; renderScorecards(); }
       if (e.target.id === 'onlyContact') { state.onlyContact = e.target.checked; renderComments(); }
+      if (e.target.classList.contains('withOnline')) { state.withOnline = e.target.checked; renderAll(); }
     });
 
     // Chart tooltips

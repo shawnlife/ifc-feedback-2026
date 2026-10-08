@@ -136,6 +136,28 @@ for row in out:
         room_code = re.sub(r"[^A-Z0-9]", "", (row["Room"].split("(")[0][:3].upper() + re.sub(r"\D", "", row["Room"].split("(")[0])))
         row["ID"] = f"N{row['Date'][-2:]}-{row['Start'].replace(':', '')}-{room_code}"
 
+# Keynotes (the plenaries are skipped above; these are the two keynotes attendees rate).
+# Which is opening and which is closing: check with James.
+KEYNOTES = [
+    {"ID": "KEY-OPEN", "Title": "To Be Unstoppable", "Speakers": "Nyasha Gwatidzo",
+     "Organisations": "Lucy Gwatidzo Foundation Schools", "Room": "Atrium", "Date": "2026-10-21", "Start": "14:00", "End": "15:00"},
+    {"ID": "KEY-CLOSE", "Title": "The Next Story We Tell", "Speakers": "Rashad Robinson",
+     "Organisations": "Rashad Robinson Advisors", "Room": "Atrium", "Date": "2026-10-23", "Start": "11:30", "End": "12:30"},
+]
+for k in KEYNOTES:
+    out.append(dict(k, Track="Keynote", Type="Keynote"))
+
+# Titles confirmed after Cvent was read (IFC Online list, 8 Oct)
+NAMED = {"7WS12": ("Designing Digital Experiences That Convert", "Danielle Rice", "Fundraise Up",
+                   "Core Fundraising & Supporter Growth", "Workshop")}
+for row in out:
+    if row["ID"] in NAMED:
+        row["Title"], row["Speakers"], row["Organisations"], row["Track"], row["Type"] = NAMED[row["ID"]]
+    # Every session gets a type, so the dashboard's Type filter covers them all
+    if not row["Type"]:
+        row["Type"] = ("Open Discussion" if row["Title"].startswith("Open Discussion")
+                       else "Workshop" if re.match(r"^\dWS\d", row["ID"]) else "Other")
+
 out.sort(key=lambda x: (x["Date"], x["Start"], x["Room"]))
 with (ROOT / "sessions-ifc2026.csv").open("w", newline="", encoding="utf-8") as f:
     w = csv.DictWriter(f, fieldnames=list(out[0]))

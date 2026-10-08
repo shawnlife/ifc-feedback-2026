@@ -63,12 +63,17 @@ with sync_playwright() as p:
     page.wait_for_selector(".result")
     heads = [h.lower() for h in page.locator(".results .list-heading").all_inner_texts()]
     first = page.locator(".result").first.inner_text()
-    check(heads == ["just finished"] and "11:15" in first and page.locator(".result").count() == 15,
-          f"12:40 Wed: 'Just finished' shows the 15 sessions of the 11:15 block ({heads}, {page.locator('.result').count()} cards)")
+    check(heads == ["just finished"] and "11:15" in first and page.locator("#recent .result").count() == 6
+          and "15" in page.inner_text("#recentMore"),
+          f"12:40 Wed: 'Just finished' above the search shows 6 of the 11:15 block + 'Show all 15' ({heads}, {page.locator('#recent .result').count()} cards)")
+    page.click("#recentMore")
+    check(page.locator("#recent .result").count() == 15, "'Show all' lists all 15 just-finished sessions")
+    check(page.evaluate("document.getElementById('recent').getBoundingClientRect().top < document.getElementById('q').getBoundingClientRect().top"),
+          "just-finished list sits above the search box")
     page.goto(BASE + "?now=2026-10-14T11:00"); page.wait_for_selector(".result")
     heads = [h.lower() for h in page.locator(".results .list-heading").all_inner_texts()]
     check(heads == ["just finished"], f"11:00 Wed (between blocks): only the 09:30 block, nothing in progress ({heads})")
-    page.goto(BASE + "?now=2026-10-14T11:20"); page.wait_for_selector(".result")
+    page.goto(BASE + "?now=2026-10-14T11:20"); page.wait_for_selector(".result"); page.click("#recentMore")
     first_two = [c.inner_text() for c in page.locator(".result").all()[:1]] + [page.locator(".result").nth(15).inner_text()]
     check("09:30" in first_two[0] and "11:15" in first_two[1], "11:20 Wed: 09:30 block still 'Just finished', 11:15 block 'In progress now'")
 
