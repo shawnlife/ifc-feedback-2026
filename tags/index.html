@@ -4,7 +4,7 @@
 <style>ol{padding-left:20px} li{margin:0 0 14px} code{display:block;font-size:13px;word-break:break-all;color:var(--muted);margin:4px 0}
 li button{height:40px;padding:0 16px;border:2px solid #000;background:#fff;font-weight:700} li button.done{background:var(--accent)}</style></head>
 <body><div class="wrap"><header class="top"><p class="kicker">IFC 2026</p><h1>NFC tag links</h1></header>
-<p>For each room: tap <strong>Copy</strong>, open your NFC app (NXP TagWriter or NFC Tools), choose <em>write a URL / link</em>, paste, hold the phone to the sticker. Then <strong>lock</strong> the tag (make it read-only) so nobody can change it. Test it: tapping should open the form asking about that room's session.</p>
+<p>Two tags per room (both get the same link). For each tag: tap <strong>Copy</strong>, open your NFC app (NXP TagWriter or NFC Tools), choose <em>write a URL / link</em>, paste, hold the phone to the sticker. Then <strong>lock</strong> the tag (make it read-only) so nobody can change it. Test it: tapping should open the form asking about that room's session.</p>
 <ol><li><strong>Atrium</strong><code>https://ifc2026survey.com/?nfc&room=Atrium</code><button data-l="https://ifc2026survey.com/?nfc&room=Atrium">Copy</button></li>
 <li><strong>Boston 9</strong><code>https://ifc2026survey.com/?nfc&room=Boston%209</code><button data-l="https://ifc2026survey.com/?nfc&room=Boston%209">Copy</button></li>
 <li><strong>Boston 11</strong><code>https://ifc2026survey.com/?nfc&room=Boston%2011</code><button data-l="https://ifc2026survey.com/?nfc&room=Boston%2011">Copy</button></li>
@@ -23,7 +23,6 @@ li button{height:40px;padding:0 16px;border:2px solid #000;background:#fff;font-
 <li><strong>Oxford 18</strong><code>https://ifc2026survey.com/?nfc&room=Oxford%2018</code><button data-l="https://ifc2026survey.com/?nfc&room=Oxford%2018">Copy</button></li>
 <li><strong>Oxford 20</strong><code>https://ifc2026survey.com/?nfc&room=Oxford%2020</code><button data-l="https://ifc2026survey.com/?nfc&room=Oxford%2020">Copy</button></li>
 <li><strong>Oxford 22</strong><code>https://ifc2026survey.com/?nfc&room=Oxford%2022</code><button data-l="https://ifc2026survey.com/?nfc&room=Oxford%2022">Copy</button></li>
-<li><strong>(general, any room)</strong><code>https://ifc2026survey.com/?nfc</code><button data-l="https://ifc2026survey.com/?nfc">Copy</button></li>
-<li><strong>Session Leader badges (all the same)</strong><code>https://ifc2026survey.com/?badge</code><button data-l="https://ifc2026survey.com/?badge">Copy</button></li></ol></div>
+<li><strong>(general, any room)</strong><code>https://ifc2026survey.com/?nfc</code><button data-l="https://ifc2026survey.com/?nfc">Copy</button></li></ol></div>
 <script>document.querySelectorAll('li button').forEach(function(b){b.onclick=function(){navigator.clipboard.writeText(b.dataset.l).then(function(){b.textContent='Copied';b.classList.add('done');});};});</script>
 </body></html>

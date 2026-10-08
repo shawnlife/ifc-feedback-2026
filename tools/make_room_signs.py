@@ -63,7 +63,7 @@ gimg = cv2.imread(str(OUT / "general-qr.png"))
 if not (reads(gimg, 1.0, general) and reads(gimg, 0.25, general)):
     sys.exit("QR CHECK FAILED for the general code. Do not print.")
 rows.append({"Room": "(general, any room)", "NFC tag link": BASE + "?nfc", "QR link": general, "QR file": "general-qr.png / .svg"})
-rows.append({"Room": "Session Leader badges (all the same)", "NFC tag link": BASE + "?badge", "QR link": "", "QR file": ""})
+# Session Leader badge tags dropped 8 Oct (James: two NFC posters per room instead). The ?badge link still works.
 print("  General code: QR checked")
 
 with (OUT / "room-links.csv").open("w", newline="", encoding="utf-8") as f:
@@ -79,7 +79,7 @@ items = "\n".join(f'<li><strong>{r["Room"]}</strong><code>{r["NFC tag link"]}</c
 <style>ol{{padding-left:20px}} li{{margin:0 0 14px}} code{{display:block;font-size:13px;word-break:break-all;color:var(--muted);margin:4px 0}}
 li button{{height:40px;padding:0 16px;border:2px solid #000;background:#fff;font-weight:700}} li button.done{{background:var(--accent)}}</style></head>
 <body><div class="wrap"><header class="top"><p class="kicker">IFC 2026</p><h1>NFC tag links</h1></header>
-<p>For each room: tap <strong>Copy</strong>, open your NFC app (NXP TagWriter or NFC Tools), choose <em>write a URL / link</em>, paste, hold the phone to the sticker. Then <strong>lock</strong> the tag (make it read-only) so nobody can change it. Test it: tapping should open the form asking about that room's session.</p>
+<p>Two tags per room (both get the same link). For each tag: tap <strong>Copy</strong>, open your NFC app (NXP TagWriter or NFC Tools), choose <em>write a URL / link</em>, paste, hold the phone to the sticker. Then <strong>lock</strong> the tag (make it read-only) so nobody can change it. Test it: tapping should open the form asking about that room's session.</p>
 <ol>{items}</ol></div>
 <script>document.querySelectorAll('li button').forEach(function(b){{b.onclick=function(){{navigator.clipboard.writeText(b.dataset.l).then(function(){{b.textContent='Copied';b.classList.add('done');}});}};}});</script>
 </body></html>""", encoding="utf-8")
