@@ -564,7 +564,6 @@
   function renderOnline() {
     var ids = (CFG.online && CFG.online.sessions || []).map(String);
     var on = rows.filter(function (r) { return r.online && matches(r, commentText(r) + ' ' + r.contactName + ' ' + r.contactEmail); });
-    $('onlineCount').textContent = rows.filter(function (r) { return r.online; }).length || '';
     var list = ids.map(function (id) { return byId[id]; }).filter(Boolean).filter(function (s) { return matches(s, false); });
     var st = statsFor(on), rated = {}; on.forEach(function (r) { rated[r.id] = 1; });
     var html = '<p class="sub">Feedback from the IFC Online form (ifc2026survey.com/online), kept separate from in-person feedback. ' +
@@ -1163,7 +1162,11 @@
       history.replaceState(null, '', location.pathname + location.search);
     }
     // ?test in the link opens with test responses showing (for demos to the team)
-    if (/[?&]test(=|&|$)/.test(location.search)) $('showTest').checked = true;
+    // DEMO PERIOD: test responses show by default so the dashboard looks lived-in when shown
+    // to people. Untick "Show test responses" for real feedback, or open the link with ?real.
+    // Set SHOW_TEST_BY_DEFAULT to false (or remove test mode) before the conference.
+    var SHOW_TEST_BY_DEFAULT = true;
+    $('showTest').checked = /[?&]test(=|&|$)/.test(location.search) || (SHOW_TEST_BY_DEFAULT && !/[?&]real(=|&|$)/.test(location.search));
     $('testBanner').hidden = !$('showTest').checked;
     state.key = state.key || store('session', KEY_STORE) || store('local', KEY_STORE);
     if (state.key) start(); else $('login').hidden = false;
