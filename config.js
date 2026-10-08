@@ -60,19 +60,22 @@ window.IFC_CONFIG = {
       type: 'speakers',
       label: 'How would you rate the speaker, {name}?',
       generalLabel: 'How would you rate the speaker(s)?',
-      low: 'Poor', high: 'Excellent'
+      low: 'Poor', high: 'Excellent',
+      required: true                          // every speaker must be rated
     },
     {
       column: 'Relevance (1-5)',
       type: 'rating',
       label: 'How relevant was it to your work?',
-      low: 'Not at all', high: 'Very'
+      low: 'Not at all', high: 'Very',
+      required: true
     },
     {
       column: 'Learned something new',
       type: 'choice',
       label: 'Did you learn anything new?',
-      options: ['Yes', 'No', 'Not sure']
+      options: ['Yes', 'No', 'Not sure'],
+      required: true
     },
     {
       column: 'Anything else',
@@ -87,7 +90,7 @@ window.IFC_CONFIG = {
   // response in the dashboard's Comments tab, never in scorecards or Word exports.
   // Set to null to remove it.
   contactOptIn: {
-    label: 'I\'m happy to leave my contact details in case the IFC team needs to follow up on my feedback',
+    label: 'I\'m happy to leave my contact details and am open to the IFC team following up on my feedback',
     help: 'Optional. Only the IFC team sees your name and email.'
   },
 

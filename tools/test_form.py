@@ -10,6 +10,23 @@ import urllib.request
 from playwright.sync_api import sync_playwright
 
 BASE = "http://localhost:8765/"
+
+# All attendee questions except "Anything else" are required: answer any still-empty
+# required question with 3 stars / the first option, so each test only sets what it checks.
+FILL_REST = """() => { const seen = new Set();
+  document.querySelectorAll('#stepForm input[type=radio][required]').forEach(i => {
+    if (seen.has(i.name)) return; seen.add(i.name);
+    if (document.querySelector('input[name="' + i.name + '"]:checked')) return;
+    const all = [...document.querySelectorAll('input[name="' + i.name + '"]')];
+    const pick = all[Math.min(2, all.length - 1)];
+    if (all.length < 5) { all[0].checked = true; all[0].dispatchEvent(new Event('change', {bubbles: true})); }
+    else { pick.checked = true; pick.dispatchEvent(new Event('change', {bubbles: true})); }
+  }); }"""
+
+
+def fill_rest(p):
+    p.evaluate(FILL_REST)
+
 fails = []
 
 
@@ -136,8 +153,13 @@ with sync_playwright() as p:
     check(page.is_visible("#stepForm"), "choosing a session opens the questions")
     page.click("#submitBtn")
     check("highlighted" in page.inner_text("#formError"), "required question blocks sending")
-    page.click("label[for=q0_4]")
-    check(page.locator(".stars label.on").count() == 4, "4 stars light up")
+    errs_n = page.locator("#stepForm .q.invalid").count()
+    check(errs_n >= 4, f"overall, every speaker, relevance and 'learned' are all required ({errs_n} flagged)")
+    check(not page.locator(".q[data-i='4']").first.evaluate("e => e.classList.contains('invalid')"), "'Anything else' stays optional")
+    check("open to the IFC team following up" in page.inner_text("#contactLabel"), "contact box wording")
+    check(page.get_attribute("#helpLink", "target") == "_blank", "Contact us opens in a new tab")
+    page.click("label[for=q0_4]"); fill_rest(page)
+    check(page.locator(".q[data-i=\"0\"] .stars label.on").count() == 4, "4 stars light up")
     names = [n.strip() for n in page.inner_text("#chosen .r-speakers").split(",")] if page.locator("#chosen .r-speakers").count() else []
     rows_ = page.locator("#q1_wrap fieldset")
     legends = [x.inner_text() for x in rows_.locator("legend").all()]
@@ -157,7 +179,7 @@ with sync_playwright() as p:
     check(last["session"]["room"] == "Room 4" and last["session"]["start"] == "11:15", "correct session details sent")
     a_ = last["answers"]
     exp_avg = 4.5 if len(names) > 1 else 5
-    check(a_["Overall (1-5)"] == 4 and a_["Speakers (1-5)"] == exp_avg and a_["Relevance (1-5)"] == ""
+    check(a_["Overall (1-5)"] == 4 and a_["Speakers (1-5)"] == exp_avg and a_["Relevance (1-5)"] == 3
           and a_["Learned something new"] == "Yes" and "takeaway" in a_["Anything else"],
           f"answers mapped to the right columns (speaker average {a_['Speakers (1-5)']})")
     check((a_["Speaker ratings"] == f"{names[0]}: 5; {names[1]}: 4") if len(names) > 1 else (a_["Speaker ratings"] in ("", f"{names[0]}: 5" if names else "")),
@@ -169,7 +191,7 @@ with sync_playwright() as p:
 
     print("Firebase down: falls back to the Google Sheet route")
     set_fsfail(True)
-    page.click("#againBtn"); page.locator(".result").first.click(); page.click("label[for=q0_3]")
+    page.click("#againBtn"); page.locator(".result").first.click(); page.click("label[for=q0_3]"); fill_rest(page)
     before = via()["sheet"]
     page.click("#submitBtn"); page.wait_for_selector("#stepDone:not([hidden])", timeout=40000)
     check(via()["sheet"] == before + 1 and "has been sent" in page.inner_text("#doneText"), "Firebase unreachable: saved through the Sheet route instead, person told 'sent'")
@@ -184,7 +206,7 @@ with sync_playwright() as p:
     multi.click()
     lg = [x.inner_text() for x in page.locator("#q1_wrap legend").all()]
     check(len(lg) == len(two) and all(n in l for n, l in zip(two, lg)), f"{len(two)} speakers -> {len(lg)} named questions")
-    page.click("label[for=q0_5]"); page.click("label[for=q1_s0_3]"); page.click("label[for=q1_s1_4]")
+    page.click("label[for=q0_5]"); fill_rest(page); page.click("label[for=q1_s0_3]"); page.click("label[for=q1_s1_4]")
     page.click("#submitBtn"); page.wait_for_selector("#stepDone:not([hidden])")
     a2 = received()[-1]["answers"]
     check(a2["Speakers (1-5)"] == 3.5 and a2["Speaker ratings"] == f"{two[0]}: 3; {two[1]}: 4", f"average 3.5 and each kept: '{a2['Speaker ratings']}'")
@@ -205,7 +227,7 @@ with sync_playwright() as p:
     page.fill("#q", "atrium")
     page.wait_for_timeout(150)
     page.locator(".result").first.click()
-    page.click("label[for=q0_2]")
+    page.click("label[for=q0_2]"); fill_rest(page)
     n = len(received())
     page.click("#submitBtn")
     page.wait_for_selector("#stepDone:not([hidden])", timeout=30000)
@@ -219,7 +241,7 @@ with sync_playwright() as p:
     print("Not listed")
     page.click("#manualBtn")
     page.fill("#manualName", "Evening keynote")
-    page.click("label[for=q0_5]")
+    page.click("label[for=q0_5]"); fill_rest(page)
     page.click("#submitBtn")
     page.wait_for_selector("#stepDone:not([hidden])")
     check(received()[-1]["session"]["id"] == "NOT LISTED", "manual entry sent with NOT LISTED marker")
@@ -234,10 +256,10 @@ with sync_playwright() as p:
     print("QR code tracking")
     page.goto(BASE + "?qr&now=2026-10-14T12:40"); page.wait_for_selector(".result")
     check("qr" not in page.url, f"?qr tidied out of the address bar ({page.url})")
-    page.locator(".result").first.click(); page.click("label[for=q0_4]"); page.click("#submitBtn")
+    page.locator(".result").first.click(); page.click("label[for=q0_4]"); fill_rest(page); page.click("#submitBtn")
     page.wait_for_selector("#stepDone:not([hidden])")
     check(received()[-1]["answers"].get("Came from") == "QR code", "QR visit recorded as 'QR code'")
-    page.click("#againBtn"); page.locator(".result").first.click(); page.click("label[for=q0_3]"); page.click("#submitBtn")
+    page.click("#againBtn"); page.locator(".result").first.click(); page.click("label[for=q0_3]"); fill_rest(page); page.click("#submitBtn")
     page.wait_for_selector("#stepDone:not([hidden])")
     check(received()[-1]["answers"].get("Came from") == "QR code", "second rating in the same visit still counts as QR")
 
@@ -254,7 +276,7 @@ with sync_playwright() as p:
 
     print("Firebase down AND Google says 'busy': response must NOT be dropped")
     set_fsfail(True); set_busy(1)
-    page.click("#againBtn"); page.locator(".result").first.click(); page.click("label[for=q0_2]")
+    page.click("#againBtn"); page.locator(".result").first.click(); page.click("label[for=q0_2]"); fill_rest(page)
     n = len(received())
     page.click("#submitBtn"); page.wait_for_selector("#stepDone:not([hidden])")
     check("still sending" in page.inner_text("#doneText"), "busy reply: told it's still sending, kept on the phone")
@@ -289,7 +311,7 @@ with sync_playwright() as p:
         cx = b.new_context(user_agent=ua, viewport={"width": 390, "height": 800}); pp = cx.new_page()
         pp.goto(BASE + "?test"); pp.wait_for_selector("#q"); pp.wait_for_timeout(400)
         pp.fill("#q", "plenary"); pp.wait_for_timeout(200); pp.locator(".result").first.click()
-        pp.click("label[for=q0_4]"); pp.click("#submitBtn"); pp.wait_for_selector("#stepDone:not([hidden])")
+        pp.click("label[for=q0_4]"); fill_rest(pp); pp.click("#submitBtn"); pp.wait_for_selector("#stepDone:not([hidden])")
         txt = pp.inner_text("#tipSteps")
         check(expect in txt, f"{name}: '{txt[:70]}'")
         cx.close()
@@ -302,7 +324,7 @@ with sync_playwright() as p:
     check("room" not in rp.url and "nfc" not in rp.url, f"room/nfc tidied out of the address bar ({rp.url})")
     rp.click("#roomYes")
     check(rp.is_visible("#stepForm") and "Room 4" in rp.inner_text("#chosen"), "Yes: straight to the questions for that session")
-    rp.click("label[for=q0_5]"); rp.click("#submitBtn"); rp.wait_for_selector("#stepDone:not([hidden])")
+    rp.click("label[for=q0_5]"); fill_rest(rp); rp.click("#submitBtn"); rp.wait_for_selector("#stepDone:not([hidden])")
     check(received()[-1]["answers"].get("Came from") == "NFC tag" and received()[-1]["session"]["room"] == "Room 4", "recorded as 'NFC tag' for the right session")
     rp.goto(BASE + "?room=Room%204&nfc&now=2026-10-14T12:40"); rp.wait_for_selector("#roomAsk:not([hidden])")
     rp.click("#roomNo")
@@ -313,7 +335,7 @@ with sync_playwright() as p:
     check("Is this your session" in rp.inner_text("#roomAsk"), "room name matching ignores spaces/capitals (works for room QR codes too)")
     rp.goto(BASE + "?badge&now=2026-10-14T12:40"); rp.wait_for_selector(".result")
     check("badge" not in rp.url and rp.is_hidden("#roomAsk") and "just finished" in rp.inner_text(".results").lower(), "badge tag: normal form with 'Just finished', no room question")
-    rp.locator(".result").first.click(); rp.click("label[for=q0_4]"); rp.click("#submitBtn"); rp.wait_for_selector("#stepDone:not([hidden])")
+    rp.locator(".result").first.click(); rp.click("label[for=q0_4]"); fill_rest(rp); rp.click("#submitBtn"); rp.wait_for_selector("#stepDone:not([hidden])")
     check(received()[-1]["answers"].get("Came from") == "Session Leader badge", "recorded as 'Session Leader badge'")
     rc.close()
 
@@ -352,7 +374,7 @@ with sync_playwright() as p:
     page.fill("#q", "library")
     page.wait_for_timeout(150)
     page.locator(".result").first.click()
-    page.click("label[for=q0_3]")
+    page.click("label[for=q0_3]"); fill_rest(page)
     page.click("#submitBtn")
     page.wait_for_selector("#stepDone:not([hidden])")
     check(received()[-1]["test"] is True, "?test responses are flagged as test")

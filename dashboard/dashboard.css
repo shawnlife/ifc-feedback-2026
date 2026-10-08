@@ -22,6 +22,9 @@
 .filters .grow { flex: 1; min-width: 180px; }
 .filters #fTrack { max-width: 260px; }
 .filters select, .filters input { height: 42px; padding: 0 10px; border: 2px solid var(--ink); background: var(--bg); font-size: 15px; text-transform: none; letter-spacing: 0; font-weight: 400; min-width: 150px; border-radius: 0; }
+/* Own arrow, set in from the right edge (the browser's sits hard against the border) */
+.filters select { -webkit-appearance: none; appearance: none; padding-right: 40px; cursor: pointer;
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center; }
 
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 3px solid var(--ink); margin-bottom: 20px; }
 .tabs button { background: none; border: 0; padding: 12px 16px; font-weight: 700; font-size: 16px; border-bottom: 5px solid transparent; margin-bottom: -3px; }

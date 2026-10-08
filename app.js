@@ -647,11 +647,11 @@
     QUESTIONS.forEach(function (q, i) {
       if (q.type !== 'speakers') return;
       var box = $('q' + i + '_wrap'); if (!box) return;
-      var names = speakerNames(s);
+      var names = speakerNames(s), req = q.required ? '&nbsp;<span class="req" aria-hidden="true">*</span>' : '';
       box.dataset.names = JSON.stringify(names);
       box.innerHTML = names.length
-        ? names.map(function (nm, j) { return starRow('q' + i + '_s' + j, esc(q.label.replace('{name}', nm)), q); }).join('')
-        : starRow('q' + i + '_s0', esc(q.generalLabel || 'How would you rate the speaker(s)?'), q);
+        ? names.map(function (nm, j) { return starRow('q' + i + '_s' + j, esc(q.label.replace('{name}', nm)) + req, q); }).join('')
+        : starRow('q' + i + '_s0', esc(q.generalLabel || 'How would you rate the speaker(s)?') + req, q);
     });
   }
 
@@ -775,6 +775,14 @@
         });
         answers[q.column] = got.length ? Math.round(got.reduce(function (x, y) { return x + y; }, 0) / got.length * 10) / 10 : '';
         if (q.detailColumn) answers[q.detailColumn] = parts.join('; ');
+        if (q.required && box) {                                    // each speaker needs a rating
+          box.querySelectorAll('fieldset.q').forEach(function (fs) {
+            if (fs.querySelector('input:checked')) return;
+            fs.classList.add('invalid');
+            fs.insertAdjacentHTML('beforeend', '<p class="q-error">Please answer this one.</p>');
+            firstBad = firstBad || fs;
+          });
+        }
         return;
       }
       if (q.type === 'text' || q.type === 'name') val = ($('q' + i).value || '').trim();
@@ -1002,6 +1010,7 @@
   function setupHelp() {
     var addr = ['shawnlifebiz', 'gmail.com'].join('@');
     var link = $('helpLink');
+    link.target = '_blank'; link.rel = 'noopener';               // webmail opens in a new tab, the form stays put
     var setHref = function () {
       var shown = (document.body.innerText.match(/\(Code [A-Z0-9 \/]+\)/) || [''])[0];   // any problem code on screen
       link.href = 'mailto:' + addr + '?subject=' + encodeURIComponent('IFC 2026 feedback form: help') +
