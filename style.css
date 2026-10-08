@@ -105,6 +105,8 @@ h2 { font-weight: 700; }
 }
 .clear svg { width: 20px; height: 20px; fill: none; stroke: var(--muted); stroke-width: 2.4; stroke-linecap: round; }
 .status { margin: 10px 2px 0; min-height: 1.4em; color: var(--muted); font-size: 14px; }
+.status:empty { min-height: 0; margin-top: 0; }                 /* no blank gap under the search box */
+#results:empty { margin-top: 0; }
 .list-heading { margin: 14px 0 8px; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); }
 .list-heading::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 8px; background: var(--accent); vertical-align: 1px; }
 
@@ -143,7 +145,7 @@ mark { background: rgba(241, 133, 0, .28); color: inherit; padding: 0 1px; }
 .slot-count { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 14px; }
 .slot .results { margin: 0; padding: 8px; }
 
-.alt-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; margin: 18px 0 8px; }
+.alt-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; margin: 20px 0 8px; }
 .link { background: none; border: 0; padding: 10px 2px; color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 4px; font-size: 15px; min-height: 44px; }
 .link:hover { color: var(--accent-text); }
 
