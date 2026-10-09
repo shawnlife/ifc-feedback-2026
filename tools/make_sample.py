@@ -5,7 +5,7 @@ programme export arrives. Every title and speaker in here is invented.
 
     python3 tools/make_sample.py
 
-Writes sample-data/sessions-sample.csv (150 sessions, 10 time slots, 4 days).
+Writes tools/sample-data/sessions-sample.csv (150 sessions, 10 time slots, 4 days).
 Replace it with the real export as soon as you have it: same column headings.
 """
 
@@ -14,7 +14,7 @@ import random
 from pathlib import Path
 
 random.seed(2026)
-OUT = Path(__file__).parent.parent / "sample-data" / "sessions-sample.csv"
+OUT = Path(__file__).parent / "sample-data" / "sessions-sample.csv"
 
 # 10 time slots over 4 days (2 + 3 + 3 + 2), 15 parallel sessions each = 150
 SLOTS = [

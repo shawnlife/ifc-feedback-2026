@@ -33,7 +33,7 @@ DASH_KEY = "test-password"
 
 
 def load_sessions():
-    with (ROOT / os.environ.get("MOCK_SESSIONS", "sample-data/sessions-sample.csv")).open(encoding="utf-8") as f:
+    with (ROOT / os.environ.get("MOCK_SESSIONS", "tools/sample-data/sessions-sample.csv")).open(encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
@@ -153,7 +153,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
         elif u.path == "/sessions-ifc2026.csv":   # the "website copy" matches the mock's own list
-            body = (ROOT / os.environ.get("MOCK_SESSIONS", "sample-data/sessions-sample.csv")).read_bytes()
+            body = (ROOT / os.environ.get("MOCK_SESSIONS", "tools/sample-data/sessions-sample.csv")).read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "text/csv; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))

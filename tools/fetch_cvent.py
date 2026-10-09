@@ -6,7 +6,7 @@ session list the feedback form uses.
     python3 tools/fetch_cvent.py
 
 Writes:
-  sample-data/cvent-all.json      everything on the page (169 items incl. meals, breaks)
+  tools/sample-data/cvent-all.json      everything on the page (169 items incl. meals, breaks)
   sessions-ifc2026.csv            only the sessions worth rating (import this into the Sheet)
 
 Cvent's list view has no rooms, so this opens each session's pop-up to read the
@@ -80,7 +80,7 @@ def main():
         rows = [page.evaluate(GRAB, i) for i in range(total)]
         b.close()
 
-    (ROOT / "sample-data" / "cvent-all.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False))
+    (ROOT / "tools" / "sample-data" / "cvent-all.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False))
 
     out, skipped = [], []
     for r in rows:

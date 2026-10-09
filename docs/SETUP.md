@@ -108,7 +108,7 @@ The form stores no names, emails, IP addresses or cookies. The phone keeps two s
 | `backend/apps_script.js` | Reference copy of the Google script. |
 | `sessions-ifc2026.csv` | The real programme, from Cvent. |
 | `tools/fetch_cvent.py` | Rebuilds it from the Cvent schedule page. |
-| `sample-data/sessions-sample.csv` | 150 made-up sessions, used by the automated tests. |
+| `tools/sample-data/sessions-sample.csv` | 150 made-up sessions, used by the automated tests. |
 | `tools/mock_server.py`, `tools/test_form.py` | Local test setup (42 automated checks). |
 | `tools/make_qr.py` | QR code and room sign. |
-| `ON-THE-DAY-GUIDE.md` | For whoever runs it during the conference. |
+| On-the-day guide | Shared online page (ask Shawn for the link). |

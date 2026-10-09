@@ -1,8 +1,6 @@
 .DS_Store
 __pycache__/
 # internal, never public
-TO-GET.md
-source/
+private/
 *Facility Management*
 print/
-THURS_HI_*.jpg

@@ -45,7 +45,7 @@ Status as of 1 Oct 2026. ✅ done · 🟡 needs Shawn · ⬜ to do
 - One real end-to-end response through Google (test mode): saved
 
 ## 3. Still to do before the event
-1. 🟡 Paste updated script, redeploy (new version), set dashboard password, turn on backups, set Sheet time zone (SETUP.md step 6)
+1. 🟡 Paste updated script, redeploy (new version), set dashboard password, turn on backups, set Sheet time zone (docs/SETUP.md step 6)
 2. ✅ **Load test 800**: passed via Firebase (see table above)
 3. ✅ Browser tests in Safari (WebKit) and Firefox engines: all pass
 4. ⏸ **Second backup endpoint** (parked: Shawn unsure; revisit after the 800 load test): a second copy of the script on a *different* Google account; the form switches to it automatically if the main one fails twice in a row

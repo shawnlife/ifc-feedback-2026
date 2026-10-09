@@ -6,10 +6,10 @@ date source for WHAT happens WHERE and WHEN), enriched with the Cvent data
 
     python3 tools/build_from_fm.py
 
-Reads:  source/IFC 2026 - Facility Management Sheet - JT(FM Sheet).csv   (private, not in git)
-        sample-data/cvent-all.json   (from tools/fetch_cvent.py)
+Reads:  private/IFC 2026 - Facility Management Sheet - JT(FM Sheet).csv   (private, not in git)
+        tools/sample-data/cvent-all.json   (from tools/fetch_cvent.py)
 Writes: sessions-ifc2026.csv         (import into the Sessions tab)
-        source/fm-vs-cvent-report.txt (every difference, for checking)
+        private/fm-vs-cvent-report.txt (every difference, for checking)
 """
 
 import csv
@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
-FM = next((ROOT / "source").glob("*Facility Management*.csv"))
+FM = next((ROOT / "private").glob("*Facility Management*.csv"))
 # Tuesday is left out (Shawn, 2 Oct): the Leadership Summit isn't reviewed, and masterclasses
 # are reviewed once, at the end of part 2 on Wednesday.
 DAYS = {"wednesday": "2026-10-21", "thursday": "2026-10-22", "friday": "2026-10-23"}
@@ -51,7 +51,7 @@ def clean_speakers(s):
 
 # ---- Cvent, indexed by (date, start, normalised title)
 cvent = {}
-for r in json.loads((ROOT / "sample-data" / "cvent-all.json").read_text()):
+for r in json.loads((ROOT / "tools" / "sample-data" / "cvent-all.json").read_text()):
     m = re.match(r"(\d{1,2}) October 2026", r.get("date") or "")
     if not m:
         continue
@@ -163,5 +163,5 @@ with (ROOT / "sessions-ifc2026.csv").open("w", newline="", encoding="utf-8") as 
     w = csv.DictWriter(f, fieldnames=list(out[0]))
     w.writeheader()
     w.writerows(out)
-(ROOT / "source" / "fm-vs-cvent-report.txt").write_text("\n".join(sorted(report)) + "\n\nLEFT OUT:\n" + "\n".join(skipped))
+(ROOT / "private" / "fm-vs-cvent-report.txt").write_text("\n".join(sorted(report)) + "\n\nLEFT OUT:\n" + "\n".join(skipped))
 print(f"{len(out)} sessions written. {len(report)} report lines, {len(skipped)} left out.")
