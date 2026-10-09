@@ -33,16 +33,11 @@
 
   <form id="picksForm" novalidate>
     <p class="intro">Choose the three masterclasses you'd most like to support as a Session Leader, in order of preference. We'll do our best to give everyone one of their choices and will confirm before the conference.</p>
-    <p class="when" id="when"></p>
     <p class="when deadline" id="deadline" hidden></p>
 
     <div class="q" id="nameBox">
       <label for="pName">Your name&nbsp;<span class="req" aria-hidden="true">*</span></label>
-      <input type="text" class="name-input" id="pName" maxlength="100" autocomplete="name" required>
-    </div>
-    <div class="q" id="emailBox">
-      <label for="pEmail">Email&nbsp;<span class="req" aria-hidden="true">*</span></label>
-      <input type="email" class="name-input" id="pEmail" maxlength="200" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required>
+      <select class="name-input name-select" id="pName" required><option value="">Choose your name</option></select>
     </div>
 
     <h2 class="pick-head">The masterclasses</h2>
@@ -51,14 +46,9 @@
 
     <div class="your-picks" id="yourPicks" aria-live="polite"></div>
 
-    <div class="q">
-      <label for="pComments">Anything we should know?</label>
-      <textarea id="pComments" maxlength="1000" rows="3" placeholder="Optional, e.g. a masterclass you'd rather not do"></textarea>
-    </div>
-
     <p class="form-error" id="formError" role="alert"></p>
     <button type="submit" class="primary" id="sendBtn">Send my picks</button>
-    <p class="privacy">Your name and email are only seen by the IFC team.</p>
+    <p class="privacy">Your picks are only seen by the IFC team.</p>
   </form>
 
   <section id="done" hidden tabindex="-1" aria-labelledby="doneTitle">

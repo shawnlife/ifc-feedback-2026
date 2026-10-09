@@ -38,7 +38,7 @@ var LEADER = 'Session Leader feedback';
 var TEST_LEADER = 'Test Session Leader feedback';
 var PICKS = 'Masterclass picks';                 // Session Leaders' top 3 masterclasses (from /masterclasses)
 var TEST_PICKS = 'Test masterclass picks';
-var PICKS_HEAD = ['Timestamp', 'ID', 'Name', 'Email', '1st choice', '2nd choice', '3rd choice', 'Comments'];
+var PICKS_HEAD = ['Timestamp', 'ID', 'Name', '1st choice', '2nd choice', '3rd choice'];
 var BACKUP_FOLDER = 'IFC 2026 Feedback backups';
 var BACKUPS_TO_KEEP = 48;
 
@@ -575,9 +575,9 @@ function dashboard_(p) {
 // (use the latest per person). Only in the Sheet: never sent to the dashboard.
 function picks_(p) {
   var rid = String(p.rid || '').slice(0, 64);
-  var name = safe_(String(p.name || '').trim().slice(0, 100)), email = safe_(String(p.email || '').trim().slice(0, 200));
+  var name = safe_(String(p.name || '').trim().slice(0, 100));
   var ch = (Array.isArray(p.choices) ? p.choices : []).slice(0, 3).map(function (c) { return safe_(String(c || '').slice(0, 200)); });
-  if (!rid || !name || !email || !ch[0]) return { ok: false, error: 'invalid', code: 'S103' };
+  if (!rid || !name || !ch[0]) return { ok: false, error: 'invalid', code: 'S103' };
   var cache = CacheService.getScriptCache();
   if (cache.get('rid_' + rid)) return { ok: true, duplicate: true };
   var lock = LockService.getScriptLock();
@@ -590,7 +590,7 @@ function picks_(p) {
       sh.getRange(1, 1, 1, PICKS_HEAD.length).setValues([PICKS_HEAD]).setFontWeight('bold');
       sh.setFrozenRows(1);
     }
-    sh.appendRow([new Date(), rid, name, email, ch[0] || '', ch[1] || '', ch[2] || '', safe_(String(p.comments || '').slice(0, 1000))]);
+    sh.appendRow([new Date(), rid, name, ch[0] || '', ch[1] || '', ch[2] || '']);
     SpreadsheetApp.flush();
     cache.put('rid_' + rid, '1', 21600);
     return { ok: true };

@@ -50,7 +50,7 @@
     draft();
   }
 
-  function draft() { save({ name: $('pName').value, email: $('pEmail').value, picks: picks, comments: $('pComments').value }); }
+  function draft() { save({ name: $('pName').value, picks: picks }); }
 
   function fieldError(boxId, msg) {
     var b = $(boxId); b.classList.add('invalid');
@@ -73,10 +73,8 @@
     document.querySelectorAll('#picksForm .invalid').forEach(function (x) { x.classList.remove('invalid'); });
     document.querySelectorAll('#picksForm .q-error').forEach(function (x) { x.remove(); });
     $('formError').textContent = '';
-    var name = $('pName').value.trim(), email = $('pEmail').value.trim(), first = null;
-    var bad;
-    if (!name) { bad = fieldError('nameBox', 'Please add your name.'); first = first || bad; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { bad = fieldError('emailBox', email ? 'That email address doesn\'t look right.' : 'Please add your email.'); first = first || bad; }
+    var name = $('pName').value, first = null;
+    if (!name) first = fieldError('nameBox', 'Please choose your name.');
     if (picks.some(function (p) { return p == null; })) { $('yourPicks').classList.add('invalid'); first = first || $('yourPicks'); }
     if (first) {
       $('formError').textContent = picks.some(function (p) { return p == null; }) ? 'Please choose a 1st, 2nd and 3rd masterclass.' : 'Please fix the highlighted fields.';
@@ -84,11 +82,11 @@
       return;
     }
     var choices = picks.map(function (i) { return MP.list[i].title; });
-    var item = { action: 'picks', rid: uid(), test: TEST, name: name, email: email, choices: choices, comments: $('pComments').value.trim() };
+    var item = { action: 'picks', rid: uid(), test: TEST, name: name, choices: choices };
     var btn = $('sendBtn'); btn.disabled = true; btn.textContent = 'Sending…';
     send(item, 4).then(function () {
       draft();
-      $('doneText').textContent = 'Thanks, ' + name.split(' ')[0] + '. Your picks are in. We\'ll confirm your masterclass before the conference.';
+      $('doneText').textContent = 'Thanks, ' + name + '. Your picks are in. We\'ll confirm your masterclass before the conference.';
       $('doneList').innerHTML = choices.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('');
       $('picksForm').hidden = true; $('done').hidden = false; window.scrollTo(0, 0); $('done').focus();
     }).catch(function (e) {
@@ -97,12 +95,14 @@
   }
 
   function init() {
-    $('when').innerHTML = MP.when ? '<strong>When:</strong> ' + esc(MP.when) : '';
     if (MP.deadline) { $('deadline').textContent = 'Please send your picks by ' + MP.deadline + '.'; $('deadline').hidden = false; }
     if (TEST) { $('banner').textContent = 'Test mode: picks go to the "Test masterclass picks" tab, not the real list.'; $('banner').hidden = false; }
+    (MP.leaders || []).slice().sort(function (a, b) { return a.localeCompare(b); }).forEach(function (n) {
+      var o = document.createElement('option'); o.value = n; o.textContent = n; $('pName').appendChild(o);
+    });
     var d = load();
     if (d) {                                                               // pick up where they left off
-      $('pName').value = d.name || ''; $('pEmail').value = d.email || ''; $('pComments').value = d.comments || '';
+      if ((MP.leaders || []).indexOf(d.name) > -1) $('pName').value = d.name;
       if (Array.isArray(d.picks)) picks = d.picks.map(function (i) { return typeof i === 'number' && MP.list[i] ? i : null; });
     }
     render();
@@ -110,7 +110,7 @@
       var b = e.target.closest('button[data-mc]');
       if (b) choose(+b.dataset.mc, +b.dataset.rank);
     });
-    ['pName', 'pEmail', 'pComments'].forEach(function (id) { $(id).addEventListener('input', draft); });
+    $('pName').addEventListener('change', function () { $('nameBox').classList.remove('invalid'); $('nameBox').querySelectorAll('.q-error').forEach(function (x) { x.remove(); }); draft(); });
     $('picksForm').addEventListener('submit', submit);
     $('changeBtn').addEventListener('click', function () { $('done').hidden = true; $('picksForm').hidden = false; window.scrollTo(0, 0); });
   }

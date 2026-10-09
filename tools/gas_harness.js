@@ -297,17 +297,17 @@ check(row['Speakers (1-5)'] === 4.5 && row['Speaker ratings'] === 'Jane Doe: 4; 
 console.log('17. Masterclass picks: saved to their own tab, repeats ignored, test kept apart');
 env = makeEnv();
 const pk = (o) => JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify(Object.assign({ action: 'picks' }, o)) } }).text);
-const p1 = pk({ rid: 'mc1', name: 'Anna de Groot', email: 'anna@example.org', choices: ['The AI-Ready Fundraiser', 'Great Fundraising Leadership', 'Your Digital Engine Room'], comments: '=SUM(1)' });
-const p2 = pk({ rid: 'mc1', name: 'Anna de Groot', email: 'anna@example.org', choices: ['X'] });
-const p3 = pk({ rid: 'mc2', name: '', email: 'x@y.z', choices: ['X'] });
-const p4 = pk({ rid: 'mc3', test: true, name: 'Test Person', email: 't@example.org', choices: ['Great Fundraising Leadership'] });
+const p1 = pk({ rid: 'mc1', name: '=Hollie', choices: ['The AI-Ready Fundraiser', 'Great Fundraising Leadership', 'Your Digital Engine Room'] });
+const p2 = pk({ rid: 'mc1', name: 'Hollie', choices: ['X'] });
+const p3 = pk({ rid: 'mc2', name: '', choices: ['X'] });
+const p4 = pk({ rid: 'mc3', test: true, name: 'Noah', choices: ['Great Fundraising Leadership'] });
 check(p1.ok && p2.duplicate && !p3.ok && p4.ok, 'saved / repeat recognised / missing name refused / test saved');
 check(rowsOf(env, 'Masterclass picks') === 1 && rowsOf(env, 'Test masterclass picks') === 1, 'real and test picks in separate tabs');
 const prow = env.sheets['Masterclass picks'].rows[1];
-check(prow[2] === 'Anna de Groot' && prow[4] === 'The AI-Ready Fundraiser' && prow[6] === 'Your Digital Engine Room' && String(prow[7]).indexOf("'=") === 0,
-  'picks stored in order; formula in comments neutralised');
+check(String(prow[2]).indexOf("'=") === 0 && prow[3] === 'The AI-Ready Fundraiser' && prow[5] === 'Your Digital Engine Room' && prow.length === 6,
+  'picks stored in order (no email or comments columns); formula neutralised');
 const dash17 = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
-check(!('picks' in dash17) && JSON.stringify(dash17).indexOf('Anna de Groot') === -1, 'picks are NOT sent to the dashboard (Sheet only)');
+check(!('picks' in dash17) && JSON.stringify(dash17).indexOf('AI-Ready') === -1, 'picks are NOT sent to the dashboard (Sheet only)');
 
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);

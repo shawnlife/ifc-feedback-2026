@@ -256,7 +256,7 @@ class Handler(SimpleHTTPRequestHandler):
                 (contacted if item.get("kind") == "contact" else resolved)[item["row"]] = None if item.get("reopen") else item["note"]
                 return self.send_json({"ok": True})
             if item.get("action") == "picks":
-                if not item.get("name") or not item.get("email") or not item.get("choices"):
+                if not item.get("name") or not item.get("choices"):
                     return self.send_json({"ok": False, "error": "invalid", "code": "S103"})
                 if any(p["rid"] == item.get("rid") for p in picks):
                     return self.send_json({"ok": True, "duplicate": True})

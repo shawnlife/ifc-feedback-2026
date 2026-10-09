@@ -105,10 +105,12 @@ window.IFC_CONFIG = {
 
   // MASTERCLASS PICKS (at /masterclasses): Session Leaders choose their top 3 masterclasses
   // to lead, before the conference. Answers go to the "Masterclass picks" tab and the
-  // dashboard's Masterclass picks tab. "deadline" is shown on the page ('' to hide it).
+  // Sheet only (never the dashboard). "deadline" is shown on the page ('' to hide it).
   masterclassPicks: {
     deadline: '',
-    when: 'Tuesday 20 October, 14:00 to 17:00, and Wednesday 21 October, 09:00 to 12:00',
+    // Session Leaders (first names), shown as a dropdown in alphabetical order
+    leaders: ['Hollie', 'Rachael', 'Mireille', 'Tsungai', 'Lianne', 'Alice', 'Jordan', 'Sylvia', 'Bongiwe', 'Lucy',
+              'Danielle', 'Yolanda', 'Sarah', 'Filipa', 'Isla', 'Dimitri', 'Astrid', 'In\u00eas', 'Michelle', 'Noah'],
     list: [
       { title: 'Building Growth That Doesn\'t Break Trust',
         by: 'Lindsay Marino Long (Faircom New York), Ishmam Rahman (International Rescue Committee)',
