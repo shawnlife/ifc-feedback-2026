@@ -36,7 +36,7 @@ var SUMMARY = 'Summary';
 var RAW_LOG = 'Raw log';
 var LEADER = 'Session Leader feedback';
 var TEST_LEADER = 'Test Session Leader feedback';
-var PICKS = 'Masterclass picks';                 // Session Leaders' top 3 masterclasses (from /masterclasses)
+var PICKS = 'Masterclass picks';                 // Session Leaders' top 3 masterclasses (from /allocations)
 var TEST_PICKS = 'Test masterclass picks';
 var PICKS_HEAD = ['Timestamp', 'ID', 'Name', '1st choice', '2nd choice', '3rd choice'];
 var BACKUP_FOLDER = 'IFC 2026 Feedback backups';
@@ -570,7 +570,7 @@ function dashboard_(p) {
   });
 }
 
-// Session Leaders' masterclass picks (ifc2026survey.com/masterclasses). Only about 20 people,
+// Session Leaders' masterclass picks (ifc2026survey.com/allocations). Only about 20 people,
 // so written straight to its own tab (no Firebase, no queue). Sending again adds a new row
 // (use the latest per person). Only in the Sheet: never sent to the dashboard.
 function picks_(p) {

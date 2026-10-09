@@ -15,7 +15,7 @@ The feedback form at **ifc2026survey.com**, its dashboard and the tools behind i
 | `online/` | The IFC Online form (`/online`) |
 | `sessionleader/` | The Session Leader form (`/sessionleader`) |
 | `tags/` | Page for writing the NFC tags (`/tags`) |
-| `masterclasses/` | Session Leaders pick their top 3 masterclasses (`/masterclasses`); answers go only to the Sheet |
+| `allocations/` | Session Leaders pick their top 3 masterclasses (`/allocations`); answers go only to the Sheet |
 | `privacy.html` | Privacy notice |
 | `assets/` | Logos, banner photo, fonts, app icons |
 | `CNAME`, `manifest.webmanifest`, `favicon.ico` | Domain name, home-screen app settings, browser icon |

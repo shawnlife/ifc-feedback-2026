@@ -1,5 +1,5 @@
 /*
- * Masterclass picks (ifc2026survey.com/masterclasses): each Session Leader ranks their
+ * Masterclass picks (ifc2026survey.com/allocations): each Session Leader ranks their
  * top 3 masterclasses. The list lives in config.js (masterclassPicks). Answers go to the
  * Google Sheet's "Masterclass picks" tab and show on the dashboard. ?test sends to the
  * "Test masterclass picks" tab instead.

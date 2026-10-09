@@ -103,7 +103,7 @@ window.IFC_CONFIG = {
     sessions: ['KEY-OPEN', '1WS11', '2WS6', '3WS10', '4WS3', '5WS14', '6WS7', '7WS12', 'KEY-CLOSE']
   },
 
-  // MASTERCLASS PICKS (at /masterclasses): Session Leaders choose their top 3 masterclasses
+  // MASTERCLASS PICKS (at /allocations): Session Leaders choose their top 3 masterclasses
   // to lead, before the conference. Answers go to the "Masterclass picks" tab and the
   // Sheet only (never the dashboard). "deadline" is shown on the page ('' to hide it).
   masterclassPicks: {
