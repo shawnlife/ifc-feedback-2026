@@ -27,6 +27,7 @@ ROOT = Path(__file__).parent.parent
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 received, state, events, assigned, notes, resolved = [], {"fail": False, "fsfail": False}, [], {}, {}, {}
 contacted = {}
+picks = []
 FIREBASE = os.environ.get("MOCK_FIREBASE", "1") == "1"     # pretend Firebase is set up (the normal case)
 via = {"firebase": 0, "sheet": 0}
 DASH_KEY = "test-password"
@@ -119,6 +120,7 @@ def fake_leaders():
 
 FAKE = fake_rows(int(os.environ.get("MOCK_FAKE", "0"))) if os.environ.get("MOCK_FAKE") else []
 FAKE_LEADERS = fake_leaders() if os.environ.get("MOCK_FAKE") else []
+
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -252,6 +254,14 @@ class Handler(SimpleHTTPRequestHandler):
                 if not item.get("reopen") and not str(item.get("note", "")).strip():
                     return self.send_json({"ok": False, "error": "a short note is needed"})
                 (contacted if item.get("kind") == "contact" else resolved)[item["row"]] = None if item.get("reopen") else item["note"]
+                return self.send_json({"ok": True})
+            if item.get("action") == "picks":
+                if not item.get("name") or not item.get("email") or not item.get("choices"):
+                    return self.send_json({"ok": False, "error": "invalid", "code": "S103"})
+                if any(p["rid"] == item.get("rid") for p in picks):
+                    return self.send_json({"ok": True, "duplicate": True})
+                import datetime as _dt
+                picks.append(dict(item, at=_dt.datetime.utcnow().isoformat() + "Z"))
                 return self.send_json({"ok": True})
             if item.get("action") == "event":
                 events.append(item)

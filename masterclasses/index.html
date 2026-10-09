@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IFC 2026 Masterclass Picks</title>
+<meta name="description" content="IFC 2026 Session Leaders: choose your top three masterclasses.">
+<meta name="theme-color" content="#f18500">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="../assets/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
+<link rel="preload" href="../assets/fonts/source-sans-3-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="picks.css">
+<script src="../config.js" defer></script>
+<script src="picks.js" defer></script>
+</head>
+<body>
+<div class="brandbar">
+  <div class="brandbar-inner">
+    <a href="https://www.resource-alliance.org/" target="_blank" rel="noopener noreferrer"><img id="logoLeft" src="../assets/brand/ifc-2026-logo-white.webp" alt="IFC 2026"></a>
+    <a href="https://www.resource-alliance.org/" target="_blank" rel="noopener noreferrer"><img class="logo-event" src="../assets/brand/presented-by-resource-alliance-white.webp" alt="Presented by the Resource Alliance"></a>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <p class="kicker">For Session Leaders</p>
+    <h1>Masterclass picks</h1>
+  </header>
+  <p class="banner" id="banner" hidden></p>
+
+  <form id="picksForm" novalidate>
+    <p class="intro">Choose the three masterclasses you'd most like to support as a Session Leader, in order of preference. We'll do our best to give everyone one of their choices and will confirm before the conference.</p>
+    <p class="when" id="when"></p>
+    <p class="when deadline" id="deadline" hidden></p>
+
+    <div class="q" id="nameBox">
+      <label for="pName">Your name&nbsp;<span class="req" aria-hidden="true">*</span></label>
+      <input type="text" class="name-input" id="pName" maxlength="100" autocomplete="name" required>
+    </div>
+    <div class="q" id="emailBox">
+      <label for="pEmail">Email&nbsp;<span class="req" aria-hidden="true">*</span></label>
+      <input type="email" class="name-input" id="pEmail" maxlength="200" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required>
+    </div>
+
+    <h2 class="pick-head">The masterclasses</h2>
+    <p class="hint">Tap <strong>1st</strong>, <strong>2nd</strong> or <strong>3rd</strong> on three different masterclasses.</p>
+    <ol class="mc-list" id="mcList"></ol>
+
+    <div class="your-picks" id="yourPicks" aria-live="polite"></div>
+
+    <div class="q">
+      <label for="pComments">Anything we should know?</label>
+      <textarea id="pComments" maxlength="1000" rows="3" placeholder="Optional, e.g. a masterclass you'd rather not do"></textarea>
+    </div>
+
+    <p class="form-error" id="formError" role="alert"></p>
+    <button type="submit" class="primary" id="sendBtn">Send my picks</button>
+    <p class="privacy">Your name and email are only seen by the IFC team.</p>
+  </form>
+
+  <section id="done" hidden tabindex="-1" aria-labelledby="doneTitle">
+    <div class="done-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div>
+    <h2 id="doneTitle">Thank you!</h2>
+    <p id="doneText"></p>
+    <ol class="done-list" id="doneList"></ol>
+    <button type="button" class="link" id="changeBtn">Change my picks</button>
+  </section>
+
+  <footer class="foot">
+    <p><a href="../privacy.html">Privacy</a></p>
+    <p>Tool made using AI vibe-coding by <a href="https://shawnlife.com" target="_blank" rel="noopener noreferrer nofollow">ShawnLife</a></p>
+  </footer>
+</div>
+</body>
+</html>

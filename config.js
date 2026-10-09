@@ -103,6 +103,60 @@ window.IFC_CONFIG = {
     sessions: ['KEY-OPEN', '1WS11', '2WS6', '3WS10', '4WS3', '5WS14', '6WS7', '7WS12', 'KEY-CLOSE']
   },
 
+  // MASTERCLASS PICKS (at /masterclasses): Session Leaders choose their top 3 masterclasses
+  // to lead, before the conference. Answers go to the "Masterclass picks" tab and the
+  // dashboard's Masterclass picks tab. "deadline" is shown on the page ('' to hide it).
+  masterclassPicks: {
+    deadline: '',
+    when: 'Tuesday 20 October, 14:00 to 17:00, and Wednesday 21 October, 09:00 to 12:00',
+    list: [
+      { title: 'Building Growth That Doesn\'t Break Trust',
+        by: 'Lindsay Marino Long (Faircom New York), Ishmam Rahman (International Rescue Committee)',
+        about: 'Bringing AI into fundraising work without losing the trust and relationships that growth depends on.',
+        url: 'https://www.resource-alliance.org/session/building-growth-doesnt-break-trust-mc/' },
+      { title: 'Leading Fundraising Systems in Uncertainty',
+        by: 'Damian Chapman (Fundraiser In The Room), Luke Genevrier-Mallett (Ben)',
+        about: 'Diagnosing what is holding a fundraising operation back, and redesigning systems and leadership that can cope with today.',
+        url: 'https://www.resource-alliance.org/session/leading-fundraising-systems-uncertainty-mc/' },
+      { title: 'Power, Wealth, Philanthropy\u2026 and Justice?',
+        by: 'Rowena Estwick (Ten Years\' Time), Dee Brecker (Ten Years\' Time, Ginko Coaching & Consulting)',
+        about: 'Putting equity and anti-racism into practice in fundraising, and what racial and economic justice asks of philanthropy.',
+        url: 'https://www.resource-alliance.org/session/power-wealth-philanthropy-justice-mc/' },
+      { title: 'Leading Long-Term Transformation',
+        by: 'Yadharshini Selvaraj (Tea Leaf Trust), Tim Pare (Tea Leaf Trust), Sutharshan Visventhan (The Cookstove Project)',
+        about: 'Leading change that shifts power and delivers lasting results for communities, through the messy, non-linear reality of it.',
+        url: 'https://www.resource-alliance.org/session/change-management-mc/' },
+      { title: 'Your Digital Engine Room',
+        by: 'Sarah Crowhurst (Hynt), JoAnne O\'Donovan (Dogs Trust Ireland), Joshua Leigh (Hynt)',
+        about: 'Hands-on digital fundraising: social media, email, websites and the tools that tie them together.',
+        url: 'https://www.resource-alliance.org/session/digital-engine-room-mc/' },
+      { title: 'Audience-Led Decision-Making',
+        by: 'Kit Lewis (Aha Agency), Alice Gayner (Comic Relief), Rosie O\'Connor (VSO)',
+        about: 'Making quicker, better decisions by starting from audience insight, without getting stuck in analysis.',
+        url: 'https://www.resource-alliance.org/session/audience-led-decision-making-mc/' },
+      { title: 'Major Donor Fundraising in Complex Times',
+        by: 'Konstantina Papadimitriou (Inuksuk Consulting), Vincent Duckworth (ViTreo Group)',
+        about: 'How major donors weigh risk, governance and credibility, and how to earn their confidence.',
+        url: 'https://www.resource-alliance.org/session/major-donor-complex-mc/' },
+      { title: 'Great Fundraising Leadership',
+        by: 'Colin Skehan (Revolutionise International), Jayne George (RNLI)',
+        about: 'The main barriers to fundraising growth, and the leadership behaviours that unlock it.',
+        url: 'https://www.resource-alliance.org/session/great-fundraising-leadership-mc/' },
+      { title: 'Alternative Financing Models for Impact',
+        by: 'Ruth Davison (SASC Trust), Leana de Beer (WaFunda), Richard Hawkes (Oxfam)',
+        about: 'Funding beyond traditional grants: the growing range of capital open to mission-driven organisations.',
+        url: 'https://www.resource-alliance.org/session/alternative-financing-models-impact-mc/' },
+      { title: 'From Data Overwhelm to Strategic Impact',
+        by: 'Erin Hamalainen (Slingshot Data), Fiona McPhee (Revolutionise)',
+        about: 'Turning fundraising data into decisions, and using analytics to show value.',
+        url: 'https://www.resource-alliance.org/session/data-driven-investment-mc/' },
+      { title: 'The AI-Ready Fundraiser',
+        by: 'Saarah Abdeen (ActionAid Australia), Andrew Sabatino (Donor Republic), Natalie Gibbs (Cancer Council Victoria)',
+        about: 'An honest look at AI in fundraising: what genuinely helps, and what is hype.',
+        url: 'https://www.resource-alliance.org/session/artificial-intelligence-mc/' }
+    ]
+  },
+
   // SESSION LEADER FORM (at /sessionleader). Same rules as above.
   // type 'name' = a one-line answer (remembered on the Session Leader's phone for next time).
   leaderQuestions: [

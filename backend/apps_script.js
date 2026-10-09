@@ -36,6 +36,9 @@ var SUMMARY = 'Summary';
 var RAW_LOG = 'Raw log';
 var LEADER = 'Session Leader feedback';
 var TEST_LEADER = 'Test Session Leader feedback';
+var PICKS = 'Masterclass picks';                 // Session Leaders' top 3 masterclasses (from /masterclasses)
+var TEST_PICKS = 'Test masterclass picks';
+var PICKS_HEAD = ['Timestamp', 'ID', 'Name', 'Email', '1st choice', '2nd choice', '3rd choice', 'Comments'];
 var BACKUP_FOLDER = 'IFC 2026 Feedback backups';
 var BACKUPS_TO_KEEP = 48;
 
@@ -178,6 +181,7 @@ function doPost(e) {
     if (p.action === 'dashboard') return dashboard_(p);
     if (p.action === 'assign') return assign_(p);
     if (p.action === 'resolve') return resolve_(p);
+    if (p.action === 'picks') return json_(picks_(p));
     if (p.action === 'event') {
       var type = String(p.type || '');
       if (EVENT_TYPES.indexOf(type) === -1) return json_({ ok: false, error: 'unknown event', code: 'S104' });
@@ -566,6 +570,37 @@ function dashboard_(p) {
   });
 }
 
+// Session Leaders' masterclass picks (ifc2026survey.com/masterclasses). Only about 20 people,
+// so written straight to its own tab (no Firebase, no queue). Sending again adds a new row
+// (use the latest per person). Only in the Sheet: never sent to the dashboard.
+function picks_(p) {
+  var rid = String(p.rid || '').slice(0, 64);
+  var name = safe_(String(p.name || '').trim().slice(0, 100)), email = safe_(String(p.email || '').trim().slice(0, 200));
+  var ch = (Array.isArray(p.choices) ? p.choices : []).slice(0, 3).map(function (c) { return safe_(String(c || '').slice(0, 200)); });
+  if (!rid || !name || !email || !ch[0]) return { ok: false, error: 'invalid', code: 'S103' };
+  var cache = CacheService.getScriptCache();
+  if (cache.get('rid_' + rid)) return { ok: true, duplicate: true };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(25000)) return { ok: false, error: 'busy', code: 'S105' };
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet(), tab = p.test === true ? TEST_PICKS : PICKS;
+    var sh = ss.getSheetByName(tab);
+    if (!sh) {
+      sh = ss.insertSheet(tab);
+      sh.getRange(1, 1, 1, PICKS_HEAD.length).setValues([PICKS_HEAD]).setFontWeight('bold');
+      sh.setFrozenRows(1);
+    }
+    sh.appendRow([new Date(), rid, name, email, ch[0] || '', ch[1] || '', ch[2] || '', safe_(String(p.comments || '').slice(0, 1000))]);
+    SpreadsheetApp.flush();
+    cache.put('rid_' + rid, '1', 21600);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: 'busy', code: 'S106' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // Dashboard "Typed in" panel: attach a typed-in response to the right session.
 function assign_(p) {
   var denied = auth_(p);
@@ -731,7 +766,7 @@ function turnOnBackups() { turnOnAutomation(); }
 function clearTestResponses() {
   var ui = SpreadsheetApp.getUi();
   if (ui.alert('Clear test responses?', 'Deletes every row in the "Test responses" and "Test Session Leader feedback" tabs (the real tabs are not touched).', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
-  [TEST_RESPONSES, TEST_LEADER].forEach(function (name) {
+  [TEST_RESPONSES, TEST_LEADER, TEST_PICKS].forEach(function (name) {
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
     if (sh && sh.getLastRow() > 1) {
       var last = sh.getLastRow();
