@@ -269,3 +269,4 @@ mark { background: rgba(241, 133, 0, .28); color: inherit; padding: 0 1px; }
 
 /* IFC Online form: room names are hidden (viewers are not in a room) */
 body.online .r-room { display: none; }
+.my-reports { margin-top: 26px; }

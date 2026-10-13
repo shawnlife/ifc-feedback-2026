@@ -56,6 +56,10 @@
   var SESSIONS_KEY = 'ifc26-sessions-v1';
   var OUTBOX_KEY = 'ifc26-outbox-v1';
   var RATED_KEY = LEADER ? 'ifc26-rated-leader-v1' : ONLINE ? 'ifc26-rated-online-v1' : 'ifc26-rated-v1';
+  // Session Leaders: a copy of each report sent from this phone, so they can look at it again and send
+  // an update (the dashboard then shows only their latest report for that session)
+  var REPORTS_KEY = 'ifc26-leader-reports-v1';
+  function myReports() { return (LEADER && store(REPORTS_KEY)) || {}; }
   var RECENT_FIRST = Infinity;     // recent sessions shown above the search box (all of them, James 8 Oct)
   var RECENT_WINDOW_MIN = 150;   // sessions that ended up to 2.5h ago count as "just finished"
   var SHOW_FIRST = 10;           // results shown before "Show all"
@@ -172,6 +176,16 @@
     var wd = DAYS[dt.getUTCDay()], mo = MONTHS_FULL[+d[1] - 1];
     var cap = function (s) { return s[0].toUpperCase() + s.slice(1); };
     return long ? cap(wd) + ' ' + (+d[2]) + ' ' + cap(mo) : cap(wd.slice(0, 3)) + ' ' + (+d[2]) + ' ' + cap(mo.slice(0, 3));
+  }
+  // "on Wed 21 Oct at 15:42" (conference time) for when a Session Leader sent a report
+  function localWhen(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return '';
+    try {
+      var p = {}; new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
+        .formatToParts(d).forEach(function (x) { p[x.type] = x.value; });
+      return 'on ' + p.weekday + ' ' + p.day + ' ' + p.month + ' at ' + p.hour + ':' + p.minute;
+    } catch (e) { return ''; }
   }
   function timeLabel(s) {
     if (!s.start) return '';
@@ -553,6 +567,7 @@
   }
 
   function render() {
+    if (LEADER) renderMyReports();
     if (browsing) return renderBrowse();
     var raw = els.q.value;
     els.qClear.hidden = !raw;
@@ -706,6 +721,31 @@
   }
 
   // Leaders rate several sessions: fill in their name from last time
+  // Put a Session Leader's earlier answers back into the form
+  function prefillReport(answers) {
+    QUESTIONS.forEach(function (q, i) {
+      var v = answers[q.column || q.label];
+      if (v === undefined || v === '') return;
+      if (q.type === 'rating' || q.type === 'choice') {
+        var opt = els.stepForm.querySelector('input[name="q' + i + '"][value="' + String(v).replace(/"/g, '') + '"]');
+        if (opt) opt.checked = true;
+      } else if ($('q' + i)) $('q' + i).value = v;
+    });
+    els.stepForm.querySelectorAll('.stars').forEach(function (st) { paintStars(st.parentNode); });
+  }
+
+  function renderMyReports() {
+    var box = $('myReports'); if (!box) return;
+    var reps = myReports(), ids = Object.keys(reps).sort(function (a, b) { return String(reps[b].at).localeCompare(String(reps[a].at)); });
+    box.hidden = !ids.length;
+    box.innerHTML = ids.length ? '<h2 class="list-heading">Your reports</h2><ul class="results">' + ids.map(function (id) {
+      var r = reps[id], s = sessions.filter(function (x) { return x.id === id; })[0] || { title: r.title };
+      return '<li><button type="button" class="result" data-report="' + esc(id) + '"><span class="r-title">' + esc(s.title) + '</span>' +
+        '<span class="r-meta">' + (s.date ? '<span>' + esc(dayLabel(s.date)) + (s.start ? ', ' + esc(timeLabel(s)) : '') + '</span>' : '') +
+        '<span class="r-done">View or update</span></span></button></li>';
+    }).join('') + '</ul>' : '';
+  }
+
   function prefillName() {
     QUESTIONS.forEach(function (q, i) {
       if (q.type === 'name' && $('q' + i) && !$('q' + i).value) $('q' + i).value = store(NAME_KEY) || '';
@@ -730,6 +770,9 @@
     els.stepForm.reset();
     fillSpeakers(s.manual ? null : s);
     prefillName();
+    var earlier = LEADER && !s.manual ? myReports()[s.id] : null;
+    if (earlier) prefillReport(earlier.answers || {});
+    els.submitBtn.textContent = earlier ? 'Update report' : 'Send feedback';
     els.stepForm.querySelectorAll('.stars').forEach(function (st) { paintStars(st.parentNode); });
     $('contactFields').hidden = true;                                   // the reset unticked "contact me"
     els.stepForm.querySelectorAll('.invalid').forEach(function (x) { x.classList.remove('invalid'); });
@@ -747,7 +790,9 @@
         (s.speakers ? '<span class="r-speakers">' + esc(s.speakers) + '</span>' : '') +
         '<span class="r-meta"><span class="r-room">' + esc(s.room) + '</span>' +
         (s.date ? '<span>' + esc(dayLabel(s.date)) + (s.start ? ', ' + esc(timeLabel(s)) : '') + '</span>' : '') + '</span>' +
-        (already ? '<p class="hint" style="margin:8px 0 0">You have already rated this one. Sending again adds a second response.</p>' : '');
+        (earlier ? '<p class="hint" style="margin:8px 0 0">You sent a report for this session ' + esc(localWhen(earlier.at)) +
+          '. Your answers are filled in below: change anything and tap <strong>Update report</strong>. The update replaces your earlier report.</p>'
+        : already ? '<p class="hint" style="margin:8px 0 0">You have already rated this one. Sending again adds a second response.</p>' : '');
     }
     showStep('form');
     history.pushState({ step: 'form' }, '');
@@ -947,6 +992,12 @@
       var r = rated();
       if (r.indexOf(s.id) === -1) { r.push(s.id); store(RATED_KEY, r); }
     }
+    var isUpdate = LEADER && !s.manual && !!myReports()[s.id];
+    if (LEADER && !s.manual) {
+      var reps = myReports();
+      reps[s.id] = { answers: c.answers, at: item.sentAt, title: s.title };
+      store(REPORTS_KEY, reps);
+    }
 
     if (DEMO) {
       console.log('[demo mode] would send:', item);
@@ -963,6 +1014,8 @@
       var st = res[item.rid] || 'queued';
       waitingRid = st === 'queued' ? item.rid : null;
       done(st);
+      if (isUpdate && st === 'sent') els.doneText.textContent = 'Your updated report has been sent. It replaces your earlier one.';
+      renderMyReports();
     });
   }
 
@@ -1117,6 +1170,11 @@
     };
     els.results.addEventListener('click', pickResult);
     els.recent.addEventListener('click', pickResult);
+    $('myReports').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-report]'); if (!b) return;
+      var s = sessions.filter(function (x) { return x.id === b.dataset.report; })[0];
+      if (s) choose(s);
+    });
 
     els.stepForm.addEventListener('change', function (e) {
       var fs = e.target.closest('.q');

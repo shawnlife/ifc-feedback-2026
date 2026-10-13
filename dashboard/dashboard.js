@@ -171,6 +171,17 @@
         start: s ? s.start : String(r.Time || '').split(/[–-]/)[0].trim(), track: s ? s.track : r.Track || '', type: s ? s.type : ''
       };
     });
+    // A Session Leader who updates a report sends it again: show only their latest one per session
+    var latest = {};
+    leaders.forEach(function (l) {
+      var k = String(l.name).trim().toLowerCase() + '|' + l.id, cur = latest[k];
+      l.versions = 1;
+      if (!cur) { latest[k] = l; return; }
+      var newer = String(l.when) > String(cur.when) ? l : cur;
+      newer.versions = cur.versions + 1;
+      latest[k] = newer;
+    });
+    leaders = leaders.filter(function (l) { return latest[String(l.name).trim().toLowerCase() + '|' + l.id] === l; });
     fillFilters();
   }
 
@@ -645,7 +656,7 @@
     var row = function (l) {
       return '<tr' + (issues.indexOf(l) > -1 ? ' class="has-issue"' : '') + '><td><button type="button" class="linkish" data-card="' + esc(l.id) + '">' + esc(l.title) + '</button></td>' +
         '<td>' + esc(dayLabel(l.date) + ', ' + l.start) + '<div class="t-sub">' + esc(l.room) + '</div></td>' +
-        '<td>' + esc(l.name) + '</td>' +
+        '<td>' + esc(l.name) + (l.versions > 1 ? '<div class="t-sub">Updated report</div>' : '') + '</td>' +
         L_RATINGS.map(function (q) { return '<td class="num">' + (num(l.raw[col(q)]) || '–') + '</td>'; }).join('') +
         '<td>' + L_TEXTS.map(function (q) {
           var v = l.raw[col(q)];
