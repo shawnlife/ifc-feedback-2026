@@ -692,6 +692,12 @@
             '<label for="' + name + '_' + j + '">' + esc(opt) + '</label>';
         });
         html += '</div></fieldset>';
+      } else if (q.type === 'name' && q.options && q.options.length) {          // pick your name from a list
+        html += '<div class="q" data-i="' + i + '"><label for="' + name + '">' + esc(q.label) + req + '</label>' + help +
+          '<select class="name-input name-select" id="' + name + '" name="' + name + '"' + desc + (q.required ? ' required' : '') + '>' +
+          '<option value="">Choose your name</option>' +
+          q.options.slice().sort(function (a, b) { return a.localeCompare(b); }).map(function (n) { return '<option>' + esc(n) + '</option>'; }).join('') +
+          '</select></div>';
       } else if (q.type === 'name') {
         html += '<div class="q" data-i="' + i + '"><label for="' + name + '">' + esc(q.label) + req + '</label>' + help +
           '<input type="text" class="name-input" id="' + name + '" name="' + name + '" maxlength="100" autocomplete="name"' + desc +

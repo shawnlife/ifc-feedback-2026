@@ -269,3 +269,8 @@ mark { background: rgba(241, 133, 0, .28); color: inherit; padding: 0 1px; }
 
 /* IFC Online form: room names are hidden (viewers are not in a room) */
 body.online .r-room { display: none; }
+
+/* Name dropdown (Session Leader form): own arrow, set in from the edge */
+.name-select { -webkit-appearance: none; appearance: none; padding-right: 44px; color: var(--ink); cursor: pointer;
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 16px center; }
+.name-select:focus { outline: none; box-shadow: -4px 5px 0 var(--accent); }

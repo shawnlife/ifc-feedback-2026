@@ -7,6 +7,11 @@
  * The SESSION LIST is NOT in here. It lives in the Google Sheet ("Sessions" tab)
  * and the form picks up changes within about a minute.
  */
+// The Session Leaders (first names). Used for the name dropdown on the Session Leader
+// form and on the masterclass picks page. Add or remove names here.
+var SESSION_LEADERS = ['Hollie', 'Rachael', 'Mireille', 'Tsungai', 'Lianne', 'Alice', 'Jordan', 'Sylvia', 'Bongiwe', 'Lucy',
+                       'Danielle', 'Yolanda', 'Sarah', 'Filipa', 'Isla', 'Dimitri', 'Astrid', 'In\u00eas', 'Michelle', 'Noah'];
+
 window.IFC_CONFIG = {
 
   // The web app address from Google Apps Script (ends in /exec).
@@ -109,8 +114,7 @@ window.IFC_CONFIG = {
   masterclassPicks: {
     deadline: '',
     // Session Leaders (first names), shown as a dropdown in alphabetical order
-    leaders: ['Hollie', 'Rachael', 'Mireille', 'Tsungai', 'Lianne', 'Alice', 'Jordan', 'Sylvia', 'Bongiwe', 'Lucy',
-              'Danielle', 'Yolanda', 'Sarah', 'Filipa', 'Isla', 'Dimitri', 'Astrid', 'In\u00eas', 'Michelle', 'Noah'],
+    leaders: SESSION_LEADERS,
     list: [
       { title: 'Building Growth That Doesn\'t Break Trust',
         by: 'Lindsay Marino Long (Faircom New York), Ishmam Rahman (International Rescue Committee)',
@@ -166,6 +170,7 @@ window.IFC_CONFIG = {
       column: 'Session Leader name',
       type: 'name',
       label: 'Your name',
+      options: SESSION_LEADERS,               // a dropdown of names (remove this line for a typed name)
       required: true
     },
     {
