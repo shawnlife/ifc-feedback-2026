@@ -347,13 +347,19 @@ with sync_playwright() as p:
     lp.locator(".result").first.click()
     check(lp.locator("#questions .name-input").count() == 1 and lp.locator("#questions .q-help").count() >= 4, "name field and question explanations shown")
     lp.click("label[for=q1_4]"); lp.click("label[for=q2_5]"); lp.click("label[for=q3_3]")
-    lp.fill("#q5", "Packed room, brilliant Q&A")
-    lp.click("#submitBtn")
+    check("Key takeaway" in lp.inner_text(".q[data-i='5']") and "Final comments" in lp.inner_text(".q[data-i='6']"), "Key takeaway sits between Key issues and Final comments")
+    lp.fill("#q6", "Packed room, brilliant Q&A")
+    lp.fill("#q0", "Test Leader"); lp.click("#submitBtn")
+    check(lp.is_visible("#stepForm") and lp.locator(".q[data-i='5'].invalid").count() == 1 and lp.locator(".q[data-i='4'].invalid").count() == 0,
+          "Key takeaway is required, Key issues stays optional")
+    lp.fill("#q5", "Start retention conversations in the first 90 days")
+    lp.fill("#q0", ""); lp.click("#submitBtn")
     check(lp.is_visible("#stepForm") and "highlighted" in lp.inner_text("#formError"), "name is required")
     lp.fill("#q0", "Test Leader"); lp.click("#submitBtn"); lp.wait_for_selector("#stepDone:not([hidden])")
     last = received()[-1]
     check(last.get("form") == "leader" and last["answers"].get("Session Leader name") == "Test Leader"
-          and last["answers"].get("Session Leader: Overall (1-5)") == 4 and last["answers"].get("Session Leader: Final comments"), "leader report sent, marked as leader, answers in the right columns")
+          and last["answers"].get("Session Leader: Overall (1-5)") == 4 and last["answers"].get("Session Leader: Final comments")
+          and last["answers"].get("Session Leader: Key takeaway") == "Start retention conversations in the first 90 days", "leader report sent, marked as leader, answers in the right columns")
     check(lp.is_hidden("#homeTip"), "no home-screen tip for leaders")
     lp.click("#againBtn"); lp.locator(".result").nth(1).click()
     check(lp.input_value("#q0") == "Test Leader", "leader's name remembered for the next session")

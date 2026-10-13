@@ -200,6 +200,13 @@ window.IFC_CONFIG = {
       placeholder: 'Optional'
     },
     {
+      column: 'Session Leader: Key takeaway',
+      type: 'text',
+      label: 'Key takeaway',
+      help: 'In a sentence or two, the key learning you would pass on to someone who couldn\'t attend this session. Something they could pick up quickly.',
+      required: true
+    },
+    {
       column: 'Session Leader: Final comments',
       type: 'text',
       label: 'Final comments',

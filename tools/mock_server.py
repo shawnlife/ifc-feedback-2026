@@ -103,6 +103,7 @@ def fake_leaders():
     names = ["Anna de Groot", "Ben Okoro", "Chen Wei", "Dana Levi", "Eva Lindqvist", "Femi Adeyemi"]
     issues = ["Projector failed for 10 minutes", "Room far too small, people standing", "Speaker ran 15 minutes over", ""]
     notes = ["Packed room, great energy", "Lively Q&A, ran out of time", "A few people left halfway", "Speaker was outstanding"]
+    TAKEAWAYS = ["Start retention conversations in the first 90 days, not after a year", "Test one small change at a time and measure it properly", "Ask donors what they want before redesigning the journey", "Bring finance into fundraising planning from day one", "Consent and dignity come before the story, every time", "Power-sharing only counts when it shows up in the budget"]
     out = []
     for s in [x for x in load_sessions() if x.get("Start")]:
         if rnd.random() < 0.6:
@@ -113,6 +114,7 @@ def fake_leaders():
                                            "Session Leader: Audience engagement (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
                                            "Session Leader: Content clarity (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
                                            "Session Leader: Key issues": rnd.choices(issues, [1, 1, 1, 12])[0],
+                                           "Session Leader: Key takeaway": rnd.choice(TAKEAWAYS),
                                            "Session Leader: Final comments": rnd.choice(notes), "Came from": "Link"}},
                               f"{s['Date']}T{s['End'] or s['Start']}:00"))
     return out

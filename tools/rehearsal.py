@@ -40,6 +40,7 @@ CONTACT_NAMES = ["Priya Nair (test)", "Tom Visser (test)", "Ama Owusu (test)", "
 SL_NAMES = ["Anna de Groot", "Ben Okoro", "Chen Wei", "Dana Levi", "Eva Lindqvist", "Femi Adeyemi", "Grace Mwangi", "Hugo Bakker"]
 SL_ISSUES = ["Projector failed for about 10 minutes", "Room far too small, people standing at the back",
              "Speaker ran 15 minutes over", "Mic kept cutting out"]
+SL_TAKEAWAYS = ["Start retention conversations in the first 90 days, not after a year", "Test one small change at a time and measure it properly", "Ask donors what they want before redesigning the journey", "Bring finance into fundraising planning from day one", "Consent and dignity come before the story, every time", "Power-sharing only counts when it shows up in the budget"]
 SL_NOTES = ["Packed room, great energy throughout", "Lively Q&A, we ran out of time", "A few people left halfway through",
             "One of the speakers was outstanding", "Heated but respectful debate, worth a follow-up session",
             "Quiet room, audience seemed tired after lunch"]
@@ -122,6 +123,7 @@ for s in sessions:
                                       "Session Leader: Audience engagement (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
                                       "Session Leader: Content clarity (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
                                       "Session Leader: Key issues": rnd.choices(SL_ISSUES + [""], [1, 1, 1, 1, 28])[0],
+                                      "Session Leader: Key takeaway": rnd.choice(SL_TAKEAWAYS),
                                       "Session Leader: Final comments": rnd.choice(SL_NOTES), "Came from": "Link"}})
 for typed, when in [("Matt Derby talk", "2026-10-22T10:20"), ("the drinks thing last night", "2026-10-22T08:40"),
                     ("open discussion about wellbeing", "2026-10-21T18:10"), ("The AI one", "2026-10-21T16:55")]:
