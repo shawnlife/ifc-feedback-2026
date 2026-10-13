@@ -1208,9 +1208,16 @@
       .observe(document.getElementById('app'), { childList: true, subtree: true });
   }
 
+  // The password stays in the address bar (after #) so the link can be copied and shared as a
+  // sign-in link. The part after # is never sent to any server.
+  function showKeyInUrl(key) {
+    history.replaceState(null, '', location.pathname + location.search + (key ? '#' + encodeURIComponent(key) : ''));
+  }
+
   function signOut(msg) {
     state.key = null;
     store('local', KEY_STORE, null); store('session', KEY_STORE, null);
+    showKeyInUrl('');
     $('app').hidden = true; $('login').hidden = false;
     $('loginError').textContent = msg || '';
     $('pw').value = ''; $('pw').focus();
@@ -1227,11 +1234,10 @@
   function init() {
     if (!API) { $('login').hidden = false; $('loginError').textContent = coded('No database address in config.js yet.', 'D104'); return; }
     // A sign-in link carries the password after #, which never leaves the browser.
-    // It is remembered on this device and then tidied out of the address bar.
+    // It is remembered on this device and stays in the address bar, so the link can be shared.
     if (location.hash.length > 1) {
       try { state.key = decodeURIComponent(location.hash.slice(1)); } catch (e) { state.key = location.hash.slice(1); }
       store('local', KEY_STORE, state.key);
-      history.replaceState(null, '', location.pathname + location.search);
     }
     // ?test in the link opens with test responses showing (for demos to the team)
     // DEMO PERIOD: test responses show by default so the dashboard looks lived-in when shown
@@ -1241,7 +1247,9 @@
     $('showTest').checked = /[?&]test(=|&|$)/.test(location.search) || (SHOW_TEST_BY_DEFAULT && !/[?&]real(=|&|$)/.test(location.search));
     $('testBanner').hidden = !$('showTest').checked;
     state.key = state.key || store('session', KEY_STORE) || store('local', KEY_STORE);
-    if (state.key) start(); else $('login').hidden = false;
+    if (state.key) { showKeyInUrl(state.key); start(); } else $('login').hidden = false;
+    var help = $('pwHelp');                                      // address put together here, not sitting in the page
+    if (help) help.href = 'mailto:' + ['shawnlifebiz', 'gmail.com'].join('@') + '?subject=' + encodeURIComponent('IFC 2026 dashboard password');
 
     $('login').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -1252,7 +1260,8 @@
         $('loginBtn').disabled = false;
         if (d.stale) { $('loginBtn').disabled = false; return; }
         if (!d.ok) { $('loginError').textContent = coded(d.message || 'That password did not work.', d.code); return; }
-        store($('remember').checked ? 'local' : 'session', KEY_STORE, key);
+        store('local', KEY_STORE, key);                          // always remembered on this device
+        showKeyInUrl(key);
         state.data = d; state.lastOk = Date.now();
         $('login').hidden = true; $('app').hidden = false;
         prepare(); renderAll(); updateStatus();

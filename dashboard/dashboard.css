@@ -5,6 +5,8 @@
 
 .login { max-width: 380px; display: grid; gap: 10px; }
 .login label { font-weight: 700; }
+.login-help { margin: 4px 0 0; font-size: 15px; color: var(--muted); }
+.login-help a { color: var(--ink); font-weight: 700; text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .login input[type=password] { height: 52px; padding: 0 14px; border: 2px solid var(--ink); font-size: 18px; }
 .login input:focus { outline: none; box-shadow: -4px 5px 0 var(--accent); }
 .check, .toggle { display: flex; align-items: center; gap: 8px; font-weight: 400 !important; font-size: 15px; cursor: pointer; }
