@@ -27,6 +27,7 @@
   var LQ = CFG.leaderQuestions || [];
   var L_NAME = LQ.filter(function (q) { return q.type === 'name'; }).map(col)[0];
   var L_RATINGS = LQ.filter(function (q) { return q.type === 'rating'; });
+  var L_TAKEAWAY = LQ.filter(function (q) { return /takeaway/i.test(col(q)); }).map(col)[0];   // "Key takeaway" (download on the Session Leaders tab)
   var L_TEXTS = LQ.filter(function (q) { return q.type === 'text'; });
   var L_ISSUES = L_TEXTS[0] ? col(L_TEXTS[0]) : null;          // "Key issues"
   var L_OVERALL = L_RATINGS[0] ? col(L_RATINGS[0]) : null;
@@ -632,7 +633,9 @@
     };
     var lsort = function (a, b) { var x = lval(a), y = lval(b); return (x > y ? 1 : x < y ? -1 : 0) * state.lSortDir || (a.date + a.start).localeCompare(b.date + b.start); };
     list.sort(lsort); issues.sort(lsort);
-    var html = '<div class="tiles">' +
+    var html = (L_TAKEAWAY ? '<div class="controls"><span class="sub" style="margin:0">Uses the filters above.</span><span class="spacer"></span>' +
+      '<button type="button" class="secondary small" id="takeawaysBtn">Download key takeaways (Excel)</button></div>' : '') +
+      '<div class="tiles">' +
       tile('Session Leader reports', String(list.length), Object.keys(covered).length + ' of ' + fSessions().length + ' sessions covered') +
       L_RATINGS.map(function (q) {
         var vals = list.map(function (l) { return num(l.raw[col(q)]); }).filter(function (v) { return v != null; });
@@ -824,6 +827,29 @@
 
 
   /* ---------- Word export (editable before sending to speakers) ---------- */
+
+  // Every Session Leader's key takeaway, by day and time, as an Excel file (follows the filters)
+  function exportTakeaways() {
+    var list = leaders.filter(function (l) { return String(l.raw[L_TAKEAWAY] || '').trim() && matches(l, l.name + ' ' + l.raw[L_TAKEAWAY]); })
+      .sort(function (a, b) { return (a.date + a.start + a.room).localeCompare(b.date + b.start + b.room); });
+    if (!list.length) { alert('No key takeaways yet with these filters.'); return; }
+    var btn = $('takeawaysBtn'); btn.disabled = true; btn.textContent = 'Preparing…';
+    loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').then(function () {
+      var X = window.XLSX;
+      var rowsX = [['Day', 'Time', 'Room', 'Session', 'Speakers', 'Type', 'Track', 'Session Leader', 'Key takeaway']].concat(list.map(function (l) {
+        var s = byId[l.id] || {};
+        return [dayLabel(l.date), l.start + (s.end ? '\u2013' + s.end : ''), l.room, l.title, l.speakers, l.type, l.track, l.name, String(l.raw[L_TAKEAWAY]).replace(/^'/, '')];
+      }));
+      var ws = X.utils.aoa_to_sheet(rowsX);
+      ws['!cols'] = [10, 12, 14, 44, 34, 16, 30, 18, 80].map(function (w) { return { wch: w }; });
+      ws['!autofilter'] = { ref: 'A1:I1' };
+      var wb = X.utils.book_new();
+      X.utils.book_append_sheet(wb, ws, 'Key takeaways');
+      X.writeFile(wb, 'IFC2026 key takeaways' + ($('showTest').checked ? ' (TEST)' : '') + '.xlsx');
+    }).catch(function () {
+      alert(coded('Could not create the Excel file (no connection to the export library). Try again.', 'D204'));
+    }).then(function () { btn.disabled = false; btn.textContent = 'Download key takeaways (Excel)'; });
+  }
 
   function loadScript(src) {
     return new Promise(function (ok, bad) {
@@ -1234,6 +1260,7 @@
       else if (el.dataset.reopen) resolveIssue(el, true);
       else if (el.dataset.restore) assign(el, '__RESTORE__');
       else if (el.id === 'exportBtn') exportCSV();
+      else if (el.id === 'takeawaysBtn') exportTakeaways();
       else if (el.id === 'moreComments') { state.commentsShown += 100; renderComments(); }
       else if (el.id === 'wordBtn') exportWord();
       else if (el.id === 'pickNone') { state.picked = []; renderScorecards(); }

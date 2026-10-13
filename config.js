@@ -196,8 +196,7 @@ window.IFC_CONFIG = {
       column: 'Session Leader: Key issues',
       type: 'text',
       label: 'Key issues',
-      help: 'Any key issues that need to be addressed about this session, the speakers, the topics, etc.',
-      placeholder: 'Optional'
+      help: 'Any key issues that need to be addressed about this session, the speakers, the topics, etc.'
     },
     {
       column: 'Session Leader: Key takeaway',
