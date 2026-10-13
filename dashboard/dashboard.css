@@ -23,6 +23,7 @@
 .filters #fTrack { max-width: 260px; }
 .filters select, .filters input { height: 42px; padding: 0 10px; border: 2px solid var(--ink); background: var(--bg); font-size: 15px; text-transform: none; letter-spacing: 0; font-weight: 400; min-width: 150px; border-radius: 0; }
 /* Own arrow, set in from the right edge (the browser's sits hard against the border) */
+.filters select, .controls select { color: var(--ink); -webkit-text-fill-color: var(--ink); }
 .filters select { -webkit-appearance: none; appearance: none; padding-right: 40px; cursor: pointer;
   background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center; }
 
@@ -154,9 +155,11 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
   .filters .grow { grid-column: 1 / -1; }
   .filters select, .filters input { min-width: 0; width: 100%; }
 
-  .tabs { flex-wrap: nowrap; overflow-x: auto; gap: 0; margin: 0 -16px 18px; padding: 0 16px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tabs button { flex: none; white-space: nowrap; padding: 12px 12px; font-size: 15px; }
+  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; border-bottom: 0; margin: 0 0 20px; }
+  .tabs button { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; min-height: 52px; margin: 0; padding: 6px 4px;
+    border: 2px solid var(--ink); font-size: 13px; line-height: 1.15; text-align: center; white-space: normal; }
+  .tabs button[aria-selected=true] { background: var(--accent); border-color: var(--ink); }
+  .tabs .count { min-width: 18px; padding: 0 5px; font-size: 11px; border-radius: 9px; }
 
   .tiles { grid-template-columns: 1fr 1fr; gap: 10px; }
   .tile { padding: 12px; }
@@ -167,15 +170,11 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
   .tbl-wrap { border: 0; overflow: visible; }
   table.tbl, .tbl tbody, .tbl tr, .tbl td { display: block; width: auto; }
   .tbl tr[hidden] { display: none; }
-  .tbl thead { display: block; }
-  .tbl thead tr { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; padding: 0 0 10px; overflow-x: auto; scrollbar-width: none; }
-  .tbl thead tr::-webkit-scrollbar { display: none; }
-  .tbl thead tr::before { content: "Sort by"; flex: none; font-size: 13px; color: var(--muted); margin-right: 2px; }
-  .tbl th { position: static; flex: none; padding: 0; border: 0; background: none; }
-  .tbl th:not(:has(button)) { display: none; }
-  .tbl thead tr:not(:has(button)) { display: none; }
-  .tbl th button { padding: 6px 10px; border: 2px solid var(--ink); background: var(--bg); font-size: 12px; }
-  .tbl th button[aria-sort] { background: var(--accent); }
+  .tbl thead { display: none; }
+  .m-sort { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 14px; font-weight: 700; }
+  .m-sort select { flex: 1; height: 42px; padding: 0 40px 0 10px; border: 2px solid var(--ink); border-radius: 0; font-size: 15px;
+    color: var(--ink); -webkit-text-fill-color: var(--ink); -webkit-appearance: none; appearance: none;
+    background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center; }
   .tbl tbody tr { border: 2px solid var(--ink); margin-bottom: 10px; padding: 8px 0; background: var(--bg); }
   .tbl tbody tr:hover { background: var(--bg); }
   .tbl td { border: 0; padding: 4px 14px; text-align: left; white-space: normal; }
@@ -185,7 +184,16 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
   tr.has-issue { border-left: 6px solid var(--danger) !important; }
   tr.has-issue td:first-child { box-shadow: none; }
   .assign select { max-width: 100%; width: 100%; }
-  .assign .secondary.small { margin: 8px 0 0; }
+  .assign-hint { margin-top: 6px; }
+  .assign-actions { display: flex; align-items: center; gap: 18px; margin-top: 12px; }
+  .assign-actions .secondary.small { margin: 0; }
+  .assign .link { margin: 0; }
+  .controls label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .controls select { max-width: 100%; }
+
+  /* Overview: list of bars instead of the wide chart */
+  #blockChart { display: none; }
+  .bar-list { display: block; }
   .scorebar { width: 56px; }
 
   .card { padding: 16px; }
@@ -193,4 +201,24 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
   .card .row { grid-template-columns: 1fr; }
   .dist.timing { grid-template-columns: 96px 1fr 40px; }
   .comment { padding: 12px 14px; }
+}
+
+/* Sort-by dropdown and bar list only on phones */
+.m-sort { display: none; }
+.bar-list { display: none; margin: 4px 0 6px; }
+.bl-day { margin: 14px 0 6px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.bl-day:first-child { margin-top: 4px; }
+.bl-row { display: grid; grid-template-columns: 48px 1fr 40px; align-items: center; gap: 10px; padding: 3px 0; font-size: 14px; }
+.bl-time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.bl-track { height: 14px; background: #eee; }
+.bl-track i { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; }
+.bl-n { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.assign-actions { display: inline-flex; align-items: center; gap: 12px; }
+
+@media (max-width: 640px) { .desk-only { display: none; } }
+@media (max-width: 640px) {
+  .m-sort { display: flex; }
+  .bar-list { display: block; }
+  #blockChart { display: none; }
+  .assign-actions { display: flex; }
 }

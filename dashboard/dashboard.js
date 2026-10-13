@@ -36,7 +36,7 @@
   var ANALYTICS = true;    // last tab: how people use the tool (not front and centre)
   var state = {
     key: null, data: null, lastOk: 0, tab: 'overview',
-    sortBy: 'rank', sortDir: 1, minN: 3, scorecard: '', commentsShown: 100,
+    sortBy: 'rank', sortDir: 1, minN: 1, scorecard: '', commentsShown: 100,
     lSortBy: 'when', lSortDir: 1, picked: [], withLeaders: true
   };
   var sessions = [], byId = {}, rows = [], leaders = [];
@@ -265,8 +265,8 @@
     });
     list.forEach(function (r) { var k = r.date + ' ' + r.start; if (blocks[k]) blocks[k].n++; });
     order.sort();
-    html += '<h2 class="section">Responses per time block</h2><p class="sub">Each bar is one time slot. Hover for details.</p>' +
-      columnChart(order.map(function (k) { return blocks[k]; })) +
+    html += '<h2 class="section">Responses per time block</h2><p class="sub">Each bar is one time slot.<span class="desk-only"> Hover for details.</span></p>' +
+      columnChart(order.map(function (k) { return blocks[k]; })) + barList(order.map(function (k) { return blocks[k]; })) +
       '<button type="button" class="link table-toggle" data-toggle="blockTable">Show as a table</button>' +
       '<div id="blockTable" hidden>' + blockTable(order.map(function (k) { return blocks[k]; })) + '</div>';
     $('tab-overview').innerHTML = html;
@@ -363,7 +363,7 @@
     var max = Math.max(1, Math.max.apply(null, data.map(function (d) { return d.n; })));
     var step = Math.ceil(max / 4 / 5) * 5 || 1, top = step * 4;
     var slot = 54, left = 40, h = 220, bottom = 44, w = left + data.length * slot;
-    var y = function (v) { return 10 + (h - 10) * (1 - v / top); };
+    var y = function (v) { return 22 + (h - 22) * (1 - v / top); };   // room above the tallest bar for its label
     // drawn at its natural size (never stretched), scrolls sideways on small screens
     var svg = '<svg width="' + w + '" height="' + (h + bottom) + '" viewBox="0 0 ' + w + ' ' + (h + bottom) + '" role="img" aria-label="Responses per time block">';
     for (var g = 0; g <= 4; g++) {
@@ -383,6 +383,19 @@
       prevDay = d.date;
     });
     return '<div class="chart" id="blockChart">' + svg + '</svg></div>';
+  }
+
+  // Phones: one row per time slot (day, time, bar, number) instead of the wide chart
+  function barList(data) {
+    if (!data.length) return '';
+    var max = Math.max(1, Math.max.apply(null, data.map(function (d) { return d.n; }))), day = '';
+    return '<div class="bar-list" aria-hidden="true">' + data.map(function (d) {
+      var head = d.date !== day ? '<div class="bl-day">' + esc(dayLabel(d.date)) + '</div>' : '';
+      day = d.date;
+      return head + '<div class="bl-row"><span class="bl-time">' + esc(d.start) + '</span>' +
+        '<span class="bl-track"><i style="width:' + (d.n ? Math.max(2, Math.round(100 * d.n / max)) : 0) + '%"></i></span>' +
+        '<span class="bl-n">' + d.n + '</span></div>';
+    }).join('') + '</div>';
   }
 
   function blockTable(data) {
@@ -468,10 +481,7 @@
     var html = '<div class="controls">' +
       '<label class="toggle"><input type="checkbox" id="combine"' + (state.combine ? ' checked' : '') + '> Combine repeated workshops</label>' +
       onlineToggle() +
-      '<label>Only sessions with at least <select id="minN">' + [1, 3, 5, 10, 20].map(function (n) {
-        return '<option' + (n === state.minN ? ' selected' : '') + '>' + n + '</option>';
-      }).join('') + '</select> responses</label>' +
-      '<span class="few">' + shown.length + ' of ' + data.length + ' sessions shown. Scores from very few people are not reliable.</span>' +
+      '<span class="few">' + shown.length + ' of ' + data.length + ' sessions have feedback. Scores from only a few people are less reliable.</span>' +
       '<span class="spacer"></span><button type="button" class="secondary small" id="exportBtn">Download ranking (spreadsheet)</button></div>';
     html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + th('rank', 'Rank', 1) + th('title', 'Session') + th('when', state.combine ? 'When / runs' : 'When / room') + th('n', 'Responses', 1) +
       (hasRate ? th('rate', 'Response rate', 1) : '') +
@@ -499,7 +509,7 @@
     var ok = rankAll(data);
     var rest = data.filter(function (d) { return ok.indexOf(d) === -1; }).sort(function (a, b) { return b.st.n - a.st.n; });
     ok.forEach(function (d) { d.rankLabel = d.rank + (d.tied ? ' (tied)' : ''); });
-    rest.forEach(function (d) { d.rankLabel = d.st.n ? 'fewer than ' + state.minN + ' responses' : 'no responses'; });
+    rest.forEach(function (d) { d.rankLabel = 'no responses'; });
     data = ok.concat(rest);
     var head = ['Rank', 'Session ID', 'Session', 'Speakers', state.combine ? 'Room / runs' : 'Room', 'Day', 'Start', 'Track', 'Responses']
       .concat(RATINGS.map(function (q) { return 'Average ' + col(q); }))
@@ -626,8 +636,9 @@
   // Session leaders tab: every report, key issues first
   function renderLeaders() {
     var list = leaders.filter(function (l) {
-      return matches(l, l.name + ' ' + L_TEXTS.map(function (q) { return l.raw[col(q)] || ''; }).join(' '));
+      return (!state.lFilter || l.name === state.lFilter) && matches(l, l.name + ' ' + L_TEXTS.map(function (q) { return l.raw[col(q)] || ''; }).join(' '));
     }).sort(function (a, b) { return (a.date + a.start + a.room).localeCompare(b.date + b.start + b.room); });
+    var leaderNames = leaders.map(function (l) { return l.name; }).filter(function (n, i, a) { return n && a.indexOf(n) === i; }).sort(function (a, b) { return a.localeCompare(b); });
     var hasIssue = function (l) { return L_ISSUES && String(l.raw[L_ISSUES] || '').trim(); };
     var issues = list.filter(function (l) { return hasIssue(l) && !l.handled; });
     var handledN = list.filter(function (l) { return hasIssue(l) && l.handled; }).length;
@@ -644,8 +655,9 @@
     };
     var lsort = function (a, b) { var x = lval(a), y = lval(b); return (x > y ? 1 : x < y ? -1 : 0) * state.lSortDir || (a.date + a.start).localeCompare(b.date + b.start); };
     list.sort(lsort); issues.sort(lsort);
-    var html = (L_TAKEAWAY ? '<div class="controls"><span class="sub" style="margin:0">Uses the filters above.</span><span class="spacer"></span>' +
-      '<button type="button" class="secondary small" id="takeawaysBtn">Download key takeaways (Excel)</button></div>' : '') +
+    var html = '<div class="controls"><label>Session Leader <select id="lFilter"><option value="">All Session Leaders</option>' +
+      leaderNames.map(function (n) { return '<option' + (n === state.lFilter ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') +
+      '</select></label></div>' +
       '<div class="tiles">' +
       tile('Session Leader reports', String(list.length), Object.keys(covered).length + ' of ' + fSessions().length + ' sessions covered') +
       L_RATINGS.map(function (q) {
@@ -668,7 +680,9 @@
           ' <button type="button" class="link" data-reopen="' + l.row + '" data-ts="' + esc(l.when) + '">Reopen</button></p>' : '') +
         '</td></tr>';
     };
+    var L_SORTABLE = ['title', 'when', L_OVERALL];                       // sort by session, when, overall rating only
     var lth = function (k, label, numCol) {
+      if (L_SORTABLE.indexOf(k) === -1) return '<th class="' + (numCol ? 'num' : '') + '">' + esc(label) + '</th>';
       var sorted = state.lSortBy === k ? ' aria-sort="' + (state.lSortDir > 0 ? 'ascending' : 'descending') + '"' : '';
       return '<th class="' + (numCol ? 'num' : '') + '"><button type="button" data-lsort="' + esc(k) + '"' + sorted + '>' + esc(label) + '</button></th>';
     };
@@ -830,6 +844,7 @@
       '<label class="toggle"><input type="checkbox" id="withLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader reports</label>' +
       onlineToggle() +
       '<button type="button" class="secondary small" id="wordBtn">Download for editing (Word)</button>' +
+      (L_TAKEAWAY ? '<button type="button" class="secondary small" id="takeawaysBtn">Download key takeaways (Excel)</button>' : '') +
       '<button type="button" class="secondary small" id="printBtn">Print or save as PDF</button></div>';
     html += show.length ? show.map(function (w) { return workshopCard(w, sd.byRun, state.withLeaders); }).join('')
       : '<p class="empty">No sessions with feedback match these filters.</p>';
@@ -1002,10 +1017,10 @@
         return '<tr><td>' + esc(localTime(r.when)) + '</td><td class="t-title">' + esc(r.title) +
           TEXTS.map(function (q) { return r.raw[col(q)] ? '<div class="t-sub">' + esc(col(q)) + ': ' + esc(r.raw[col(q)]) + '</div>' : ''; }).join('') +
           '</td><td class="num">' + (num(r.raw[OVERALL]) || '–') + '</td>' +
-          '<td class="assign"><select data-row="' + r.row + '" aria-label="Session for this response">' + sessionOptions(guess) + '</select> ' +
-          '<button type="button" class="secondary small" data-assign="' + r.row + '" data-ts="' + esc(r.when) + '">Match</button>' +
-          '<button type="button" class="link" data-nomatch="' + r.row + '" data-ts="' + esc(r.when) + '">No match</button>' +
-          (guess ? '<div class="t-sub">Best guess pre-selected. Check it before matching.</div>' : '') + '</td></tr>';
+          '<td class="assign"><select data-row="' + r.row + '" aria-label="Session for this response">' + sessionOptions(guess) + '</select>' +
+          (guess ? '<div class="t-sub assign-hint">Best guess pre-selected. Check it before matching.</div>' : '') +
+          '<div class="assign-actions"><button type="button" class="secondary small" data-assign="' + r.row + '" data-ts="' + esc(r.when) + '">Match</button>' +
+          '<button type="button" class="link" data-nomatch="' + r.row + '" data-ts="' + esc(r.when) + '">No match</button></div></td></tr>';
       }).join('') + '</tbody></table></div>'
       : '<p class="empty">Nothing waiting to be matched.' + (matched ? '' : ' Good sign: the list is complete.') + '</p>';
     if (dismissed.length) {
@@ -1149,13 +1164,32 @@
     state.tab = name;
     document.querySelectorAll('.tabs [role=tab]').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.tab === name); });
     document.querySelectorAll('.panel').forEach(function (p) { p.hidden = p.id !== 'tab-' + name; });
-    var on = document.querySelector('.tabs [aria-selected=true]');       // phones: tabs scroll sideways, keep the chosen one in view
-    if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   // Phones show each table row as a card, so every cell needs its column name
+  // Phones: column sorting becomes one "Sort by" dropdown above the table (shown by CSS on small screens).
+  // Rankings offers only rank, session, when, responses and overall.
+  var M_SORT_OK = ['rank', 'title', 'when', 'n', 'avg0'];
+  function addMobileSort(t) {
+    if (t.dataset.msort) return;
+    t.dataset.msort = '1';
+    var btns = [].slice.call(t.querySelectorAll('thead th button'));
+    if (!btns.length) return;
+    var panelBtns = [].slice.call(t.closest('.panel').querySelectorAll('th button'));
+    var opts = btns.filter(function (b) { return b.dataset.lsort || M_SORT_OK.indexOf(b.dataset.sort) > -1; });
+    if (!opts.length) return;
+    var on = btns.filter(function (b) { return b.hasAttribute('aria-sort'); })[0];
+    var wrap = document.createElement('label');
+    wrap.className = 'm-sort';
+    wrap.innerHTML = 'Sort by <select class="m-sort-select">' + opts.map(function (b) {
+      return '<option value="' + panelBtns.indexOf(b) + '"' + (b === on ? ' selected' : '') + '>' + esc(b.textContent.trim()) + '</option>';
+    }).join('') + (on && opts.indexOf(on) === -1 ? '<option selected disabled>' + esc(on.textContent.trim()) + '</option>' : '') + '</select>';
+    t.closest('.tbl-wrap').insertAdjacentElement('beforebegin', wrap);
+  }
+
   function labelTables(root) {
     root.querySelectorAll('table.tbl').forEach(function (t) {
+      addMobileSort(t);
       var heads = [].map.call(t.querySelectorAll('thead th'), function (th) { return th.textContent.trim(); });
       t.querySelectorAll('tbody tr').forEach(function (tr) {
         [].forEach.call(tr.children, function (td, i) {
@@ -1280,9 +1314,13 @@
       }
     });
     document.querySelector('#app').addEventListener('change', function (e) {
-      if (e.target.id === 'minN') { state.minN = +e.target.value; renderRankings(); }
       if (e.target.id === 'combine') { state.combine = e.target.checked; renderRankings(); }
       if (e.target.id === 'withLeaders') { state.withLeaders = e.target.checked; renderScorecards(); }
+      if (e.target.id === 'lFilter') { state.lFilter = e.target.value; renderLeaders(); }
+      if (e.target.classList.contains('m-sort-select')) {             // phones: the Sort by dropdown presses that column's button
+        var tb = e.target.closest('.panel').querySelectorAll('th button')[+e.target.value];
+        if (tb) tb.click();
+      }
       if (e.target.id === 'onlyContact') { state.onlyContact = e.target.checked; renderComments(); }
       if (e.target.classList.contains('withOnline')) { state.withOnline = e.target.checked; renderAll(); }
     });
