@@ -77,7 +77,7 @@ The hidden **Raw log** tab is the master copy of every response. Never edit or s
 
 Why: Google Sheets loses rows when hundreds of phones write at the same instant (proved in testing). Firebase is Google's database built for that. Phones send there first; every minute the script copies new responses into the Sheet. If Firebase is ever unreachable, phones automatically use the Sheet route instead.
 
-**Part A: create Firebase (sign in as scbuck27@gmail.com, the account that owns the Sheet)**
+**Part A: create Firebase (sign in with the Google account that owns the Sheet)**
 1. Go to console.firebase.google.com > **Create a project**. Name: `ifc-feedback-2026`. Turn **off** Google Analytics. Create.
 2. Left menu: **Build > Firestore Database > Create database**. Location: a **Europe** one (e.g. `eur3`). Start in **production mode**. Create.
 3. **Rules** tab: delete everything, paste `backend/firestore.rules`, **Publish**.
