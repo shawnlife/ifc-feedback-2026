@@ -58,14 +58,14 @@ def answers_for(s, o, rnd, quality):
     per = {n: max(1, min(5, round(o + rnd.choice([-1, 0, 0, 1]) + (rnd.choice([-1, 1]) if i and rnd.random() < 0.3 else 0))))
            for i, n in enumerate(names)}
     if names:
-        rated = {n: v for n, v in per.items() if rnd.random() > 0.08}          # a few skip a speaker
+        rated = per                                                            # every speaker is required now
         spk = round(sum(rated.values()) / len(rated), 1) if rated else ""
         detail = "; ".join(f"{n}: {v}" for n, v in rated.items())
     else:
-        spk, detail = rnd.choice(["", max(1, min(5, o + rnd.choice([-1, 0, 1])))]), ""
+        spk, detail = max(1, min(5, o + rnd.choice([-1, 0, 1]))), ""
     return {"Overall (1-5)": o, "Speakers (1-5)": spk, "Speaker ratings": detail,
-            "Relevance (1-5)": rnd.choice(["", max(1, min(5, o + rnd.choice([-1, 0, 1])))]),
-            "Learned something new": rnd.choices(["Yes", "No", "Not sure", ""], [o * 1.3, 4 - o * 0.6 if o < 4 else 0.4, 1.5, 0.8])[0],
+            "Relevance (1-5)": max(1, min(5, o + rnd.choice([-1, 0, 1]))),
+            "Learned something new": rnd.choices(["Yes", "No", "Not sure"], [o * 1.3, 4 - o * 0.6 if o < 4 else 0.4, 1.5])[0],
             "Anything else": rnd.choice(ANYTHING_GOOD + [""] * 4) if o >= 4 else rnd.choice(ANYTHING_BAD + [""] * 2),
             "Came from": rnd.choices(["QR code", "NFC tag", "Link", "Home screen"], [45, 30, 15, 6 if s["Date"] < "2026-10-22" else 14])[0],
             # a few ask to be contacted, mostly after a poor session
