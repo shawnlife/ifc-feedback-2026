@@ -18,14 +18,16 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
-FM = next((ROOT / "private").glob("*Facility Management*.csv"))
+# James's programme sheet: the newest one in private/ (old "Facility Management" export or "NEW Programme")
+FM = max(list((ROOT / "private").glob("*Facility Management*.csv")) + list((ROOT / "private").glob("*Programme*.csv")),
+         key=lambda p: p.stat().st_mtime)
 # Tuesday is left out (Shawn, 2 Oct): the Leadership Summit isn't reviewed, and masterclasses
 # are reviewed once, at the end of part 2 on Wednesday.
 DAYS = {"wednesday": "2026-10-21", "thursday": "2026-10-22", "friday": "2026-10-23"}
 
 # Things nobody gives session feedback on (or Shawn asked to leave out)
-SKIP = re.compile(r"(set ?up|^welcome to ifc|plenary|pub quiz|dinner|drinks|reception|gala|disco|dressing|"
-                  r"meeting room|speaker briefing|film screening|^atrium set)", re.I)
+SKIP = re.compile(r"(set ?up|^welcome to ifc|plenary|pub quiz|dinner|drinks|reception|gala|\bdisco\b|dressing|"
+                  r"meeting room|speaker briefing|film screening|^atrium set|aa meeting|friends of bill)", re.I)
 
 
 def norm(s):
@@ -59,7 +61,7 @@ for r in json.loads((ROOT / "tools" / "sample-data" / "cvent-all.json").read_tex
     start = (re.findall(r"\d\d:\d\d", r["time"]) or [""])[0]
     code = next((p for p in r["rest"] if re.fullmatch(r"\d?[A-Z]{2,3}\d{1,2}", p)), "")
     room = next((p for p in r["rest"] if p != code), "")
-    cvent[(date, start, norm(r["title"]))] = dict(r, code=code, room=room, used=False)
+    cvent[(date, start, norm(r["title"]))] = dict(r, code=code, room=room, used=False, _date=date, _start=start)
 
 # ---- James's sheet
 rows = list(csv.reader(FM.open(encoding="cp1252")))
@@ -78,8 +80,11 @@ for line, r in enumerate(rows[1:], 2):
     start, end = (t.replace(".", ":").zfill(5) for t in times[:2])
     room = clean_room(room_raw)
     speakers = clean_speakers(spk_raw)
-    if title.lower().startswith("open discussion"):
-        title = "Open Discussion"
+    if title.lower().startswith("open discussion"):                 # keep the topic when there is one
+        topic = re.sub(r"^open discussion\s*[:\-]?\s*", "", title, flags=re.I).strip(" /")
+        title = "Open Discussion" + (": " + topic if topic else "")
+    elif re.match(r"big topic\s*[:\-]", title, re.I):                 # "BIG TOPIC - X" or "Big Topic: X"
+        title = "Big Topic: " + re.sub(r"^big topic\s*[:\-]\s*", "", title, flags=re.I)
     elif title.lower().startswith("leadership summit"):
         title = "Leadership Summit" + (" breakout" if "breakout" in title.lower() else "")
 
@@ -107,9 +112,16 @@ for line, r in enumerate(rows[1:], 2):
         if fm_names and fm_names != cv_names:
             report.append(f"NAMES  {date} {start} {title}: James '{speakers}' / Cvent '{row['Speakers']}' (using Cvent)")
     else:
+        # Renamed in James's sheet but same day, time and room as a Cvent session: keep that code
+        same = next((v for v in cvent.values() if not v["used"] and v["code"] and v["room"].lower() == room.lower()
+                     and v["_date"] == date and v["_start"] == start), None)
+        if same:
+            same["used"] = True
+            row["ID"], row["Track"], row["Type"] = same["code"], same["track"], same["type"]
+            report.append(f"RENAMED {date} {start} {room}: Cvent '{same['title']}' is now '{title}' (kept {same['code']})")
         if title.startswith("Innovation Hub"):
             row["Type"] = "Innovation Hub"
-        elif title.startswith("BIG TOPIC"):
+        elif title.startswith("Big Topic"):
             row["Type"] = "Big Topic"
         report.append(f"NEW    {date} {start} {room}: {title}" + (f" ({speakers})" if speakers else "") +
                       "  [not in Cvent]")
@@ -153,6 +165,11 @@ NAMED = {"7WS12": ("Designing Digital Experiences That Convert", "Danielle Rice"
 for row in out:
     if row["ID"] in NAMED:
         row["Title"], row["Speakers"], row["Organisations"], row["Track"], row["Type"] = NAMED[row["ID"]]
+    # A repeat run that isn't in Cvent takes its type and track from another run of the same session
+    if not row["Type"]:
+        twin = next((o for o in out if o is not row and norm(o["Title"]) == norm(row["Title"]) and o["Type"]), None)
+        if twin:
+            row["Type"], row["Track"] = twin["Type"], row["Track"] or twin["Track"]
     # Every session gets a type, so the dashboard's Type filter covers them all
     if not row["Type"]:
         row["Type"] = ("Open Discussion" if row["Title"].startswith("Open Discussion")
