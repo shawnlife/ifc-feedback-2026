@@ -772,7 +772,7 @@
     $('contactFields').hidden = true;                                   // the reset unticked "contact me"
     els.stepForm.querySelectorAll('.invalid').forEach(function (x) { x.classList.remove('invalid'); });
     els.stepForm.querySelectorAll('.q-error').forEach(function (x) { x.remove(); });
-    els.formError.textContent = '';
+    els.formError.textContent = ''; els.formError.style.visibility = '';
     var change = '<button type="button" class="link" id="changeBtn">Change</button>';
     if (s.manual) {
       els.chosen.innerHTML = '<div class="chosen-head"><span class="chosen-label">Your session</span>' + change + '</div>' +
@@ -965,6 +965,7 @@
     var c = collect();
     if (c.firstBad) {
       els.formError.textContent = 'Please fill in the highlighted question.';
+      els.formError.style.visibility = '';
       c.firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
@@ -1172,7 +1173,9 @@
       if (fs && fs.classList.contains('invalid')) {
         fs.classList.remove('invalid');
         var err = fs.querySelector('.q-error'); if (err) err.remove();
-        if (!els.stepForm.querySelector('.invalid')) els.formError.textContent = '';
+        // Hide the message but keep its space: if the line collapsed here, the Send button would
+        // jump up just as the person taps it and the tap would miss
+        if (!els.stepForm.querySelector('.invalid')) els.formError.style.visibility = 'hidden';
       }
     });
     els.stepForm.addEventListener('click', function (e) {
