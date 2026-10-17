@@ -148,6 +148,21 @@ for row in out:
         room_code = re.sub(r"[^A-Z0-9]", "", (row["Room"].split("(")[0][:3].upper() + re.sub(r"\D", "", row["Room"].split("(")[0])))
         row["ID"] = f"N{row['Date'][-2:]}-{row['Start'].replace(':', '')}-{room_code}"
 
+# Crossed out in James's sheet (strikethrough doesn't survive the CSV export, so listed here): (date, start, room)
+CANCELLED = {("2026-10-22", "15:00", "Erasmus 7")}     # 3rd run of The Inner Work of Trust-Based Philanthropy (17 Oct)
+out = [r for r in out if (r["Date"], r["Start"], r["Room"]) not in CANCELLED]
+
+# Speakers from James's session sheet for Shawn (17 Oct) that the facilities sheet doesn't have yet
+EXTRA_SPEAKERS = {
+    ("2026-10-21", "17:00", "Boston 17"): ["Olumide (Mide) Akerewusi"],   # Open Discussion: burnout
+    ("2026-10-22", "10:30", "Cambridge 32"): ["Andrew Myhill"],           # Big Topic: keep Emma Karhan too (sheets differ)
+}
+for r in out:
+    for extra in EXTRA_SPEAKERS.get((r["Date"], r["Start"], r["Room"]), []):
+        names = [n.strip() for n in r["Speakers"].split(",") if n.strip()]
+        if extra not in names:
+            r["Speakers"] = ", ".join(names + [extra])
+
 # Keynotes (the plenaries are skipped above; these are the two keynotes attendees rate).
 # Which is opening and which is closing: check with James.
 KEYNOTES = [
