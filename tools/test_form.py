@@ -354,7 +354,9 @@ with sync_playwright() as p:
           "Key takeaway is required, Key issues stays optional")
     lp.fill("#q5", "Start retention conversations in the first 90 days")
     lp.select_option("#q0", ""); lp.click("#submitBtn")
-    check(lp.is_visible("#stepForm") and "highlighted" in lp.inner_text("#formError"), "name is required")
+    try: lp.wait_for_function("document.getElementById('formError').textContent.indexOf('highlighted') > -1", timeout=3000)
+    except Exception: pass
+    check(lp.is_visible("#stepForm") and "highlighted" in lp.inner_text("#formError") and lp.locator(".q[data-i='0'].invalid").count() == 1, "name is required")
     check(lp.locator("#q0 option").count() == 21 and lp.locator("#q0 option").nth(1).inner_text() == "Alice", "name is a dropdown of the 20 Session Leaders, A to Z")
     lp.select_option("#q0", "Hollie"); lp.click("#submitBtn"); lp.wait_for_selector("#stepDone:not([hidden])")
     last = received()[-1]
