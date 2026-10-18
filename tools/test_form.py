@@ -88,6 +88,9 @@ with sync_playwright() as p:
     heads = [h.lower() for h in page.locator(".results .list-heading").all_inner_texts()]
     check(heads == ["just finished"], f"11:00 Wed (between blocks): only the 09:30 block, nothing in progress ({heads})")
     page.goto(BASE + "?now=2026-10-14T11:20"); page.wait_for_selector(".result")
+    check(page.locator("#liveGroup").count() == 1 and not page.locator("#liveGroup").get_attribute("open") is not None,
+          "'In progress now' is folded away by default")
+    page.click("#liveGroup > summary")
     first_two = [c.inner_text() for c in page.locator(".result").all()[:1]] + [page.locator(".result").nth(15).inner_text()]
     check("09:30" in first_two[0] and "11:15" in first_two[1], "11:20 Wed: 09:30 block still 'Just finished', 11:15 block 'In progress now'")
 

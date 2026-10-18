@@ -274,3 +274,12 @@ body.online .r-room { display: none; }
 .name-select { -webkit-appearance: none; appearance: none; padding-right: 44px; color: var(--ink); cursor: pointer;
   background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 16px center; }
 .name-select:focus { outline: none; box-shadow: -4px 5px 0 var(--accent); }
+
+/* "In progress now" on the start page: folded away by default */
+.live-group > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; padding: 6px 0; }
+.live-group > summary::-webkit-details-marker { display: none; }
+.live-group > summary::after { content: ""; width: 8px; height: 8px; margin-left: 4px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink);
+  transform: rotate(45deg) translateY(-2px); transition: transform .15s; }
+.live-group[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
+.live-group .live-count { min-width: 22px; padding: 0 7px; border-radius: 11px; background: var(--surface-2); font-size: 13px; letter-spacing: 0; text-align: center; }
+.live-group > .results { margin-top: 8px; }

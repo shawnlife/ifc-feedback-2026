@@ -80,7 +80,7 @@
   var dayNumbers = {};   // '2026-10-14' -> 2
   var lastFetch = 0;
   var selected = null;   // the chosen session, or {manual:true}
-  var browsing = false, showRecentAll = false;
+  var browsing = false, showRecentAll = false, liveOpen = false;
 
 
   /* ---------- small helpers ---------- */
@@ -585,7 +585,11 @@
           part.map(function (s) { return card(s); }).join('') : '';
       };
       var total = fin.length + live.length;
-      els.recent.innerHTML = group('Just finished', fin) + group('In progress now', live) +
+      // In progress now: folded away under its own heading (closed until opened, and stays open on refresh)
+      var liveHtml = live.length ? '<li class="group"><details class="live-group" id="liveGroup"' + (liveOpen ? ' open' : '') + '>' +
+        '<summary class="list-heading">In progress now <span class="live-count">' + live.length + '</span></summary>' +
+        '<ul class="results">' + live.map(function (s) { return card(s); }).join('') + '</ul></details></li>' : '';
+      els.recent.innerHTML = group('Just finished', fin) + liveHtml +
         (!showRecentAll && total > RECENT_FIRST
           ? '<li><button type="button" class="link" id="recentMore">Show all ' + total + ' recent sessions</button></li>' : '');
       els.recent.hidden = !hasRecent;
@@ -1166,6 +1170,9 @@
     };
     els.results.addEventListener('click', pickResult);
     els.recent.addEventListener('click', pickResult);
+    els.recent.addEventListener('toggle', function (e) {
+      if (e.target.id === 'liveGroup') liveOpen = e.target.open;
+    }, true);
 
     els.stepForm.addEventListener('change', function (e) {
       var fs = e.target.closest('.q');
