@@ -1,6 +1,12 @@
 /* Dashboard: builds on ../style.css (same tokens, fonts, buttons) */
 .dash { max-width: 1180px; margin: 0 auto; padding: 24px 20px 32px; min-height: 100vh; display: flex; flex-direction: column; }
 .dash-inner { max-width: 1180px; }
+/* Links to the three forms, in the orange header next to the IFC 2026 logo */
+.brandbar-inner.dash-inner { flex-wrap: wrap; }
+.brandbar .form-links { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-right: auto; padding-left: 8px; }
+.brandbar .form-links a { display: inline-block; color: #fff; font-weight: 700; font-size: 15px; text-decoration: underline;
+  text-decoration-color: rgba(255,255,255,.6); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.brandbar .form-links a:hover, .brandbar .form-links a:focus-visible { text-decoration-color: #fff; outline-color: #fff; }
 .dash .top { margin-bottom: 18px; }
 
 .login { max-width: 380px; display: grid; gap: 10px; }
@@ -148,6 +154,8 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
 
 /* Phones: one swipeable row of tabs, compact filters, two tiles per row, table rows as cards */
 @media (max-width: 640px) {
+  .brandbar .form-links { order: 3; flex-basis: 100%; padding: 2px 0 0; gap: 4px 14px; }
+  .brandbar .form-links a { font-size: 14px; }
   .dash { padding: 16px 16px 28px; }
   .dash .top h1 { font-size: 24px; }
   .statusbar { gap: 8px 14px; }
