@@ -1277,7 +1277,7 @@
     // DEMO PERIOD: test responses show by default so the dashboard looks lived-in when shown
     // to people. Untick "Show test responses" for real feedback, or open the link with ?real.
     // Set SHOW_TEST_BY_DEFAULT to false (or remove test mode) before the conference.
-    var SHOW_TEST_BY_DEFAULT = true;
+    var SHOW_TEST_BY_DEFAULT = false;              // 19 Oct: demos done, real responses by default (?test still opens test)
     $('showTest').checked = /[?&]test(=|&|$)/.test(location.search) || (SHOW_TEST_BY_DEFAULT && !/[?&]real(=|&|$)/.test(location.search));
     $('testBanner').hidden = !$('showTest').checked;
     state.key = state.key || store('session', KEY_STORE) || store('local', KEY_STORE);
