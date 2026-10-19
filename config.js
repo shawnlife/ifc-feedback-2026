@@ -99,6 +99,17 @@ window.IFC_CONFIG = {
     help: 'Optional. Only the IFC team sees your name and email.'
   },
 
+  // OVERALL IFC 2026 SURVEY: after someone rates one of these sessions (the closing keynote), the
+  // thank-you screen asks them to fill in the overall IFC 2026 feedback form. Paste its link in url;
+  // while url is empty nothing is shown.
+  overallSurvey: {
+    url: '',
+    sessions: ['KEY-CLOSE'],
+    heading: 'One last thing: how was IFC 2026 overall?',
+    text: 'Tell us about the whole congress in our short overall feedback form.',
+    button: 'Give feedback on IFC 2026'
+  },
+
   // IFC ONLINE FORM (at /online): the moderator posts ifc2026survey.com/online in the
   // livestream chat. It only lists these sessions (IDs from the Sessions tab) and asks
   // "Is this the session you just watched?" by time. Answers get Format = Online and

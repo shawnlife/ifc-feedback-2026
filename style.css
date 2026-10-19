@@ -283,3 +283,9 @@ body.online .r-room { display: none; }
 .live-group[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
 .live-group .live-count { min-width: 22px; padding: 0 7px; border-radius: 11px; background: var(--surface-2); font-size: 13px; letter-spacing: 0; text-align: center; }
 .live-group > .results { margin-top: 8px; }
+
+/* Thank-you screen: link to the overall IFC 2026 feedback form (after the closing keynote) */
+.overall-box { margin: 0 0 24px; padding: 18px; background: #fff4e5; border-left: 5px solid var(--accent); text-align: left; }
+.overall-box h3 { margin: 0 0 6px; font-size: 19px; }
+.overall-box p { margin: 0 0 14px !important; color: var(--ink) !important; }
+.overall-btn { display: flex; align-items: center; justify-content: center; text-decoration: none; }

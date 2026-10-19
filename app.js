@@ -926,7 +926,7 @@
   // Anything else (busy, timeout, quota, outage) keeps it queued and retries.
   var PERMANENT = ['invalid', 'too large', 'empty', 'no answers'];
 
-  var flushing = false, retryTimer = null, attempt = 0, waitingRid = null, lastCode = '';
+  var flushing = false, retryTimer = null, attempt = 0, waitingRid = null, lastCode = '', lastRatedId = '';
   // Returns a map of rid -> 'sent' | 'rejected' for the items it handled.
   function flush() {
     if (DEMO || flushing) return Promise.resolve({});
@@ -994,6 +994,7 @@
     }
     var prev = LEADER && !s.manual ? myReports()[s.id] : null;
     var isUpdate = !!(prev && (!NAME_COL || (prev.answers || {})[NAME_COL] === c.answers[NAME_COL]));
+    lastRatedId = s.manual ? '' : s.id;
     if (LEADER && !s.manual) {
       var reps = myReports();
       reps[s.id] = { answers: c.answers, at: item.sentAt, title: s.title };
@@ -1027,7 +1028,18 @@
       demo: 'Demo mode: nothing was saved. Connect the Google Sheet in config.js to go live.'
     }[state];
     $('doneTitle').textContent = state === 'rejected' ? 'Not sent' : 'Thank you!';
-    if (state !== 'rejected' && !LEADER && !ONLINE) showHomeTip();
+    // After the closing keynote: point people to the overall IFC 2026 feedback form
+    var ov = CFG.overallSurvey || {};
+    var showOverall = !!(ov.url && !LEADER && state !== 'rejected' && lastRatedId && (ov.sessions || []).indexOf(lastRatedId) > -1);
+    $('overallBox').hidden = !showOverall;
+    if (showOverall) {
+      $('overallHeading').textContent = ov.heading || 'How was IFC 2026 overall?';
+      $('overallText').textContent = ov.text || '';
+      $('overallBtn').textContent = ov.button || 'Give feedback on IFC 2026';
+      $('overallBtn').href = ov.url;
+    }
+    if (state !== 'rejected' && !LEADER && !ONLINE && !showOverall) showHomeTip();
+    else $('homeTip').hidden = true;                 // after the closing keynote the week is over: no home-screen tip
     showStep('done');
     history.replaceState({ step: 'done' }, '');
     $('stepDone').focus();
