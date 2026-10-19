@@ -1130,8 +1130,8 @@
       document.querySelector('h1').textContent = CFG.online.title || 'IFC Online feedback';
       $('findLabel').textContent = 'Which session did you watch?';
       document.body.classList.add('online');                       // rooms mean nothing online: hidden in CSS
-      $('qHint').textContent = 'Type anything you remember: speaker, topic or time.';
-      els.q.placeholder = 'e.g. Rashad, Islamic finance, 10:30';
+      $('qHint').textContent = 'Type anything you remember: a speaker or a word from the title.';   // no times: viewers are in many time zones
+      els.q.placeholder = 'e.g. Nyasha, Islamic finance, Radical Right';
     }
     applyBrand();
     if (DEMO) banner('Demo mode: nothing is saved.');
