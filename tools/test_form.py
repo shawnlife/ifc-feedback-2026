@@ -360,7 +360,7 @@ with sync_playwright() as p:
     try: lp.wait_for_function("document.getElementById('formError').textContent.indexOf('highlighted') > -1", timeout=3000)
     except Exception: pass
     check(lp.is_visible("#stepForm") and "highlighted" in lp.inner_text("#formError") and lp.locator(".q[data-i='0'].invalid").count() == 1, "name is required")
-    check(lp.locator("#q0 option").count() == 21 and lp.locator("#q0 option").nth(1).inner_text() == "Alice", "name is a dropdown of the 20 Session Leaders, A to Z")
+    check(lp.locator("#q0 option").count() == 20 and lp.locator("#q0 option").nth(1).inner_text() == "Alice", "name is a dropdown of the 19 Session Leaders, A to Z")
     lp.select_option("#q0", "Hollie"); lp.click("#submitBtn"); lp.wait_for_selector("#stepDone:not([hidden])")
     last = received()[-1]
     check(last.get("form") == "leader" and last["answers"].get("Session Leader name") == "Hollie"

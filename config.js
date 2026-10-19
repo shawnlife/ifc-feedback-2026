@@ -8,8 +8,8 @@
  * and the form picks up changes within about a minute.
  */
 // The Session Leaders (first names). Used for the name dropdown on the Session Leader
-// form and on the masterclass picks page. Add or remove names here.
-var SESSION_LEADERS = ['Hollie', 'Rachael', 'Mireille', 'Tsungai', 'Lianne', 'Alice', 'Jordan', 'Sylvia', 'Bongiwe', 'Lucy',
+// form and on the masterclass picks page. Add or remove names here. (Tsungai dropped out, 19 Oct)
+var SESSION_LEADERS = ['Hollie', 'Rachael', 'Mireille', 'Lianne', 'Alice', 'Jordan', 'Sylvia', 'Bongiwe', 'Lucy',
                        'Danielle', 'Yolanda', 'Sarah', 'Filipa', 'Isla', 'Dimitri', 'Astrid', 'In\u00eas', 'Michelle', 'Noah'];
 
 window.IFC_CONFIG = {
