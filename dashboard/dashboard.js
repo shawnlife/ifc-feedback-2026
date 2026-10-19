@@ -56,6 +56,36 @@
       if (val === null) st.removeItem(key); else st.setItem(key, val);
     } catch (e) { return null; }
   }
+  // Last results kept on this device, so the dashboard shows something instantly while Google
+  // (5-10 seconds) sends fresh numbers. One copy for real responses, one for test. Cleared on sign out.
+  function cacheKey() { return 'ifc26-dash-cache-' + ($('showTest').checked ? 'test' : 'real'); }
+  function saveCache(d) { try { localStorage.setItem(cacheKey(), JSON.stringify({ t: Date.now(), d: d })); } catch (e) { /* full or blocked: fine */ } }
+  function readCache() { try { return JSON.parse(localStorage.getItem(cacheKey()) || 'null'); } catch (e) { return null; } }
+  function signature(d) { return JSON.stringify([d.sessions, d.responses, d.leaders, d.events]); }
+
+  // Redraw only when the numbers changed, and never under someone's fingers (an open dropdown, a half-typed note)
+  var pendingRender = false;
+  function busyTyping() {
+    var a = document.activeElement;
+    return a && a.closest && a.closest('.panel') && /^(SELECT|TEXTAREA|INPUT)$/.test(a.tagName);
+  }
+  function show(d) {
+    var sig = signature(d);
+    state.data = d;
+    if (sig === state.sig) return;
+    state.sig = sig;
+    prepare();
+    if (busyTyping()) { pendingRender = true; return; }
+    renderAll();
+  }
+  function showCached() {
+    var c = readCache();
+    if (!c || !c.d) return false;
+    state.cachedAt = c.t;
+    show(c.d);
+    return true;
+  }
+
   function num(v) { var n = Number(v); return v === '' || v == null || isNaN(n) ? null : n; }
   function mean(list) { return list.length ? list.reduce(function (a, b) { return a + b; }, 0) / list.length : null; }
   function fmt1(n) { return n == null ? '–' : n.toFixed(1); }
@@ -107,7 +137,8 @@
 
   var quickRetry = 0, quickTimer = null;
   function load() {
-    $('updated').textContent = 'Updating…';
+    $('updated').textContent = !state.lastOk && state.cachedAt
+      ? 'Showing results from ' + ago(Date.now() - state.cachedAt) + ' · updating…' : 'Updating…';
     clearTimeout(quickTimer);
     return fetchData().then(function (d) {
       if (d.stale) return;                      // a newer request is on its way; ignore this answer
@@ -117,10 +148,10 @@
         } else showAlert(coded('The database answered with an error: ' + (d.message || d.error) + '. Showing the last data received.', 'D102', d.code));
         return;
       }
-      state.data = d; state.lastOk = Date.now(); quickRetry = 0;
+      state.lastOk = Date.now(); state.cachedAt = null; quickRetry = 0;
       showAlert(healthMessage(d.health));
-      prepare();
-      renderAll();
+      show(d);
+      saveCache(d);
     }).catch(function () {
       // Blips happen (Google occasionally drops a request): retry quickly twice before worrying anyone
       if (quickRetry < 2) {
@@ -1135,7 +1166,7 @@
     $('updated').textContent = state.lastOk
       ? (fresh ? 'Live · ' : 'Not updating · ') + 'updated ' + ago(Date.now() - state.lastOk) +
         ($('showTest').checked ? ' · showing TEST responses' : '')
-      : 'Loading…';
+      : state.cachedAt ? 'Showing results from ' + ago(Date.now() - state.cachedAt) + ' · updating…' : 'Loading…';
 
   }
 
@@ -1217,6 +1248,8 @@
   function signOut(msg) {
     state.key = null;
     store('local', KEY_STORE, null); store('session', KEY_STORE, null);
+    store('local', 'ifc26-dash-cache-real', null); store('local', 'ifc26-dash-cache-test', null);
+    state.sig = null; state.cachedAt = null;
     showKeyInUrl('');
     $('app').hidden = true; $('login').hidden = false;
     $('loginError').textContent = msg || '';
@@ -1226,6 +1259,7 @@
   var timer = null;
   function start() {
     $('login').hidden = true; $('app').hidden = false;
+    showCached(); updateStatus();
     load();
     clearInterval(timer);
     timer = setInterval(function () { if (document.visibilityState === 'visible') load(); else updateStatus(); }, REFRESH_MS);
@@ -1262,9 +1296,9 @@
         if (!d.ok) { $('loginError').textContent = coded(d.message || 'That password did not work.', d.code); return; }
         store('local', KEY_STORE, key);                          // always remembered on this device
         showKeyInUrl(key);
-        state.data = d; state.lastOk = Date.now();
+        state.lastOk = Date.now();
         $('login').hidden = true; $('app').hidden = false;
-        prepare(); renderAll(); updateStatus();
+        show(d); saveCache(d); updateStatus();
         clearInterval(timer);
         timer = setInterval(function () { if (document.visibilityState === 'visible') load(); else updateStatus(); }, REFRESH_MS);
       }).catch(function () {
@@ -1276,14 +1310,21 @@
     $('logoutBtn').addEventListener('click', function () { clearInterval(timer); signOut(''); });
     $('refreshBtn').addEventListener('click', load);
     $('showTest').addEventListener('change', function () {
-      state.data = null; state.lastOk = 0;
+      state.lastOk = 0; state.cachedAt = null;
       $('testBanner').hidden = !$('showTest').checked;
-      ['overview', 'rankings', 'comments', 'leaders', 'online', 'scorecards', 'typed', 'analytics'].forEach(function (t) {
-        $('tab-' + t).innerHTML = '<p class="empty">Loading ' + ($('showTest').checked ? 'test' : 'real') + ' responses…</p>';
-      });
+      if (!showCached()) {
+        state.data = null; state.sig = null;
+        ['overview', 'rankings', 'comments', 'leaders', 'online', 'scorecards', 'typed', 'analytics'].forEach(function (t) {
+          $('tab-' + t).innerHTML = '<p class="empty">Loading ' + ($('showTest').checked ? 'test' : 'real') + ' responses…</p>';
+        });
+      }
+      updateStatus();
       load();
     });
     ['fDay', 'fType', 'fTrack', 'fRoom'].forEach(function (id) { $(id).addEventListener('change', renderAll); });
+    document.addEventListener('focusout', function () {
+      setTimeout(function () { if (pendingRender && !busyTyping()) { pendingRender = false; renderAll(); } }, 0);
+    });
     var t;
     $('fText').addEventListener('input', function () { clearTimeout(t); t = setTimeout(renderAll, 150); });
     document.querySelector('.tabs').addEventListener('click', function (e) {

@@ -213,6 +213,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             item = json.loads(body)
             if item.get("action") == "dashboard":
+                if os.environ.get("MOCK_DELAY"):            # Google takes 5-10 s; simulate it
+                    import time as _t; _t.sleep(float(os.environ["MOCK_DELAY"]))
                 if item.get("key") != DASH_KEY:
                     return self.send_json({"ok": False, "error": "wrong password", "code": "S111"})
                 mine = [r for r in received if bool(r.get("test")) == bool(item.get("test"))]
