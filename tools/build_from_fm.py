@@ -164,6 +164,11 @@ for r in out:
         if extra not in names:
             r["Speakers"] = ", ".join(names + [extra])
 
+# One spelling per person (Shawn, 20 Oct)
+SPEAKER_ALIASES = {"Josh Leigh": "Joshua Leigh"}
+for r in out:
+    r["Speakers"] = ", ".join(SPEAKER_ALIASES.get(n.strip(), n.strip()) for n in r["Speakers"].split(",") if n.strip())
+
 # Keynotes (the plenaries are skipped above; these are the two keynotes attendees rate).
 # Which is opening and which is closing: check with James.
 KEYNOTES = [
