@@ -48,12 +48,13 @@
       <span class="live" id="liveDot" aria-hidden="true"></span>
       <span id="updated" role="status">Loading…</span>
       <span class="spacer"></span>
-      <label class="toggle"><input type="checkbox" id="showTest" autocomplete="off"> Show test responses</label>
+      <!-- No "Show test responses" button any more (20 Oct). Adding ?test to the dashboard address still shows test responses -->
+      <input type="checkbox" id="showTest" autocomplete="off" hidden>
       <button type="button" class="secondary small" id="fullExportBtn">Export</button>
       <button type="button" class="secondary small" id="refreshBtn">Refresh</button>
       <button type="button" class="link" id="logoutBtn">Sign out</button>
     </div>
-    <p class="banner" id="testBanner" hidden>Test mode: showing rehearsal test responses, not the real results. Untick "Show test responses" to see real feedback.</p>
+    <p class="banner" id="testBanner" hidden>Test mode: showing rehearsal test responses, not the real results. Remove ?test from the address to see real feedback.</p>
     <p class="banner" id="alert" hidden></p>
 
     <div class="filters" role="group" aria-label="Filters">
