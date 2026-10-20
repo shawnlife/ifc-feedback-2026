@@ -124,6 +124,23 @@ FAKE = fake_rows(int(os.environ.get("MOCK_FAKE", "0"))) if os.environ.get("MOCK_
 FAKE_LEADERS = fake_leaders() if os.environ.get("MOCK_FAKE") else []
 
 
+def fake_panel():
+    """Advisory Panel reports: same questions as the Session Leaders for now, 'Panel' column names."""
+    import random
+    rnd = random.Random(23)
+    out = []
+    for r in FAKE_LEADERS:
+        if rnd.random() < 0.3:
+            p = {(k.replace("Session Leader: ", "Panel: ") if k.startswith("Session Leader: ") else k): v
+                 for k, v in r.items() if k != "Session Leader name"}
+            p["Panel member name"] = rnd.choice(["Nyasha", "Mariana", "Houssam", "Paul", "Robert", "Gavin"])
+            out.append(p)
+    return out
+
+
+FAKE_PANEL = fake_panel()
+
+
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
@@ -219,11 +236,15 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json({"ok": False, "error": "wrong password", "code": "S111"})
                 mine = [r for r in received if bool(r.get("test")) == bool(item.get("test"))]
                 rows = FAKE + [to_row(r) for r in mine if r.get("form") != "leader"]
-                leaders = FAKE_LEADERS + [to_row(r) for r in mine if r.get("form") == "leader"]
+                is_panel = lambda r: "Panel member name" in (r.get("answers") or {})
+                leaders = FAKE_LEADERS + [to_row(r) for r in mine if r.get("form") == "leader" and not is_panel(r)]
                 leaders = [dict(r, _row=i + 2) for i, r in enumerate(leaders)]
-                for r in leaders:
-                    if resolved.get(r["_row"]):
-                        r["Issue status"], r["Issue note"] = "Handled Thu 22 Oct 14:05", resolved[r["_row"]]
+                panel = FAKE_PANEL + [to_row(r) for r in mine if r.get("form") == "leader" and is_panel(r)]
+                panel = [dict(r, _row=i + 2) for i, r in enumerate(panel)]
+                for kind, lst in (("leader", leaders), ("panel", panel)):
+                    for r in lst:
+                        if resolved.get((kind, r["_row"])):
+                            r["Issue status"], r["Issue note"] = "Handled Thu 22 Oct 14:05", resolved[(kind, r["_row"])]
                 rows = [dict(r, _row=i + 2) for i, r in enumerate(rows)]
                 for r in rows:
                     if contacted.get(r["_row"]):
@@ -239,7 +260,7 @@ class Handler(SimpleHTTPRequestHandler):
                 for e in events:
                     if bool(e.get("test")) == bool(item.get("test")):
                         ev[e["type"]] = ev.get(e["type"], 0) + 1
-                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows, "leaders": leaders,
+                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows, "leaders": leaders, "panel": panel,
                                        "events": ev, "health": {"automatic": True, "waiting": 0, "lastProcessed": None}})
             if item.get("action") == "assign":
                 if item.get("key") != DASH_KEY:
@@ -257,7 +278,10 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json({"ok": False, "error": "wrong password", "code": "S111"})
                 if not item.get("reopen") and not str(item.get("note", "")).strip():
                     return self.send_json({"ok": False, "error": "a short note is needed"})
-                (contacted if item.get("kind") == "contact" else resolved)[item["row"]] = None if item.get("reopen") else item["note"]
+                if item.get("kind") == "contact":
+                    contacted[item["row"]] = None if item.get("reopen") else item["note"]
+                else:
+                    resolved[("panel" if item.get("kind") == "panel" else "leader", item["row"])] = None if item.get("reopen") else item["note"]
                 return self.send_json({"ok": True})
             if item.get("action") == "picks":
                 if not item.get("name") or not item.get("choices"):

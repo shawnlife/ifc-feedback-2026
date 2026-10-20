@@ -36,6 +36,11 @@ var SUMMARY = 'Summary';
 var RAW_LOG = 'Raw log';
 var LEADER = 'Session Leader feedback';
 var TEST_LEADER = 'Test Session Leader feedback';
+// Advisory Panel (ifc2026survey.com/panel): sent like Session Leader reports (form 'leader', so the Firebase
+// rules stay as they are) and told apart by their 'Panel member name' answer.
+var PANEL = 'Advisory Panel feedback';
+var TEST_PANEL = 'Test Advisory Panel feedback';
+var PANEL_NAME_COL = 'Panel member name';
 var PICKS = 'Masterclass picks';                 // Session Leaders' top 3 masterclasses (from /allocations)
 var TEST_PICKS = 'Test masterclass picks';
 var PICKS_HEAD = ['Timestamp', 'ID', 'Name', '1st choice', '2nd choice', '3rd choice'];
@@ -387,7 +392,7 @@ function processQueue_() {
     last = Math.min(last, from + MAX_ROWS_PER_RUN - 1);   // big backlog: do it in slices, one per minute
     var block = raw.getRange(from, 1, last - from + 1, 5).getValues();
     var out = { EVENT: [] }, status = [];
-    out[RESPONSES] = []; out[TEST_RESPONSES] = []; out[LEADER] = []; out[TEST_LEADER] = [];
+    out[RESPONSES] = []; out[TEST_RESPONSES] = []; out[LEADER] = []; out[TEST_LEADER] = []; out[PANEL] = []; out[TEST_PANEL] = [];
     var ids = sessionIds_();                    // looked up once for the whole batch
     block.forEach(function (r) {
       var kind = r[2], st = r[4];
@@ -402,12 +407,13 @@ function processQueue_() {
         // Rehearsal data ("sim-" IDs, test only) keeps its pretend send time so the timing analytics look real
         if (kind === 'TEST' && /^sim-/.test(r[1]) && p.sentAt && !isNaN(Date.parse(p.sentAt))) c.base.Timestamp = new Date(p.sentAt);
         var test = kind === 'TEST', leader = p.form === 'leader';
-        out[leader ? (test ? TEST_LEADER : LEADER) : (test ? TEST_RESPONSES : RESPONSES)].push(c);
+        var panel = leader && p.answers && Object.prototype.hasOwnProperty.call(p.answers, PANEL_NAME_COL);
+        out[panel ? (test ? TEST_PANEL : PANEL) : leader ? (test ? TEST_LEADER : LEADER) : (test ? TEST_RESPONSES : RESPONSES)].push(c);
         saved[r[1]] = 1;
         status.push(['saved']);
       } catch (err) { status.push(['rejected']); }
     });
-    [RESPONSES, TEST_RESPONSES, LEADER, TEST_LEADER].forEach(function (name) { writeRows_(name, out[name]); });
+    [RESPONSES, TEST_RESPONSES, LEADER, TEST_LEADER, PANEL, TEST_PANEL].forEach(function (name) { writeRows_(name, out[name]); });
     if (out.EVENT.length) {
       var ev = eventsSheet_();
       ev.getRange(ev.getLastRow() + 1, 1, out.EVENT.length, 3).setValues(out.EVENT);
@@ -552,6 +558,7 @@ function dashboard_(p) {
   };
   var responses = readTab(p.test === true ? TEST_RESPONSES : RESPONSES);
   var leaders = readTab(p.test === true ? TEST_LEADER : LEADER);
+  var panel = readTab(p.test === true ? TEST_PANEL : PANEL);
   var events = {}, ev = ss.getSheetByName('Events');
   if (ev && ev.getLastRow() > 1) {
     ev.getRange(2, 1, ev.getLastRow() - 1, 3).getValues().forEach(function (r) {
@@ -562,7 +569,7 @@ function dashboard_(p) {
   var raw = ss.getSheetByName(RAW_LOG);
   var waiting = raw ? Math.max(0, raw.getLastRow() + 1 - Number(props.getProperty('RAW_NEXT_ROW') || 2)) : 0;
   return json_({
-    ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, leaders: leaders, events: events,
+    ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, leaders: leaders, panel: panel, events: events,
     health: { lastProcessed: props.getProperty('LAST_PROCESSED'), waiting: waiting,
               firebase: FIREBASE_PROJECT_ID ? { lastSync: props.getProperty('FS_LAST_SYNC'), error: props.getProperty('FS_LAST_ERROR') } : null,
               usage: usage_(),
@@ -649,7 +656,8 @@ function resolve_(p) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
-    var sh = sheetFor_(p.test === true ? TEST_LEADER : LEADER);
+    var sh = p.kind === 'panel' ? sheetFor_(p.test === true ? TEST_PANEL : PANEL)       // Advisory Panel key issue
+                                : sheetFor_(p.test === true ? TEST_LEADER : LEADER);
     var row = Number(p.row);
     if (!(row >= 2 && row <= sh.getLastRow())) return json_({ ok: false, error: 'row not found', code: 'S121' });
     var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
@@ -765,8 +773,8 @@ function turnOnBackups() { turnOnAutomation(); }
 
 function clearTestResponses() {
   var ui = SpreadsheetApp.getUi();
-  if (ui.alert('Clear test responses?', 'Deletes every row in the "Test responses" and "Test Session Leader feedback" tabs (the real tabs are not touched).', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
-  [TEST_RESPONSES, TEST_LEADER, TEST_PICKS].forEach(function (name) {
+  if (ui.alert('Clear test responses?', 'Deletes every row in the "Test responses", "Test Session Leader feedback" and "Test Advisory Panel feedback" tabs (the real tabs are not touched).', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  [TEST_RESPONSES, TEST_LEADER, TEST_PANEL, TEST_PICKS].forEach(function (name) {
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
     if (sh && sh.getLastRow() > 1) {
       var last = sh.getLastRow();

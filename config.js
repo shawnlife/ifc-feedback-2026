@@ -12,6 +12,9 @@
 var SESSION_LEADERS = ['Hollie', 'Rachael', 'Mireille', 'Lianne', 'Alice', 'Jordan', 'Sylvia', 'Bongiwe', 'Lucy',
                        'Danielle', 'Yolanda', 'Sarah', 'Filipa', 'Isla', 'Dimitri', 'Astrid', 'In\u00eas', 'Michelle', 'Noah'];
 
+// The Advisory Panel (first names). Used for the name dropdown on the Advisory Panel form (/panel).
+var PANEL_MEMBERS = ['Nyasha', 'Mariana', 'Houssam', 'Paul', 'Robert', 'Gavin'];
+
 window.IFC_CONFIG = {
 
   // The web app address from Google Apps Script (ends in /exec).
@@ -223,6 +226,64 @@ window.IFC_CONFIG = {
     },
     {
       column: 'Session Leader: Final comments',
+      type: 'text',
+      label: 'Final comments',
+      help: 'Did anything of note happen (room was packed, lots of delegates left in the middle, a heated debate)? Did a speaker do an exceptionally good job? Did you learn something that should be explored further? Your overall thoughts in a sentence or two.',
+      required: true
+    }
+  ],
+
+  // ADVISORY PANEL FORM (at /panel). Works like the Session Leader form (name dropdown, key issues
+  // alert on the dashboard, updates replace the earlier report). These are the Session Leader questions
+  // for now: swap in the panel's own questions when they arrive. Keep 'Panel member name' as the
+  // first column name: the Sheet uses it to put these reports in the "Advisory Panel feedback" tab.
+  panelQuestions: [
+    {
+      column: 'Panel member name',
+      type: 'name',
+      label: 'Your name',
+      options: PANEL_MEMBERS,               // a dropdown of names (remove this line for a typed name)
+      required: true
+    },
+    {
+      column: 'Panel: Overall (1-5)',
+      type: 'rating',
+      label: 'Overall rating',
+      help: 'How would you rate this session overall? Was it insightful? Did people seem to enjoy it? Would you recommend it to other delegates?',
+      low: 'Poor', high: 'Excellent',
+      required: true
+    },
+    {
+      column: 'Panel: Audience engagement (1-5)',
+      type: 'rating',
+      label: 'Audience engagement',
+      help: 'Did the audience seem engaged in the topic? Was there good discussion and questions? Were the delegates checked out?',
+      low: 'Checked out', high: 'Very engaged',
+      required: true
+    },
+    {
+      column: 'Panel: Content clarity (1-5)',
+      type: 'rating',
+      label: 'Content clarity',
+      help: 'How clear was the content? Did the speakers communicate effectively? Was there too much information or not enough?',
+      low: 'Unclear', high: 'Very clear',
+      required: true
+    },
+    {
+      column: 'Panel: Key issues',
+      type: 'text',
+      label: 'Key issues',
+      help: 'Any key issues that need to be addressed about this session, the speakers, the topics, etc.'
+    },
+    {
+      column: 'Panel: Key takeaway',
+      type: 'text',
+      label: 'Key takeaway',
+      help: 'In a sentence or two, the key learning you would pass on to someone who couldn\'t attend this session. Something they could pick up quickly.',
+      required: true
+    },
+    {
+      column: 'Panel: Final comments',
       type: 'text',
       label: 'Final comments',
       help: 'Did anything of note happen (room was packed, lots of delegates left in the middle, a heated debate)? Did a speaker do an exceptionally good job? Did you learn something that should be explored further? Your overall thoughts in a sentence or two.',

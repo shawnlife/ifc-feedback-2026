@@ -22,6 +22,7 @@
     <nav class="form-links" aria-label="The forms">
       <a href="../" target="_blank" rel="noopener">Feedback form</a>
       <a href="../sessionleader/" target="_blank" rel="noopener">Session Leader form</a>
+      <a href="../panel/" target="_blank" rel="noopener">Advisory Panel form</a>
       <a href="../online/" target="_blank" rel="noopener">IFC Online form</a>
     </nav>
     <a href="https://www.resource-alliance.org/" target="_blank" rel="noopener noreferrer"><img class="logo-event" src="../assets/brand/presented-by-resource-alliance-white.webp" alt="Presented by the Resource Alliance"></a>
@@ -64,21 +65,23 @@
 
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
-      <button role="tab" data-tab="rankings">Session rankings</button>
-      <button role="tab" data-tab="comments">Comments</button>
-      <button role="tab" data-tab="leaders">Session Leaders <span class="count warn" id="issueCount" title="Reports with key issues"></span></button>
-      <button role="tab" data-tab="online">IFC Online</button>
       <button role="tab" data-tab="scorecards">Scorecards</button>
+      <button role="tab" data-tab="rankings">Session rankings</button>
+      <button role="tab" data-tab="leaders">Session Leaders <span class="count warn" id="issueCount" title="Reports with key issues"></span></button>
+      <button role="tab" data-tab="panel">Advisory Panel <span class="count warn" id="panelCount" title="Panel reports with key issues"></span></button>
+      <button role="tab" data-tab="online">IFC Online</button>
+      <button role="tab" data-tab="comments">Comments</button>
       <button role="tab" data-tab="typed">Typed in <span class="count" id="typedCount"></span></button>
       <button role="tab" data-tab="analytics" id="analyticsTab">Analytics</button>
     </nav>
 
     <div class="panel" id="tab-overview" role="tabpanel"></div>
-    <div class="panel" id="tab-rankings" role="tabpanel" hidden></div>
-    <div class="panel" id="tab-comments" role="tabpanel" hidden></div>
-    <div class="panel" id="tab-leaders" role="tabpanel" hidden></div>
-    <div class="panel" id="tab-online" role="tabpanel" hidden></div>
     <div class="panel" id="tab-scorecards" role="tabpanel" hidden></div>
+    <div class="panel" id="tab-rankings" role="tabpanel" hidden></div>
+    <div class="panel" id="tab-leaders" role="tabpanel" hidden></div>
+    <div class="panel" id="tab-panel" role="tabpanel" hidden></div>
+    <div class="panel" id="tab-online" role="tabpanel" hidden></div>
+    <div class="panel" id="tab-comments" role="tabpanel" hidden></div>
     <div class="panel" id="tab-typed" role="tabpanel" hidden></div>
     <div class="panel" id="tab-analytics" role="tabpanel" hidden></div>
   </section>

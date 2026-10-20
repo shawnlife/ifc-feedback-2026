@@ -371,6 +371,26 @@ with sync_playwright() as p:
     check(lp.input_value("#q0") == "Hollie", "leader's name remembered for the next session")
     lc.close()
 
+    print("Advisory Panel form (/panel)")
+    pc = b.new_context(viewport={"width": 390, "height": 800}); pp = pc.new_page()
+    pp.goto(BASE + "panel/?now=2026-10-14T12:40"); pp.wait_for_selector(".result")
+    check("panel" in pp.url and pp.inner_text("h1").lower() == "advisory panel feedback", f"/panel opens the Advisory Panel form ({pp.url})")
+    pp.locator(".result").first.click()
+    check(pp.locator("#q0 option").count() == 7 and pp.locator("#q0 option").nth(1).inner_text() == "Gavin", "name is a dropdown of the 6 panel members, A to Z")
+    check(pp.is_hidden("#contactOpt"), "no contact box on the panel form")
+    pp.click("label[for=q1_4]"); pp.click("label[for=q2_5]"); pp.click("label[for=q3_3]")
+    pp.fill("#q4", "Mic kept cutting out"); pp.fill("#q5", "Trust is built slowly"); pp.fill("#q6", "Strong session")
+    pp.select_option("#q0", "Nyasha"); pp.click("#submitBtn"); pp.wait_for_selector("#stepDone:not([hidden])")
+    last = received()[-1]
+    check(last.get("form") == "leader" and last["answers"].get("Panel member name") == "Nyasha" and last["answers"].get("Panel: Key issues") == "Mic kept cutting out"
+          and not any(k.startswith("Session Leader") for k in last["answers"]), "panel report sent with Panel columns (Firebase-safe 'leader' form)")
+    check(pp.is_hidden("#homeTip"), "no home-screen tip for the panel")
+    pp.click("#againBtn"); pp.locator(".result").nth(1).click()
+    check(pp.input_value("#q0") == "Nyasha", "panel member's name remembered for the next session")
+    pp.goto(BASE + "sessionleader/?now=2026-10-14T12:40"); pp.wait_for_selector(".result"); pp.locator(".result").nth(1).click()
+    check(pp.input_value("#q0") == "", "panel name not carried into the Session Leader form on the same phone")
+    pc.close()
+
     print("Logos")
     check(page.locator(".brandbar a[href='https://www.resource-alliance.org/']").count() == 2, "both logos link to resource-alliance.org")
 

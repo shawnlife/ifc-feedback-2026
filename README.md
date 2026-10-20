@@ -14,6 +14,7 @@ The feedback form at **ifc2026survey.com**, its dashboard and the tools behind i
 | `dashboard/` | The team dashboard (`/dashboard`) |
 | `online/` | The IFC Online form (`/online`) |
 | `sessionleader/` | The Session Leader form (`/sessionleader`) |
+| `panel/` | The Advisory Panel form (`/panel`); reports go to the Advisory Panel feedback tab |
 | `tags/` | Page for writing the NFC tags (`/tags`) |
 | `allocations/` | Session Leaders pick their top 3 masterclasses (`/allocations`); answers go only to the Sheet |
 | `privacy.html` | Privacy notice |

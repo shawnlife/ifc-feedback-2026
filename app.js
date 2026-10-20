@@ -23,14 +23,17 @@
   var params = new URLSearchParams(location.search);
   var TEST = params.has('test');
   // Session leader form: same page, opened via /sessionleader/ (which adds ?leader)
-  var LEADER = params.has('leader');
+  // Advisory Panel form: opened via /panel/ (which adds ?panel). Works exactly like the Session Leader
+  // form, with its own questions and names; the Sheet files these in the "Advisory Panel feedback" tab.
+  var PANEL = params.has('panel');
+  var LEADER = params.has('leader') || PANEL;
   // IFC Online form: same page, opened via /online/ (which adds ?online). Only the sessions
   // listed in config.js (online.sessions), and answers are marked Format: Online.
   var ONLINE = !LEADER && params.has('online') && !!(CFG.online && CFG.online.sessions);
   var ONLINE_IDS = ONLINE ? CFG.online.sessions.map(String) : [];
-  var QUESTIONS = (LEADER ? CFG.leaderQuestions : CFG.questions) || [];
+  var QUESTIONS = (PANEL ? CFG.panelQuestions : LEADER ? CFG.leaderQuestions : CFG.questions) || [];
   var CONTACT = !LEADER && CFG.contactOptIn ? CFG.contactOptIn : null;    // optional "contact me" box
-  var NAME_KEY = 'ifc26-leader-name';
+  var NAME_KEY = PANEL ? 'ifc26-panel-name' : 'ifc26-leader-name';
   var NOW_OVERRIDE = params.get('now'); // e.g. ?now=2026-10-14T11:00 to test the "just finished" list
 
   // QR codes point at the address with ?qr on the end. Remember that for this visit,
@@ -55,10 +58,10 @@
 
   var SESSIONS_KEY = 'ifc26-sessions-v1';
   var OUTBOX_KEY = 'ifc26-outbox-v1';
-  var RATED_KEY = LEADER ? 'ifc26-rated-leader-v1' : ONLINE ? 'ifc26-rated-online-v1' : 'ifc26-rated-v1';
+  var RATED_KEY = PANEL ? 'ifc26-rated-panel-v1' : LEADER ? 'ifc26-rated-leader-v1' : ONLINE ? 'ifc26-rated-online-v1' : 'ifc26-rated-v1';
   // Session Leaders: a copy of each report sent from this phone, so they can look at it again and send
   // an update (the dashboard then shows only their latest report for that session)
-  var REPORTS_KEY = 'ifc26-leader-reports-v1';
+  var REPORTS_KEY = PANEL ? 'ifc26-panel-reports-v1' : 'ifc26-leader-reports-v1';
   var NAME_COL = (QUESTIONS.filter(function (q) { return q.type === 'name'; })[0] || {}).column || '';
   function myReports() { return (LEADER && store(REPORTS_KEY)) || {}; }
   var RECENT_FIRST = Infinity;     // recent sessions shown above the search box (all of them, James 8 Oct)
@@ -1137,6 +1140,12 @@
       $('anonNote').textContent = 'For IFC 2026 Session Leaders.';
       els.againBtn.textContent = 'Report on another session';
     }
+    if (PANEL) {
+      document.title = (CFG.eventName || 'IFC 2026') + ' Advisory Panel Feedback';
+      document.querySelector('h1').textContent = 'Advisory Panel feedback';
+      $('findLabel').textContent = 'Which session are you reporting on?';
+      $('anonNote').textContent = 'For the IFC 2026 Advisory Panel.';
+    }
     if (ONLINE) {
       document.title = (CFG.eventName || 'IFC 2026') + ' Online Feedback';
       document.querySelector('h1').textContent = CFG.online.title || 'IFC Online feedback';
@@ -1147,7 +1156,7 @@
     }
     applyBrand();
     if (DEMO) banner('Demo mode: nothing is saved.');
-    else if (TEST) banner('Test mode: responses go to the "Test responses" tab, not the real results.');
+    else if (TEST) banner('Test mode: responses go to the "' + (PANEL ? 'Test Advisory Panel feedback' : LEADER ? 'Test Session Leader feedback' : 'Test responses') + '" tab, not the real results.');
     buildQuestions();
     setupContact();
 

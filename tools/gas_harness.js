@@ -309,5 +309,19 @@ check(String(prow[2]).indexOf("'=") === 0 && prow[3] === 'The AI-Ready Fundraise
 const dash17 = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
 check(!('picks' in dash17) && JSON.stringify(dash17).indexOf('AI-Ready') === -1, 'picks are NOT sent to the dashboard (Sheet only)');
 
+console.log('18. Advisory Panel reports: own tab, returned separately, key issue can be marked handled');
+env = makeEnv();
+env.ctx.doPost({ postData: { contents: JSON.stringify({ rid: 'pn1', test: false, form: 'leader', session: { id: '1WS1', title: 'X' },
+  answers: { 'Panel member name': 'Nyasha', 'Panel: Overall (1-5)': 4, 'Panel: Key issues': 'Room too hot' } }) } });
+env.ctx.doPost({ postData: { contents: JSON.stringify({ rid: 'sl1', test: false, form: 'leader', session: { id: '1WS1', title: 'X' },
+  answers: { 'Session Leader name': 'Hollie', 'Session Leader: Overall (1-5)': 5 } }) } });
+tick(env);
+let dp = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+check(rowsOf(env, 'Advisory Panel feedback') === 1 && rowsOf(env, 'Session Leader feedback') === 1, 'panel report in its own tab, Session Leader report in theirs');
+check(dp.panel.length === 1 && dp.panel[0]['Panel member name'] === 'Nyasha' && dp.leaders.length === 1, 'dashboard returns panel and Session Leaders separately');
+const pr = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'resolve', kind: 'panel', key: 'pw12345678', row: dp.panel[0]._row, timestamp: dp.panel[0].Timestamp, note: 'Aircon fixed' }) } }).text);
+dp = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+check(pr.ok && /^Handled/.test(dp.panel[0]['Issue status']) && !dp.leaders[0]['Issue status'], 'panel key issue marked handled in the panel tab only');
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);

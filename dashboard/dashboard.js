@@ -31,15 +31,29 @@
   var L_TEXTS = LQ.filter(function (q) { return q.type === 'text'; });
   var L_ISSUES = L_TEXTS[0] ? col(L_TEXTS[0]) : null;          // "Key issues"
   var L_OVERALL = L_RATINGS[0] ? col(L_RATINGS[0]) : null;
+  // The Session Leaders and Advisory Panel tabs work the same way: one description of each
+  function reportGroup(qs, o) {
+    var texts = qs.filter(function (q) { return q.type === 'text'; }), ratings = qs.filter(function (q) { return q.type === 'rating'; });
+    o.nameCol = qs.filter(function (q) { return q.type === 'name'; }).map(col)[0];
+    o.ratings = ratings; o.texts = texts;
+    o.issues = texts[0] ? col(texts[0]) : null;                  // "Key issues"
+    o.overall = ratings[0] ? col(ratings[0]) : null;
+    o.sortBy = 'when'; o.sortDir = 1; o.filterVal = '';
+    return o;
+  }
+  var LG = reportGroup(LQ, { tab: 'leaders', kind: 'leader', count: 'issueCount', filter: 'lFilter',
+    who: 'Session Leader', all: 'All Session Leaders', reports: 'Session Leader reports', form: '/sessionleader' });
+  var PG = reportGroup(CFG.panelQuestions || [], { tab: 'panel', kind: 'panel', count: 'panelCount', filter: 'pFilter',
+    who: 'Panel member', all: 'Whole panel', reports: 'Advisory Panel reports', form: '/panel' });
 
   var $ = function (id) { return document.getElementById(id); };
   var ANALYTICS = true;    // last tab: how people use the tool (not front and centre)
   var state = {
     key: null, data: null, lastOk: 0, tab: 'overview',
     sortBy: 'rank', sortDir: 1, minN: 1, scorecard: '', commentsShown: 100,
-    lSortBy: 'when', lSortDir: 1, picked: [], withLeaders: true
+    picked: [], withLeaders: true
   };
-  var sessions = [], byId = {}, rows = [], leaders = [];
+  var sessions = [], byId = {}, rows = [], leaders = [], panel = [];
 
 
   /* ---------- helpers ---------- */
@@ -61,7 +75,7 @@
   function cacheKey() { return 'ifc26-dash-cache-' + ($('showTest').checked ? 'test' : 'real'); }
   function saveCache(d) { try { localStorage.setItem(cacheKey(), JSON.stringify({ t: Date.now(), d: d })); } catch (e) { /* full or blocked: fine */ } }
   function readCache() { try { return JSON.parse(localStorage.getItem(cacheKey()) || 'null'); } catch (e) { return null; } }
-  function signature(d) { return JSON.stringify([d.sessions, d.responses, d.leaders, d.events]); }
+  function signature(d) { return JSON.stringify([d.sessions, d.responses, d.leaders, d.panel, d.events]); }
 
   // Redraw only when the numbers changed, and never under someone's fingers (an open dropdown, a half-typed note)
   var pendingRender = false;
@@ -192,19 +206,26 @@
         online: r.Format === 'Online'                // from the IFC Online form (/online)
       };
     });
-    leaders = (state.data.leaders || []).map(function (r) {
+    leaders = reportsFrom(state.data.leaders, L_NAME);
+    panel = reportsFrom(state.data.panel, PG.nameCol);
+    fillFilters();
+  }
+
+  // Session Leader or Advisory Panel reports from the Sheet, latest version of each
+  function reportsFrom(raw, nameCol) {
+    var list = (raw || []).map(function (r) {
       var id = String(r['Session ID'] || ''), s = byId[id];
       return {
-        raw: r, row: r._row, id: id, when: r.Timestamp, name: r[L_NAME] || '',
+        raw: r, row: r._row, id: id, when: r.Timestamp, name: r[nameCol] || '',
         handled: String(r['Issue status'] || '').indexOf('Handled') === 0, handledNote: r['Issue note'] || '', handledWhen: String(r['Issue status'] || '').replace('Handled ', ''),
         title: s ? s.title : r.Session || '', speakers: s ? s.speakers : r.Speakers || '',
         room: s ? s.room : r.Room || '', date: s ? s.date : String(r.Date || '').slice(0, 10),
         start: s ? s.start : String(r.Time || '').split(/[–-]/)[0].trim(), track: s ? s.track : r.Track || '', type: s ? s.type : ''
       };
     });
-    // A Session Leader who updates a report sends it again: show only their latest one per session
+    // Someone who updates a report sends it again: show only their latest one per session
     var latest = {};
-    leaders.forEach(function (l) {
+    list.forEach(function (l) {
       var k = String(l.name).trim().toLowerCase() + '|' + l.id, cur = latest[k];
       l.versions = 1;
       if (!cur) { latest[k] = l; return; }
@@ -212,8 +233,7 @@
       newer.versions = cur.versions + 1;
       latest[k] = newer;
     });
-    leaders = leaders.filter(function (l) { return latest[String(l.name).trim().toLowerCase() + '|' + l.id] === l; });
-    fillFilters();
+    return list.filter(function (l) { return latest[String(l.name).trim().toLowerCase() + '|' + l.id] === l; });
   }
 
   function fillFilters() {
@@ -664,34 +684,36 @@
       }).join('') + '</div>';
   }
 
-  // Session leaders tab: every report, key issues first
-  function renderLeaders() {
-    var list = leaders.filter(function (l) {
-      return (!state.lFilter || l.name === state.lFilter) && matches(l, l.name + ' ' + L_TEXTS.map(function (q) { return l.raw[col(q)] || ''; }).join(' '));
+  // Session Leaders and Advisory Panel tabs: every report, key issues first
+  function renderLeaders() { renderReports(LG, leaders); }
+  function renderPanel() { renderReports(PG, panel); }
+  function renderReports(G, all) {
+    var list = all.filter(function (l) {
+      return (!G.filterVal || l.name === G.filterVal) && matches(l, l.name + ' ' + G.texts.map(function (q) { return l.raw[col(q)] || ''; }).join(' '));
     }).sort(function (a, b) { return (a.date + a.start + a.room).localeCompare(b.date + b.start + b.room); });
-    var leaderNames = leaders.map(function (l) { return l.name; }).filter(function (n, i, a) { return n && a.indexOf(n) === i; }).sort(function (a, b) { return a.localeCompare(b); });
-    var hasIssue = function (l) { return L_ISSUES && String(l.raw[L_ISSUES] || '').trim(); };
+    var leaderNames = all.map(function (l) { return l.name; }).filter(function (n, i, a) { return n && a.indexOf(n) === i; }).sort(function (a, b) { return a.localeCompare(b); });
+    var hasIssue = function (l) { return G.issues && String(l.raw[G.issues] || '').trim(); };
     var issues = list.filter(function (l) { return hasIssue(l) && !l.handled; });
     var handledN = list.filter(function (l) { return hasIssue(l) && l.handled; }).length;
-    $('issueCount').textContent = leaders.filter(function (l) { return hasIssue(l) && !l.handled; }).length || '';
+    $(G.count).textContent = all.filter(function (l) { return hasIssue(l) && !l.handled; }).length || '';
     var covered = {}; list.forEach(function (l) { covered[l.id] = 1; });
     // sort by the chosen column (click a heading); ties keep day/time order
     var lval = function (l) {
-      var k = state.lSortBy;
+      var k = G.sortBy;
       if (k === 'when') return l.date + l.start + l.room;
       if (k === 'title') return l.title.toLowerCase();
       if (k === 'name') return String(l.name).toLowerCase();
-      if (k === 'issue') return L_ISSUES && String(l.raw[L_ISSUES] || '').trim() ? 1 : 0;
+      if (k === 'issue') return G.issues && String(l.raw[G.issues] || '').trim() ? 1 : 0;
       var v = num(l.raw[k]); return v == null ? -1 : v;
     };
-    var lsort = function (a, b) { var x = lval(a), y = lval(b); return (x > y ? 1 : x < y ? -1 : 0) * state.lSortDir || (a.date + a.start).localeCompare(b.date + b.start); };
+    var lsort = function (a, b) { var x = lval(a), y = lval(b); return (x > y ? 1 : x < y ? -1 : 0) * G.sortDir || (a.date + a.start).localeCompare(b.date + b.start); };
     list.sort(lsort); issues.sort(lsort);
-    var html = '<div class="controls"><label>Session Leader <select id="lFilter"><option value="">All Session Leaders</option>' +
-      leaderNames.map(function (n) { return '<option' + (n === state.lFilter ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') +
+    var html = '<div class="controls"><label>' + G.who + ' <select id="' + G.filter + '"><option value="">' + G.all + '</option>' +
+      leaderNames.map(function (n) { return '<option' + (n === G.filterVal ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') +
       '</select></label></div>' +
       '<div class="tiles">' +
-      tile('Session Leader reports', String(list.length), Object.keys(covered).length + ' of ' + fSessions().length + ' sessions covered') +
-      L_RATINGS.map(function (q) {
+      tile(G.reports, String(list.length), Object.keys(covered).length + ' of ' + fSessions().length + ' sessions covered') +
+      G.ratings.map(function (q) {
         var vals = list.map(function (l) { return num(l.raw[col(q)]); }).filter(function (v) { return v != null; });
         return tile('Average ' + q.label.toLowerCase(), vals.length ? fmt1(mean(vals)) + ' <small>/ 5</small>' : '–', vals.length + ' ratings');
       }).join('') +
@@ -700,30 +722,30 @@
       return '<tr' + (issues.indexOf(l) > -1 ? ' class="has-issue"' : '') + '><td><button type="button" class="linkish" data-card="' + esc(l.id) + '">' + esc(l.title) + '</button></td>' +
         '<td>' + esc(dayLabel(l.date) + ', ' + l.start) + '<div class="t-sub">' + esc(l.room) + '</div></td>' +
         '<td>' + esc(l.name) + (l.versions > 1 ? '<div class="t-sub">Updated report</div>' : '') + '</td>' +
-        L_RATINGS.map(function (q) { return '<td class="num">' + (num(l.raw[col(q)]) || '–') + '</td>'; }).join('') +
-        '<td>' + L_TEXTS.map(function (q) {
+        G.ratings.map(function (q) { return '<td class="num">' + (num(l.raw[col(q)]) || '–') + '</td>'; }).join('') +
+        '<td>' + G.texts.map(function (q) {
           var v = l.raw[col(q)];
-          var cls = col(q) === L_ISSUES ? (l.handled ? 'issue handled' : 'issue') : '';
+          var cls = col(q) === G.issues ? (l.handled ? 'issue handled' : 'issue') : '';
           return v ? '<p class="' + cls + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' : '';
         }).join('') +
-        (hasIssue(l) && !l.handled ? '<button type="button" class="secondary small" data-resolve="' + l.row + '" data-ts="' + esc(l.when) + '">Mark as handled</button>' : '') +
+        (hasIssue(l) && !l.handled ? '<button type="button" class="secondary small" data-resolve="' + l.row + '" data-ts="' + esc(l.when) + '" data-kind="' + G.kind + '">Mark as handled</button>' : '') +
         (l.handled ? '<p class="handled-note">Handled ' + esc(l.handledWhen) + (l.handledNote ? ': ' + esc(l.handledNote) : '') +
-          ' <button type="button" class="link" data-reopen="' + l.row + '" data-ts="' + esc(l.when) + '">Reopen</button></p>' : '') +
+          ' <button type="button" class="link" data-reopen="' + l.row + '" data-ts="' + esc(l.when) + '" data-kind="' + G.kind + '">Reopen</button></p>' : '') +
         '</td></tr>';
     };
-    var L_SORTABLE = ['title', 'when', L_OVERALL];                       // sort by session, when, overall rating only
+    var L_SORTABLE = ['title', 'when', G.overall];                       // sort by session, when, overall rating only
     var lth = function (k, label, numCol) {
       if (L_SORTABLE.indexOf(k) === -1) return '<th class="' + (numCol ? 'num' : '') + '">' + esc(label) + '</th>';
-      var sorted = state.lSortBy === k ? ' aria-sort="' + (state.lSortDir > 0 ? 'ascending' : 'descending') + '"' : '';
+      var sorted = G.sortBy === k ? ' aria-sort="' + (G.sortDir > 0 ? 'ascending' : 'descending') + '"' : '';
       return '<th class="' + (numCol ? 'num' : '') + '"><button type="button" data-lsort="' + esc(k) + '"' + sorted + '>' + esc(label) + '</button></th>';
     };
-    var head = '<thead><tr>' + lth('title', 'Session') + lth('when', 'When') + lth('name', 'Session Leader') +
-      L_RATINGS.map(function (q) { return lth(col(q), q.label, 1); }).join('') + lth('issue', 'Comments') + '</tr></thead>';
+    var head = '<thead><tr>' + lth('title', 'Session') + lth('when', 'When') + lth('name', G.who) +
+      G.ratings.map(function (q) { return lth(col(q), q.label, 1); }).join('') + lth('issue', 'Comments') + '</tr></thead>';
     if (issues.length) html += '<h2 class="section">Key issues to look at</h2><div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + issues.map(row).join('') + '</tbody></table></div>';
-    html += '<h2 class="section">All leader reports</h2>' + (list.length
+    html += '<h2 class="section">All ' + (G === PG ? 'panel' : 'leader') + ' reports</h2>' + (list.length
       ? '<div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + list.map(row).join('') + '</tbody></table></div>'
-      : '<p class="empty">No Session Leader reports yet. The form is at <strong>/sessionleader</strong>.</p>');
-    $('tab-leaders').innerHTML = html;
+      : '<p class="empty">No ' + G.reports + ' yet. The form is at <strong>' + G.form + '</strong>.</p>');
+    $('tab-' + G.tab).innerHTML = html;
   }
 
   /* ---------- per-speaker ratings ("Jane Doe: 4; John Roe: 5") ---------- */
@@ -1100,7 +1122,7 @@
     return score >= 8 ? best : '';     // ties are fine: same session often runs twice, we pick the first
   }
 
-  // Session Leader key issue: mark handled (with a note) or reopen. The row goes at once;
+  // Session Leader or Advisory Panel key issue: mark handled (with a note) or reopen. The row goes at once;
   // the save carries on in the background and the row comes back if it fails.
   function resolveIssue(btn, reopen) {
     var note = '';
@@ -1112,12 +1134,13 @@
     }
     var tr = btn.closest('tr');
     if (tr && !reopen) tr.hidden = true;
-    var cnt = $('issueCount'); var before = cnt.textContent;
+    var panelIssue = btn.dataset.kind === 'panel';
+    var cnt = $(panelIssue ? 'panelCount' : 'issueCount'); var before = cnt.textContent;
     if (!reopen) cnt.textContent = Math.max(0, (+before || 0) - 1) || '';
     btn.disabled = true;
     fetch(API, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'resolve', key: state.key, test: $('showTest').checked, row: +(btn.dataset.resolve || btn.dataset.reopen),
+      body: JSON.stringify({ action: 'resolve', kind: panelIssue ? 'panel' : 'leader', key: state.key, test: $('showTest').checked, row: +(btn.dataset.resolve || btn.dataset.reopen),
         timestamp: btn.dataset.ts, note: note, reopen: !!reopen })
     }).then(function (r) { return r.json(); }).then(function (j) {
       if (!j.ok) { var err = new Error(j.error || 'not saved'); err.code = j.code; err.answered = true; throw err; }
@@ -1157,7 +1180,7 @@
   /* ---------- page wiring ---------- */
 
   function renderAll() {
-    renderOverview(); renderRankings(); renderComments(); renderLeaders(); renderOnline(); renderScorecards(); renderTyped(); renderAnalytics();
+    renderOverview(); renderRankings(); renderComments(); renderLeaders(); renderPanel(); renderOnline(); renderScorecards(); renderTyped(); renderAnalytics();
   }
 
   function updateStatus() {
@@ -1314,7 +1337,7 @@
       $('testBanner').hidden = !$('showTest').checked;
       if (!showCached()) {
         state.data = null; state.sig = null;
-        ['overview', 'rankings', 'comments', 'leaders', 'online', 'scorecards', 'typed', 'analytics'].forEach(function (t) {
+        ['overview', 'scorecards', 'rankings', 'leaders', 'panel', 'online', 'comments', 'typed', 'analytics'].forEach(function (t) {
           $('tab-' + t).innerHTML = '<p class="empty">Loading ' + ($('showTest').checked ? 'test' : 'real') + ' responses…</p>';
         });
       }
@@ -1338,9 +1361,9 @@
     document.querySelector('#app').addEventListener('click', function (e) {
       var el = e.target;
       if (el.dataset.lsort) {
-        var k = el.dataset.lsort;
-        state.lSortDir = state.lSortBy === k ? -state.lSortDir : (k === 'when' || k === 'title' || k === 'name' ? 1 : -1);
-        state.lSortBy = k; renderLeaders();
+        var k = el.dataset.lsort, G = el.dataset.g === 'panel' ? PG : LG;
+        G.sortDir = G.sortBy === k ? -G.sortDir : (k === 'when' || k === 'title' || k === 'name' ? 1 : -1);
+        G.sortBy = k; if (G === PG) renderPanel(); else renderLeaders();
       } else if (el.dataset.sort) {
         state.sortDir = state.sortBy === el.dataset.sort ? -state.sortDir : (/^(title|when|rank)$/.test(el.dataset.sort) ? 1 : -1);
         state.sortBy = el.dataset.sort; renderRankings();
@@ -1366,7 +1389,8 @@
     document.querySelector('#app').addEventListener('change', function (e) {
       if (e.target.id === 'combine') { state.combine = e.target.checked; renderRankings(); }
       if (e.target.id === 'withLeaders') { state.withLeaders = e.target.checked; renderScorecards(); }
-      if (e.target.id === 'lFilter') { state.lFilter = e.target.value; renderLeaders(); }
+      if (e.target.id === 'lFilter') { LG.filterVal = e.target.value; renderLeaders(); }
+      if (e.target.id === 'pFilter') { PG.filterVal = e.target.value; renderPanel(); }
       if (e.target.classList.contains('m-sort-select')) {             // phones: the Sort by dropdown presses that column's button
         var tb = e.target.closest('.panel').querySelectorAll('th button')[+e.target.value];
         if (tb) tb.click();
