@@ -32,7 +32,7 @@
 .filters select, .filters input { height: 42px; padding: 0 10px; border: 2px solid var(--ink); background: var(--bg); font-size: 15px; text-transform: none; letter-spacing: 0; font-weight: 400; min-width: 150px; border-radius: 0; }
 /* Own arrow, set in from the right edge (the browser's sits hard against the border) */
 .filters select, .controls select { color: var(--ink); -webkit-text-fill-color: var(--ink); }
-.filters select { -webkit-appearance: none; appearance: none; padding-right: 40px; cursor: pointer;
+.filters select, .controls select { -webkit-appearance: none; appearance: none; padding-right: 40px; cursor: pointer; border-radius: 0;
   background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center; }
 
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 3px solid var(--ink); margin-bottom: 20px; }
@@ -232,3 +232,21 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
   #blockChart { display: none; }
   .assign-actions { display: flex; }
 }
+
+/* Export pop-up */
+.export-dlg { width: min(460px, calc(100vw - 32px)); padding: 0; border: 3px solid var(--ink); background: var(--bg); color: var(--ink); box-shadow: -4px 6px 0 var(--ink); }
+.export-dlg::backdrop { background: rgba(0, 0, 0, .45); }
+.dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 2px solid var(--ink); background: var(--accent); }
+.dlg-head h2 { margin: 0; font-size: 20px; text-transform: uppercase; }
+.dlg-x { background: none; border: 0; font-size: 30px; line-height: 1; padding: 0 4px; min-height: 0; cursor: pointer; color: var(--ink); box-shadow: none; }
+#exportBody { padding: 16px 18px 20px; display: grid; gap: 12px; }
+#exportBody .toggle { font-size: 15px; }
+.ex-opt { display: block; width: 100%; text-align: left; margin: 0; padding: 12px 14px; border: 2px solid var(--ink); background: var(--bg); color: var(--ink); cursor: pointer; font: inherit; box-shadow: -2px 3px 0 var(--ink); }
+.ex-opt:hover, .ex-opt:focus-visible { background: var(--surface); }
+.ex-opt:disabled { opacity: .6; cursor: wait; }
+.ex-opt strong { display: block; font-size: 16px; }
+.ex-opt span { display: block; font-size: 14px; color: var(--muted); margin-top: 2px; }
+.ex-note { margin: 0; font-size: 13px; color: var(--muted); }
+/* Panel dropdowns (Session Leader, Panel member) get the same arrow as the filters. Last so nothing above resets it */
+.controls select { padding: 0 40px 0 10px; border-radius: 0;
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center; }

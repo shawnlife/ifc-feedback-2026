@@ -49,6 +49,7 @@
       <span id="updated" role="status">Loading…</span>
       <span class="spacer"></span>
       <label class="toggle"><input type="checkbox" id="showTest" autocomplete="off"> Show test responses</label>
+      <button type="button" class="secondary small" id="fullExportBtn">Export</button>
       <button type="button" class="secondary small" id="refreshBtn">Refresh</button>
       <button type="button" class="link" id="logoutBtn">Sign out</button>
     </div>
@@ -84,6 +85,12 @@
     <div class="panel" id="tab-comments" role="tabpanel" hidden></div>
     <div class="panel" id="tab-typed" role="tabpanel" hidden></div>
     <div class="panel" id="tab-analytics" role="tabpanel" hidden></div>
+
+    <!-- Export choices (filled in by dashboard.js: the full export from the top, or the scorecard downloads) -->
+    <dialog id="exportDlg" class="export-dlg" aria-labelledby="exportTitle">
+      <div class="dlg-head"><h2 id="exportTitle">Export</h2><button type="button" class="dlg-x" id="exportClose" aria-label="Close">&times;</button></div>
+      <div id="exportBody"></div>
+    </dialog>
   </section>
 
   <footer class="foot">

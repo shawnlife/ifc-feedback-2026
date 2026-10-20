@@ -533,7 +533,7 @@
       '<label class="toggle"><input type="checkbox" id="combine"' + (state.combine ? ' checked' : '') + '> Combine repeated workshops</label>' +
       onlineToggle() +
       '<span class="few">' + shown.length + ' of ' + data.length + ' sessions have feedback. Scores from only a few people are less reliable.</span>' +
-      '<span class="spacer"></span><button type="button" class="secondary small" id="exportBtn">Download ranking (spreadsheet)</button></div>';
+      '<span class="spacer"></span><button type="button" class="secondary small" id="exportBtn">Download ranking (Excel)</button></div>';
     html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + th('rank', 'Rank', 1) + th('title', 'Session') + th('when', state.combine ? 'When / runs' : 'When / room') + th('n', 'Responses', 1) +
       (hasRate ? th('rate', 'Response rate', 1) : '') +
       RATINGS.map(function (q, i) { return th('avg' + i, esc(col(q).replace(' (1-5)', '')), 1); }).join('') +
@@ -554,8 +554,8 @@
     $('tab-rankings').innerHTML = html;
   }
 
-  function exportCSV() {
-    // Ranked best to worst by overall score; sessions below the minimum responses come last, unranked
+  // The ranking as rows for a spreadsheet: best to worst by overall score, sessions with no responses last
+  function rankingSheet() {
     var data = rankingData();
     var ok = rankAll(data);
     var rest = data.filter(function (d) { return ok.indexOf(d) === -1; }).sort(function (a, b) { return b.st.n - a.st.n; });
@@ -565,24 +565,99 @@
     var head = ['Rank', 'Session ID', 'Session', 'Speakers', state.combine ? 'Room / runs' : 'Room', 'Day', 'Start', 'Track', 'Responses']
       .concat(RATINGS.map(function (q) { return 'Average ' + col(q); }))
       .concat(PRACTICE ? ['% ' + PRACTICE.options[0]] : []).concat(L_OVERALL ? ['Session Leader scores'] : []);
-    var lines = [head].concat(data.map(function (d) {
+    return [head].concat(data.map(function (d) {
       return [d.rankLabel, d.s.id, d.s.title, d.s.speakers, d.s.room, d.s.date, d.s.start, d.s.track, d.st.n]
-        .concat(d.st.avgs.map(function (a) { return a == null ? '' : a.toFixed(2); }))
+        .concat(d.st.avgs.map(function (a) { return a == null ? '' : Math.round(a * 100) / 100; }))
         .concat(PRACTICE ? [d.st.practiceN ? Math.round(100 * d.st.practiceYes / d.st.practiceN) : ''] : [])
         .concat(L_OVERALL ? [d.leaderAll.join(' / ')] : []);
     }));
-    var csv = lines.map(function (l) {
-      return l.map(function (v) {
-        v = String(v == null ? '' : v);
-        if (/^[=+\-@]/.test(v)) v = "'" + v;                     // no spreadsheet formulas
-        return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
-      }).join(',');
-    }).join('\n');
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
-    a.download = 'IFC2026 session ranking' + (state.combine ? ' (workshops combined)' : '') + '.csv';
-    a.click();
   }
+
+  // Ranking tab button: the ranking as shown (follows the filters)
+  function exportRanking(btn) {
+    var aoa = rankingSheet();
+    xlsxDownload(btn, [{ name: 'Session ranking', rows: aoa }], 'IFC2026 session ranking' + (state.combine ? ' (workshops combined)' : ''));
+  }
+
+  // Build and download an Excel file: sheets = [{ name, rows: [[header...], [values...]] }]
+  function xlsxDownload(btn, sheets, fileName) {
+    var label = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Preparing\u2026'; }
+    return loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').then(function () {
+      var X = window.XLSX, wb = X.utils.book_new();
+      sheets.forEach(function (sh) {
+        var rowsX = sh.rows.map(function (r) {
+          return r.map(function (v) { return typeof v === 'string' ? v.replace(/^'(?=[=+\-@])/, '') : v; });
+        });
+        var w = X.utils.aoa_to_sheet(rowsX);
+        w['!cols'] = (rowsX[0] || []).map(function (h, c) {
+          var len = rowsX.slice(0, 200).reduce(function (m, r) { return Math.max(m, String(r[c] == null ? '' : r[c]).length); }, String(h).length);
+          return { wch: Math.min(60, Math.max(8, len + 2)) };
+        });
+        if (rowsX[0] && rowsX[0].length) w['!autofilter'] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 0, c: rowsX[0].length - 1 } }) };
+        X.utils.book_append_sheet(wb, w, sh.name.slice(0, 31));
+      });
+      X.writeFile(wb, fileName + ($('showTest').checked ? ' (TEST)' : '') + '.xlsx');
+      return true;
+    }).catch(function () {
+      alert(coded('Could not create the Excel file (no connection to the export library). Try again.', 'D204'));
+      return false;
+    }).then(function (ok) { if (btn) { btn.disabled = false; btn.innerHTML = label; } return ok; });
+  }
+
+  // The full export ignores the filters: clear them for a moment, run, put them back
+  function unfiltered(withOnline, fn) {
+    var ids = ['fDay', 'fType', 'fTrack', 'fRoom', 'fText'], keep = ids.map(function (id) { return $(id).value; }), on = state.withOnline;
+    ids.forEach(function (id) { $(id).value = ''; }); state.withOnline = withOnline;
+    try { return fn(); } finally { ids.forEach(function (id, i) { $(id).value = keep[i]; }); state.withOnline = on; }
+  }
+
+  // Every answer, one row each, all the columns from the Sheet. Names and emails stay out (Comments tab only).
+  var NOT_EXPORTED = ['_row', 'Contact name', 'Contact email', 'Contact status', 'Contact note'];
+  function rawSheet(list) {
+    var cols = [];
+    list.forEach(function (x) { Object.keys(x.raw).forEach(function (k) { if (cols.indexOf(k) === -1 && NOT_EXPORTED.indexOf(k) === -1) cols.push(k); }); });
+    return [cols].concat(list.map(function (x) {
+      return cols.map(function (k) {
+        var v = x.raw[k];
+        if (k === 'Timestamp' && v) { var d = new Date(v); if (!isNaN(d)) return d.toLocaleString('sv-SE', { timeZone: 'Europe/Amsterdam' }).slice(0, 16); }
+        return v == null ? '' : v;
+      });
+    }));
+  }
+  function fullExport(btn, kind) {
+    var withOnline = $('exOnline').checked, tag = withOnline ? '' : ' (in person only)';
+    var done = kind === 'summary'
+      ? xlsxDownload(btn, [{ name: 'Session ranking', rows: unfiltered(withOnline, rankingSheet) }], 'IFC2026 summary - session ranking' + tag)
+      : xlsxDownload(btn, [
+          { name: 'Responses', rows: rawSheet(rows.filter(function (r) { return withOnline || !r.online; })) },
+          { name: 'Session Leader reports', rows: rawSheet(leaders) },
+          { name: 'Advisory Panel reports', rows: rawSheet(panel) }
+        ], 'IFC2026 all responses' + tag);
+    done.then(function (ok) { if (ok) closeExport(); });
+  }
+
+  // The pop-up: what = 'full' (top of the page) or 'scorecards'
+  function openExport(what) {
+    var opt = function (id, title, sub) { return '<button type="button" class="ex-opt" id="' + id + '"><strong>' + title + '</strong><span>' + sub + '</span></button>'; };
+    var html;
+    if (what === 'full') {
+      html = '<label class="toggle"><input type="checkbox" id="exOnline" checked> Include IFC Online responses</label>' +
+        opt('exSummary', 'Summary (Excel)', 'The session ranking: one row per session, best to worst, with average scores.') +
+        opt('exFull', 'Every response (Excel)', 'All answers, one row each, plus Session Leader and Advisory Panel reports on their own sheets.') +
+        '<p class="ex-note">Exports everything, whatever filters are set above. Names and emails are left out (they stay on the Comments tab).</p>';
+    } else {
+      html = opt('wordBtn', 'Word (for editing)', 'The scorecards shown, ready to edit before sending to speakers.') +
+        (L_TAKEAWAY ? opt('takeawaysBtn', 'Key takeaways (Excel)', 'Every Session Leader\'s key takeaway, by day and time.') : '') +
+        opt('printBtn', 'Print or save as PDF', 'Opens your browser\'s print window.') +
+        '<p class="ex-note">Follows the filters and the settings on the Scorecards tab.</p>';
+    }
+    $('exportTitle').textContent = what === 'full' ? 'Export results' : 'Export scorecards';
+    $('exportBody').innerHTML = html;
+    var dlg = $('exportDlg');
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+  }
+  function closeExport() { var dlg = $('exportDlg'); if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
 
 
   /* ---------- comments ---------- */
@@ -896,9 +971,7 @@
       (picked.length ? ' · <button type="button" class="link" id="pickNone">Show all ' + ws.length + '</button>' : ' (repeat runs combined)') + '</span>' +
       '<label class="toggle"><input type="checkbox" id="withLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader reports</label>' +
       onlineToggle() +
-      '<button type="button" class="secondary small" id="wordBtn">Download for editing (Word)</button>' +
-      (L_TAKEAWAY ? '<button type="button" class="secondary small" id="takeawaysBtn">Download key takeaways (Excel)</button>' : '') +
-      '<button type="button" class="secondary small" id="printBtn">Print or save as PDF</button></div>';
+      '<button type="button" class="secondary small" id="scoreExportBtn">Export</button></div>';
     html += show.length ? show.map(function (w) { return workshopCard(w, sd.byRun, state.withLeaders); }).join('')
       : '<p class="empty">No sessions with feedback match these filters.</p>';
     $('tab-scorecards').innerHTML = html;
@@ -912,7 +985,7 @@
     var list = leaders.filter(function (l) { return String(l.raw[L_TAKEAWAY] || '').trim() && matches(l, l.name + ' ' + l.raw[L_TAKEAWAY]); })
       .sort(function (a, b) { return (a.date + a.start + a.room).localeCompare(b.date + b.start + b.room); });
     if (!list.length) { alert('No key takeaways yet with these filters.'); return; }
-    var btn = $('takeawaysBtn'); btn.disabled = true; btn.textContent = 'Preparing…';
+    var btn = $('takeawaysBtn'), label = btn.innerHTML; btn.disabled = true; btn.textContent = 'Preparing…';
     loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').then(function () {
       var X = window.XLSX;
       var rowsX = [['Day', 'Time', 'Room', 'Session', 'Speakers', 'Type', 'Track', 'Session Leader', 'Key takeaway']].concat(list.map(function (l) {
@@ -927,7 +1000,7 @@
       X.writeFile(wb, 'IFC2026 key takeaways' + ($('showTest').checked ? ' (TEST)' : '') + '.xlsx');
     }).catch(function () {
       alert(coded('Could not create the Excel file (no connection to the export library). Try again.', 'D204'));
-    }).then(function () { btn.disabled = false; btn.textContent = 'Download key takeaways (Excel)'; });
+    }).then(function () { btn.disabled = false; btn.innerHTML = label; closeExport(); });
   }
 
   function loadScript(src) {
@@ -944,7 +1017,7 @@
     if (!ws.length) { alert('Nothing to export with these filters.'); return; }
     var many = ws.length > 1;
     var oneDoc = !many || confirm(ws.length + ' sessions/workshops.\n\nOK = one Word document with each on its own page\nCancel = a separate Word file for each (in a zip)');
-    var btn = $('wordBtn'); btn.disabled = true; btn.textContent = 'Preparing…';
+    var btn = $('wordBtn'), label = btn.innerHTML; btn.disabled = true; btn.textContent = 'Preparing…';
     var libs = loadScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js')
       .then(function () { return many && !oneDoc ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js') : null; });
     libs.then(function () {
@@ -969,7 +1042,7 @@
         .then(function (blob) { save(blob, 'IFC2026 session feedback (' + ws.length + ' files).zip'); });
     }).catch(function (e) {
       alert(coded('Could not create the Word file (' + (e && e.message || 'no connection to the export library') + '). Try again.', 'D203'));
-    }).then(function () { btn.disabled = false; btn.textContent = 'Download for editing (Word)'; });
+    }).then(function () { btn.disabled = false; btn.innerHTML = label; closeExport(); });
   }
 
   function save(blob, name) {
@@ -1377,12 +1450,18 @@
       else if (el.dataset.resolve) resolveIssue(el, false);
       else if (el.dataset.reopen) resolveIssue(el, true);
       else if (el.dataset.restore) assign(el, '__RESTORE__');
-      else if (el.id === 'exportBtn') exportCSV();
-      else if (el.id === 'takeawaysBtn') exportTakeaways();
+      else if (el.id === 'exportBtn') exportRanking(el);
+      else if (el.id === 'scoreExportBtn') openExport('scorecards');
+      else if (el.id === 'fullExportBtn') openExport('full');
+      else if (el.closest('#exSummary')) fullExport(el.closest('#exSummary'), 'summary');
+      else if (el.closest('#exFull')) fullExport(el.closest('#exFull'), 'full');
+      else if (el.id === 'exportClose' || el.id === 'exportDlg') closeExport();      // the x, or a click on the dark area
+      else if (el.closest('#takeawaysBtn')) exportTakeaways();
       else if (el.id === 'moreComments') { state.commentsShown += 100; renderComments(); }
-      else if (el.id === 'wordBtn') exportWord();
+      else if (el.closest('#wordBtn')) exportWord();
       else if (el.id === 'pickNone') { state.picked = []; renderScorecards(); }
-      else if (el.id === 'printBtn') {
+      else if (el.closest('#printBtn')) {
+        closeExport();
         var panel = $('tab-scorecards'); panel.classList.add('printing'); window.print(); panel.classList.remove('printing');
       }
     });
