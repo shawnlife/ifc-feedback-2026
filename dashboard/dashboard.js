@@ -868,6 +868,9 @@
         var n = outstanding().reduce(function (t, sl) { return t + sl.items.length; }, 0);
         return '<button type="button" class="secondary small" id="outstandingBtn">Outstanding reports' + (n ? ' <span class="count warn">' + n + '</span>' : '') + '</button>';
       })() : '') +
+      // On/off filter: show only the key issues already marked as handled
+      '<button type="button" class="secondary small solved-btn" data-solved="' + G.kind + '" aria-pressed="' + !!G.solvedOnly + '">' +
+        (G.solvedOnly ? 'Showing solved issues \u00d7' : 'Solved issues' + (handledN ? ' <span class="count">' + handledN + '</span>' : '')) + '</button>' +
       '</div>' +
       '<div class="tiles">' +
       tile(G.reports, String(list.length), Object.keys(covered).length + ' of ' + fSessions().length + ' sessions covered') +
@@ -899,6 +902,14 @@
     };
     var head = '<thead><tr>' + lth('title', 'Session') + lth('when', 'When') + lth('name', G.who) +
       G.ratings.map(function (q) { return lth(col(q), q.label, 1); }).join('') + lth('issue', 'Comments') + '</tr></thead>';
+    if (G.solvedOnly) {
+      var solved = list.filter(function (l) { return hasIssue(l) && l.handled; });
+      html += '<h2 class="section">Solved issues</h2>' + (solved.length
+        ? '<div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + solved.map(row).join('') + '</tbody></table></div>'
+        : '<p class="empty">No key issues marked as handled yet' + (G.filterVal ? ' for ' + esc(G.filterVal) : '') + '.</p>');
+      $('tab-' + G.tab).innerHTML = html;
+      return;
+    }
     if (issues.length) html += '<h2 class="section">Key issues to look at</h2><div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + issues.map(row).join('') + '</tbody></table></div>';
     html += '<h2 class="section">All ' + (G === PG ? 'panel' : 'leader') + ' reports</h2>' + (list.length
       ? '<div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + list.map(row).join('') + '</tbody></table></div>'
@@ -1562,6 +1573,11 @@
       else if (el.id === 'exportBtn') exportRanking(el);
       else if (el.id === 'scoreExportBtn') openExport('scorecards');
       else if (el.closest('#outstandingBtn')) showOutstanding();
+      else if (el.closest('[data-solved]')) {
+        var SG = el.closest('[data-solved]').dataset.solved === 'panel' ? PG : LG;
+        SG.solvedOnly = !SG.solvedOnly;
+        if (SG === PG) renderPanel(); else renderLeaders();
+      }
       else if (el.id === 'jumpHistory') $('typedHistory').scrollIntoView({ behavior: 'smooth', block: 'start' });   // not a #link: the address keeps the password after #
       else if (el.id === 'fullExportBtn') openExport('full');
       else if (el.closest('#exSummary')) fullExport(el.closest('#exSummary'), 'summary');

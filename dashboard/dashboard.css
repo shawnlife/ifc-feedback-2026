@@ -263,3 +263,8 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
 /* Typed in: who typed it (Session Leader / Advisory Panel), and the jump link to the match history */
 .t-who { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent-text, var(--ink)); margin-bottom: 2px; }
 #typedHistory { scroll-margin-top: 16px; }
+
+/* "Solved issues" on/off filter (Session Leaders and Advisory Panel tabs) */
+.solved-btn { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; }
+.solved-btn[aria-pressed="true"] { background: var(--accent); }
+@media (max-width: 640px) { .solved-btn { margin: 10px 0 0; } }
