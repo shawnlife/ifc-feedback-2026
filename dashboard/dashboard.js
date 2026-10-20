@@ -250,7 +250,15 @@
       sel.value = values.some(function (v) { return v[0] === cur; }) ? cur : '';
     };
     var uniq = function (list) { return list.filter(function (v, i, a) { return v && a.indexOf(v) === i; }).sort(); };
-    setOpts($('fDay'), uniq(sessions.map(function (s) { return s.date; })).map(function (d) { return [d, dayLabel(d)]; }), 'All days');
+    // Each day, then its time slots indented under it ("2026-10-21" = the whole day, "2026-10-21 15:30" = one slot)
+    var dayOpts = [];
+    uniq(sessions.map(function (s) { return s.date; })).forEach(function (d) {
+      dayOpts.push([d, dayLabel(d)]);
+      uniq(sessions.filter(function (s) { return s.date === d; }).map(function (s) { return s.start; })).forEach(function (t) {
+        dayOpts.push([d + ' ' + t, '\u00a0\u00a0\u00a0\u00a0\u2022 ' + dayLabel(d).split(' ')[0] + ' ' + t]);
+      });
+    });
+    setOpts($('fDay'), dayOpts, 'All days');
     setOpts($('fType'), uniq(sessions.map(function (s) { return s.type; })).map(function (v) { return [v, v]; }), 'All types');
     // Tracks only: names that are really types (Masterclasses, Keynote) live in the Type filter
     var types = uniq(sessions.map(function (s) { return s.type; }));
@@ -266,7 +274,8 @@
   function matches(x, withText) {
     var day = $('fDay').value, ty = $('fType').value, tr = $('fTrack').value, room = $('fRoom').value;
     var text = $('fText').value.trim().toLowerCase();
-    if (day && x.date !== day) return false;
+    if (day && x.date !== day.split(' ')[0]) return false;
+    if (day && day.split(' ')[1] && x.start !== day.split(' ')[1]) return false;     // one time slot
     if (ty && x.type !== ty) return false;
     if (tr && x.track !== tr) return false;
     if (room && x.room.split(' (')[0] !== room) return false;
@@ -477,7 +486,7 @@
         var first = w.runs[0];
         var s = { id: first.id, title: w.title, speakers: w.speakers, date: first.date, start: first.start, track: first.track,
                   room: w.runs.length > 1 ? w.runs.length + ' runs' : first.room, runs: w.runs.length };
-        return { s: s, st: statsFor(g), rate: null, leader: lr.length ? Math.max.apply(null, lr) : null, leaderAll: lr };
+        return { s: s, st: statsFor(g), rate: null, leader: lr.length ? Math.max.apply(null, lr) : null, leaderAll: lr, runs: w.runs };
       });
     }
     return fSessions().map(function (s) {
@@ -485,7 +494,7 @@
       var lr = leaders.filter(function (l) { return sameSession(l, s); }).map(function (l) { return num(l.raw[L_OVERALL]); })
         .filter(function (v) { return v != null; });
       // each leader's own score (never averaged, so disagreement stays visible); sorting uses the highest
-      return { s: s, st: st, rate: s.attendance ? st.n / s.attendance : null, leader: lr.length ? Math.max.apply(null, lr) : null, leaderAll: lr };
+      return { s: s, st: st, rate: s.attendance ? st.n / s.attendance : null, leader: lr.length ? Math.max.apply(null, lr) : null, leaderAll: lr, runs: [s] };
     });
   }
 
@@ -542,7 +551,8 @@
     html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + th('rank', 'Rank', 1) + th('title', 'Session') + th('when', state.combine ? 'When / runs' : 'When / room') + th('n', 'Responses', 1) +
       (hasRate ? th('rate', 'Response rate', 1) : '') +
       RATINGS.map(function (q, i) { return th('avg' + i, esc(col(q).replace(' (1-5)', '')), 1); }).join('') +
-      (PRACTICE ? th('practice', PRACTICE_SHORT, 1) : '') + (L_OVERALL ? th('leader', 'Session Leader scores', 1) : '') + '</tr></thead><tbody>';
+      (PRACTICE ? th('practice', PRACTICE_SHORT, 1) : '') + (L_OVERALL ? th('leader', 'Session Leader scores', 1) : '') + '<th>Results</th></tr></thead><tbody>';
+    state.rankShown = shown;                     // the Copy / Excel buttons look their session up here
     html += shown.map(function (d) {
       return '<tr><td class="num rank">' + (d.rank == null ? '–' : ordinal(d.rank) + (d.tied ? '<div class="t-sub">tied</div>' : '')) + '</td><td><button type="button" class="linkish" data-card="' + esc(d.s.id) + '">' + esc(d.s.title) + '</button>' +
         (d.s.speakers ? '<div class="t-sub">' + esc(d.s.speakers) + '</div>' : '') + '</td>' +
@@ -553,10 +563,96 @@
           return '<td class="num">' + fmt1(a) + (i === 0 && a != null ? '<span class="scorebar" aria-hidden="true"><i style="width:' + (a / 5 * 100) + '%"></i></span>' : '') + '</td>';
         }).join('') +
         (PRACTICE ? '<td class="num">' + pct(d.st.practiceYes, d.st.practiceN) + '</td>' : '') +
-        (L_OVERALL ? '<td class="num">' + (d.leaderAll.length ? d.leaderAll.join(' · ') : '–') + '</td>' : '') + '</tr>';
+        (L_OVERALL ? '<td class="num">' + (d.leaderAll.length ? d.leaderAll.join(' · ') : '–') + '</td>' : '') +
+        '<td class="row-actions"><button type="button" class="secondary small" data-copyai="' + shown.indexOf(d) + '" title="Copy all results as text, to paste into an AI tool">Copy for AI</button>' +
+        '<button type="button" class="secondary small" data-xlsx="' + shown.indexOf(d) + '" title="Every response for this session as an Excel file">Excel</button></td></tr>';
     }).join('') + '</tbody></table></div>';
     if (!shown.length) html += '<p class="empty">No sessions have that many responses yet. Lower the minimum above.</p>';
     $('tab-rankings').innerHTML = html;
+  }
+
+  // One ranking row's responses and reports (all runs when workshops are combined)
+  function rankRowData(d) {
+    var ids = d.runs.map(function (s) { return s.id; });
+    var inRuns = function (x) { return d.runs.some(function (s) { return sameSession(x, s); }); };
+    return {
+      responses: fRows().filter(function (r) { return !r.typed && ids.indexOf(r.id) > -1; }),
+      leaders: leaders.filter(inRuns), panel: panel.filter(inRuns)
+    };
+  }
+
+  // Plain text for pasting into an AI tool: the session, its numbers, every answer, and the internal reports.
+  // No attendee names or emails.
+  function sessionDigest(d) {
+    var x = rankRowData(d), st = statsFor(x.responses), L = [];
+    var line = function (t) { L.push(t); };
+    var f1 = function (v) { return v == null ? 'n/a' : (Math.round(v * 10) / 10).toFixed(1); };
+    line('IFC 2026 session feedback (International Fundraising Congress, Netherlands, 20-23 Oct 2026)');
+    line('');
+    line('Session: ' + d.s.title);
+    if (d.s.speakers) line('Speakers: ' + d.s.speakers);
+    line((d.runs.length > 1 ? 'Runs: ' : 'When and where: ') + d.runs.map(runLabel).join('; '));
+    if (d.s.track) line('Track: ' + d.s.track);
+    var nOnline = x.responses.filter(function (r) { return r.online; }).length;
+    line('Responses: ' + st.n + (nOnline ? ' (' + nOnline + ' from IFC Online viewers)' : ''));
+    line('');
+    line('AVERAGE SCORES (1 = poor, 5 = excellent)');
+    RATINGS.forEach(function (q, i) { line('- ' + col(q).replace(' (1-5)', '') + ': ' + f1(st.avgs[i])); });
+    speakerScores(x.responses).forEach(function (sp) { line('- Speaker ' + sp.name + ': ' + f1(sp.avg) + ' (' + sp.n + ' ratings)'); });
+    CHOICES.forEach(function (q) {
+      var vals = x.responses.map(function (r) { return r.raw[col(q)]; }).filter(Boolean);
+      if (vals.length) line('- ' + col(q) + ': ' + (q.options || []).map(function (o) {
+        return o + ' ' + Math.round(100 * vals.filter(function (v) { return v === o; }).length / vals.length) + '%';
+      }).join(', ') + ' (' + vals.length + ' answers)');
+    });
+    line('');
+    line('INDIVIDUAL RESPONSES');
+    if (!x.responses.length) line('None yet.');
+    x.responses.slice().sort(function (a, b) { return String(a.when).localeCompare(String(b.when)); }).forEach(function (r, i) {
+      var parts = RATINGS.map(function (q) {
+        var v = num(r.raw[col(q)]); if (v == null) return '';
+        var det = q === SPEAKERQ && q.detailColumn && r.raw[q.detailColumn] ? ' (' + String(r.raw[q.detailColumn]).replace(/;\s*/g, ', ') + ')' : '';
+        return col(q).replace(' (1-5)', '') + ' ' + v + det;
+      }).concat(CHOICES.map(function (q) { return r.raw[col(q)] ? col(q) + ': ' + r.raw[col(q)] : ''; })).filter(Boolean);
+      line((i + 1) + '. ' + parts.join('; ') + (r.online ? ' [online viewer]' : '') + (d.runs.length > 1 ? ' [' + runLabel(byId[r.id] || d.s) + ']' : ''));
+      TEXTS.forEach(function (q) { var t = String(r.raw[col(q)] || '').trim(); if (t) line('   ' + col(q) + ': "' + t.replace(/^'/, '') + '"'); });
+    });
+    [[LG, x.leaders, 'SESSION LEADER REPORTS (internal: from the Session Leader who hosted the session)'],
+     [PG, x.panel, 'ADVISORY PANEL REPORTS (internal)']].forEach(function (g) {
+      if (!g[1].length) return;
+      line(''); line(g[2]);
+      g[1].forEach(function (l) {
+        line('- ' + (l.name || g[0].who) + (/-P1$/.test(l.id) ? ' (part 1)' : '') + ': ' +
+          g[0].ratings.map(function (q) { return q.label + ' ' + (num(l.raw[col(q)]) || 'n/a') + '/5'; }).join('; '));
+        g[0].texts.forEach(function (q) { var t = String(l.raw[col(q)] || '').trim(); if (t) line('   ' + q.label + ': "' + t.replace(/^'/, '') + '"'); });
+      });
+    });
+    return L.join('\n');
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise(function (ok, bad) {                  // older browsers
+      var t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select();
+      try { document.execCommand('copy') ? ok() : bad(); } catch (e) { bad(e); } finally { t.remove(); }
+    });
+  }
+  function copyForAI(btn) {
+    var d = (state.rankShown || [])[+btn.dataset.copyai]; if (!d) return;
+    copyText(sessionDigest(d)).then(function () {
+      btn.textContent = 'Copied!'; btn.classList.add('done');
+      setTimeout(function () { btn.textContent = 'Copy for AI'; btn.classList.remove('done'); }, 2000);
+    }, function () { alert(coded('Could not copy. Your browser blocked it: try again, or use Excel instead.', 'D205')); });
+  }
+  function sessionExcel(btn) {
+    var d = (state.rankShown || [])[+btn.dataset.xlsx]; if (!d) return;
+    var x = rankRowData(d);
+    xlsxDownload(btn, [
+      { name: 'Responses', rows: rawSheet(x.responses) },
+      { name: 'Session Leader reports', rows: rawSheet(x.leaders) },
+      { name: 'Advisory Panel reports', rows: rawSheet(x.panel) }
+    ], 'IFC2026 - ' + d.s.title.replace(/[\\/:*?"<>|\[\]]+/g, '').slice(0, 70));
   }
 
   // The ranking as rows for a spreadsheet: best to worst by overall score, sessions with no responses last
@@ -1573,6 +1669,8 @@
       else if (el.id === 'exportBtn') exportRanking(el);
       else if (el.id === 'scoreExportBtn') openExport('scorecards');
       else if (el.closest('#outstandingBtn')) showOutstanding();
+      else if (el.dataset.copyai) copyForAI(el);
+      else if (el.dataset.xlsx) sessionExcel(el);
       else if (el.closest('[data-solved]')) {
         var SG = el.closest('[data-solved]').dataset.solved === 'panel' ? PG : LG;
         SG.solvedOnly = !SG.solvedOnly;

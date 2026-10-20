@@ -268,3 +268,10 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
 .solved-btn { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; }
 .solved-btn[aria-pressed="true"] { background: var(--accent); }
 @media (max-width: 640px) { .solved-btn { margin: 10px 0 0; } }
+
+/* Session rankings: Copy for AI / Excel on each row */
+.row-actions { width: 1%; }
+.row-actions .secondary.small { display: block; width: 100%; white-space: nowrap; height: 30px; padding: 0 10px; font-size: 13px; margin: 0 0 8px; box-shadow: -2px 2px 0 var(--ink); }
+@media (max-width: 640px) { .row-actions { width: auto; } .row-actions .secondary.small { display: inline-block; width: auto; margin: 4px 8px 0 0; } }
+.row-actions .done { background: var(--accent); }
+#tab-rankings .tbl th { white-space: normal; }      /* long headings wrap so the Results buttons fit */
