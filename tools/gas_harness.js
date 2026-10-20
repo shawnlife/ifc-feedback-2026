@@ -330,5 +330,17 @@ env.ss.insertSheet('Session Leader allocations').rows = [['Session ID', 'Session
 dp = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
 check(dp.allocations.length === 1 && dp.allocations[0].id === '1WS1' && dp.allocations[0].leaders === 'Lucy / Hollie', 'allocations tab read: session ID and leaders');
 
+console.log('20. Typed-in Session Leader report: matched to a session in the Session Leader tab');
+env = makeEnv();
+env.ctx.doPost({ postData: { contents: JSON.stringify({ rid: 'tl1', test: false, form: 'leader', session: { id: 'NOT LISTED', title: 'the legacies one' },
+  answers: { 'Session Leader name': 'Lucy', 'Session Leader: Overall (1-5)': 4 } }) } });
+tick(env);
+dp = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+const tl = dp.leaders[0];
+const ta = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'assign', kind: 'leader', key: 'pw12345678', row: tl._row, timestamp: tl.Timestamp, sessionId: '2WS1' }) } }).text);
+dp = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+check(ta.ok && dp.leaders[0]['Session ID'] === '2WS1' && /^Typed in as "the legacies one", matched/.test(dp.leaders[0].Note) && dp.leaders[0]['Session Leader name'] === 'Lucy',
+  'leader report matched, note keeps what they typed, name kept');
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);

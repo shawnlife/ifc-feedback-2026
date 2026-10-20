@@ -258,13 +258,16 @@ class Handler(SimpleHTTPRequestHandler):
                 for r in rows:
                     if contacted.get(r["_row"]):
                         r["Contact status"], r["Contact note"] = "Contacted Thu 22 Oct 15:10", contacted[r["_row"]]
-                for i, r in enumerate(rows):
-                    if r["_row"] in notes:
-                        r["Note"] = notes[r["_row"]]
-                    if r["_row"] in assigned:
-                        s = assigned[r["_row"]]
-                        r.update({"Session ID": s["ID"], "Session": s["Title"], "Room": s["Room"], "Date": s["Date"],
-                                  "Note": f'Typed in as "{r["Session"]}", matched on dashboard'})
+                for kind, lst in (("attendee", rows), ("leader", leaders), ("panel", panel)):
+                    for r in lst:
+                        k = (kind, r["_row"])
+                        if k in notes:
+                            r["Note"] = notes[k]
+                        if k in assigned:
+                            s = assigned[k]
+                            r.update({"Session ID": s["ID"], "Session": s["Title"], "Room": s["Room"], "Date": s["Date"],
+                                      "Time": s["Start"] + "\u2013" + s["End"],
+                                      "Note": f'Typed in as "{r["Session"]}", matched on dashboard'})
                 ev = {}
                 for e in events:
                     if bool(e.get("test")) == bool(item.get("test")):
@@ -275,12 +278,12 @@ class Handler(SimpleHTTPRequestHandler):
                 if item.get("key") != DASH_KEY:
                     return self.send_json({"ok": False, "error": "wrong password", "code": "S111"})
                 if item.get("sessionId") in ("__NO_MATCH__", "__RESTORE__"):
-                    notes[item["row"]] = "Typed in, no match (dismissed on dashboard)" if item["sessionId"] == "__NO_MATCH__" else "Typed in by attendee"
+                    notes[(item.get("kind") or "attendee", item["row"])] = "Typed in, no match (dismissed on dashboard)" if item["sessionId"] == "__NO_MATCH__" else "Typed in by attendee"
                     return self.send_json({"ok": True})
                 s = next((x for x in load_sessions() if x["ID"] == item.get("sessionId")), None)
                 if not s:
                     return self.send_json({"ok": False, "error": "session not found"})
-                assigned[item["row"]] = s
+                assigned[(item.get("kind") or "attendee", item["row"])] = s
                 return self.send_json({"ok": True})
             if item.get("action") == "resolve":
                 if item.get("key") != DASH_KEY:

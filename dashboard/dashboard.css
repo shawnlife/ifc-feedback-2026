@@ -259,3 +259,7 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
 .os-slot li span { display: block; font-size: 14px; color: var(--muted); }
 #exportBody { max-height: calc(100vh - 160px); overflow-y: auto; }
 @media (max-width: 640px) { #outstandingBtn { margin: 10px 0 0; } }
+
+/* Typed in: who typed it (Session Leader / Advisory Panel), and the jump link to the match history */
+.t-who { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent-text, var(--ink)); margin-bottom: 2px; }
+#typedHistory { scroll-margin-top: 16px; }

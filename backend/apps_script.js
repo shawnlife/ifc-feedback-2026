@@ -619,7 +619,10 @@ function assign_(p) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
-    var sh = responsesSheet_(p.test === true);
+    // kind 'leader' / 'panel': a Session Leader or Advisory Panel report that was typed in
+    var sh = p.kind === 'leader' ? sheetFor_(p.test === true ? TEST_LEADER : LEADER)
+           : p.kind === 'panel' ? sheetFor_(p.test === true ? TEST_PANEL : PANEL)
+           : responsesSheet_(p.test === true);
     var row = Number(p.row);
     if (!(row >= 2 && row <= sh.getLastRow())) return json_({ ok: false, error: 'row not found', code: 'S121' });
     var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);

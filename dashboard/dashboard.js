@@ -238,7 +238,7 @@
       newer.versions = cur.versions + 1;
       latest[k] = newer;
     });
-    return list.filter(function (l) { return latest[String(l.name).trim().toLowerCase() + '|' + l.id] === l; });
+    return list.filter(function (l) { return l.id === 'NOT LISTED' || latest[String(l.name).trim().toLowerCase() + '|' + l.id] === l; });
   }
 
   function fillFilters() {
@@ -1209,36 +1209,62 @@
 
   /* ---------- typed in ("My session isn't listed") ---------- */
 
+  // Everything typed in: attendees, plus Session Leader and Advisory Panel reports (with the person's name)
+  function typedItems() {
+    var tag = function (list, kind, who) {
+      return list.map(function (x) { return { x: x, kind: kind, who: who ? who + ': ' + (x.name || '?') : '', overall: kind === 'panel' ? PG.overall : kind === 'leader' ? L_OVERALL : OVERALL }; });
+    };
+    return tag(rows, 'attendee', '').concat(tag(leaders, 'leader', 'Session Leader'), tag(panel, 'panel', 'Advisory Panel'))
+      .sort(function (a, b) { return String(b.x.when).localeCompare(String(a.x.when)); });
+  }
+  function typedText(it) {
+    var x = it.x, texts = it.kind === 'attendee' ? TEXTS : (it.kind === 'panel' ? PG.texts : LG.texts);
+    return texts.map(function (q) { return x.raw[col(q)] ? '<div class="t-sub">' + esc(q.label || col(q)) + ': ' + esc(x.raw[col(q)]) + '</div>' : ''; }).join('');
+  }
+  function whoLine(it) { return it.who ? '<div class="t-who">' + esc(it.who) + '</div>' : ''; }
+
   function renderTyped() {
-    var all = rows.filter(function (r) { return r.typed; })
-      .sort(function (a, b) { return String(b.when).localeCompare(String(a.when)); });
-    var dismissed = all.filter(function (r) { return /no match/i.test(r.raw.Note || ''); });
-    var list = all.filter(function (r) { return dismissed.indexOf(r) === -1; });
+    var items = typedItems();
+    var all = items.filter(function (it) { return it.x.id === 'NOT LISTED'; });
+    var dismissed = all.filter(function (it) { return /no match/i.test(it.x.raw.Note || ''); });
+    var list = all.filter(function (it) { return dismissed.indexOf(it) === -1; });
+    var history = items.filter(function (it) { return /matched on dashboard/.test(it.x.raw.Note || ''); });
     $('typedCount').textContent = list.length || '';
     var html = '<p class="sub">Answers from people who could not find their session and typed it in. ' +
       'Use these to spot a missing or misnamed session in the Sessions tab.</p>';
-    var matched = rows.filter(function (r) { return /matched on dashboard/.test(r.raw.Note || ''); }).length;
-    if (matched) html += '<p class="sub">' + matched + ' already matched to a session (they now count in that session\'s results).</p>';
+    if (history.length) html += '<p class="sub">' + history.length + ' already matched to a session (they now count in that session\'s results). ' +
+      '<button type="button" class="link" id="jumpHistory">See the match history</button></p>';
+    var attrs = function (it) { return ' data-ts="' + esc(it.x.when) + '" data-kind="' + it.kind + '"'; };
     html += list.length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>When</th><th>What they typed</th><th class="num">Overall</th>' +
       '<th>Match to session</th></tr></thead><tbody>' +
-      list.map(function (r) {
-        var guess = bestGuess(r.title);
-        return '<tr><td>' + esc(localTime(r.when)) + '</td><td class="t-title">' + esc(r.title) +
-          TEXTS.map(function (q) { return r.raw[col(q)] ? '<div class="t-sub">' + esc(col(q)) + ': ' + esc(r.raw[col(q)]) + '</div>' : ''; }).join('') +
-          '</td><td class="num">' + (num(r.raw[OVERALL]) || '–') + '</td>' +
-          '<td class="assign"><select data-row="' + r.row + '" aria-label="Session for this response">' + sessionOptions(guess) + '</select>' +
+      list.map(function (it) {
+        var r = it.x, guess = bestGuess(r.title);
+        return '<tr><td>' + esc(localTime(r.when)) + '</td><td class="t-title">' + whoLine(it) + esc(r.title) + typedText(it) +
+          '</td><td class="num">' + (num(r.raw[it.overall]) || '–') + '</td>' +
+          '<td class="assign"><select data-row="' + r.row + '" data-kind="' + it.kind + '" aria-label="Session for this response">' + sessionOptions(guess) + '</select>' +
           (guess ? '<div class="t-sub assign-hint">Best guess pre-selected. Check it before matching.</div>' : '') +
-          '<div class="assign-actions"><button type="button" class="secondary small" data-assign="' + r.row + '" data-ts="' + esc(r.when) + '">Match</button>' +
-          '<button type="button" class="link" data-nomatch="' + r.row + '" data-ts="' + esc(r.when) + '">No match</button></div></td></tr>';
+          '<div class="assign-actions"><button type="button" class="secondary small" data-assign="' + r.row + '"' + attrs(it) + '>Match</button>' +
+          '<button type="button" class="link" data-nomatch="' + r.row + '"' + attrs(it) + '>No match</button></div></td></tr>';
       }).join('') + '</tbody></table></div>'
-      : '<p class="empty">Nothing waiting to be matched.' + (matched ? '' : ' Good sign: the list is complete.') + '</p>';
+      : '<p class="empty">Nothing waiting to be matched.' + (history.length ? '' : ' Good sign: the list is complete.') + '</p>';
     if (dismissed.length) {
       html += '<details class="dismissed"><summary>' + dismissed.length + ' marked "no match" (still kept in the database)</summary>' +
-        '<div class="tbl-wrap"><table class="tbl"><tbody>' + dismissed.map(function (r) {
-          return '<tr><td>' + esc(localTime(r.when)) + '</td><td class="t-title">' + esc(r.title) + '</td><td class="num">' + (num(r.raw[OVERALL]) || '–') + '</td>' +
-            '<td><button type="button" class="link" data-restore="' + r.row + '" data-ts="' + esc(r.when) + '">Restore</button></td></tr>';
+        '<div class="tbl-wrap"><table class="tbl"><tbody>' + dismissed.map(function (it) {
+          var r = it.x;
+          return '<tr><td>' + esc(localTime(r.when)) + '</td><td class="t-title">' + whoLine(it) + esc(r.title) + '</td><td class="num">' + (num(r.raw[it.overall]) || '–') + '</td>' +
+            '<td><button type="button" class="link" data-restore="' + r.row + '"' + attrs(it) + '>Restore</button></td></tr>';
         }).join('') + '</tbody></table></div></details>';
     }
+    // Match history: what people typed, and the session it was matched to
+    html += '<h2 class="section" id="typedHistory">Match history</h2>' + (history.length
+      ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>When</th><th>What they typed</th><th>Matched to</th></tr></thead><tbody>' +
+        history.map(function (it) {
+          var r = it.x, m = String(r.raw.Note).match(/^Typed in as "(.*)", matched on dashboard$/);
+          return '<tr><td>' + esc(localTime(r.when)) + '</td><td class="t-title">' + whoLine(it) + esc(m ? m[1] : '') + '</td>' +
+            '<td><button type="button" class="linkish" data-card="' + esc(baseId(r.id)) + '">' + esc(r.title) + '</button>' +
+            '<div class="t-sub">' + esc([dayLabel(r.date) + (r.start ? ', ' + r.start : ''), r.room].filter(Boolean).join(' · ')) + '</div></td></tr>';
+        }).join('') + '</tbody></table></div>'
+      : '<p class="empty">Nothing matched yet. Matches you make above are listed here.</p>');
     $('tab-typed').innerHTML = html;
   }
 
@@ -1311,10 +1337,10 @@
   function assign(btn, special) {
     var row = btn.dataset.assign || btn.dataset.nomatch || btn.dataset.restore, sessionId = special;
     if (!special) {
-      var sel = document.querySelector('select[data-row="' + row + '"]');
+      var sel = document.querySelector('select[data-row="' + row + '"][data-kind="' + (btn.dataset.kind || 'attendee') + '"]');
       if (!sel.value) { sel.focus(); return; }
       var s = byId[sel.value];
-      if (!confirm('Match this response to "' + s.title + '" (' + s.room + ', ' + dayLabel(s.date) + ' ' + s.start + ')?\n\nThis updates the database.')) return;
+      if (!confirm('Match this ' + (btn.dataset.kind === 'leader' ? 'Session Leader report' : btn.dataset.kind === 'panel' ? 'Advisory Panel report' : 'response') + ' to "' + s.title + '" (' + s.room + ', ' + dayLabel(s.date) + ' ' + s.start + ')?\n\nThis updates the database.')) return;
       sessionId = sel.value;
     }
     var label = btn.textContent;
@@ -1325,7 +1351,7 @@
     if (tr && special === '__RESTORE__') tr.hidden = true;
     fetch(API, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'assign', key: state.key, test: $('showTest').checked, row: +row, timestamp: btn.dataset.ts, sessionId: sessionId })
+      body: JSON.stringify({ action: 'assign', kind: btn.dataset.kind || 'attendee', key: state.key, test: $('showTest').checked, row: +row, timestamp: btn.dataset.ts, sessionId: sessionId })
     }).then(function (r) { return r.json(); }).then(function (j) {
       if (!j.ok) { if (tr) tr.hidden = false; cnt.textContent = before; alert(coded('Not saved: ' + (j.error || 'unknown problem') + '.', 'D201', j.code)); btn.disabled = false; btn.textContent = label; return; }
       load();
@@ -1536,6 +1562,7 @@
       else if (el.id === 'exportBtn') exportRanking(el);
       else if (el.id === 'scoreExportBtn') openExport('scorecards');
       else if (el.closest('#outstandingBtn')) showOutstanding();
+      else if (el.id === 'jumpHistory') $('typedHistory').scrollIntoView({ behavior: 'smooth', block: 'start' });   // not a #link: the address keeps the password after #
       else if (el.id === 'fullExportBtn') openExport('full');
       else if (el.closest('#exSummary')) fullExport(el.closest('#exSummary'), 'summary');
       else if (el.closest('#exFull')) fullExport(el.closest('#exFull'), 'full');
