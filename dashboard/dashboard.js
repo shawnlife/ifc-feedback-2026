@@ -51,7 +51,7 @@
   var state = {
     key: null, data: null, lastOk: 0, tab: 'overview',
     sortBy: 'rank', sortDir: 1, minN: 1, scorecard: '', commentsShown: 100,
-    picked: [], withLeaders: true
+    picked: [], withLeaders: true, withPanel: true
   };
   var sessions = [], byId = {}, rows = [], leaders = [], panel = [];
 
@@ -661,6 +661,21 @@
     var dlg = $('exportDlg');
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
   }
+  // Word: before downloading, confirm which internal reports go in (and one file or a zip)
+  function wordConfirm() {
+    var sd = scorecardData(), picked = state.picked || [];
+    var n = picked.length ? sd.ws.filter(function (w) { return picked.indexOf(w.key) > -1; }).length : sd.ws.length;
+    if (!n) { alert('Nothing to export with these filters.'); return; }
+    $('exportTitle').textContent = 'Word (for editing)';
+    $('exportBody').innerHTML =
+      '<p class="ex-note" style="font-size:15px;color:var(--ink)"><strong>' + n + '</strong> ' + (n === 1 ? 'session' : 'sessions') + '. Include these internal reports?</p>' +
+      '<label class="toggle"><input type="checkbox" id="wLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader reports</label>' +
+      '<label class="toggle"><input type="checkbox" id="wPanel"' + (state.withPanel ? ' checked' : '') + '> Include Advisory Panel reports</label>' +
+      (n > 1 ? '<label class="toggle"><input type="radio" name="wFiles" id="wOne" checked> One Word document, each session on its own page</label>' +
+               '<label class="toggle"><input type="radio" name="wFiles" id="wZip"> A separate Word file for each (in a zip)</label>' : '<input type="checkbox" id="wZip" hidden>') +
+      '<button type="button" class="ex-opt" id="wordGo"><strong>Download Word</strong><span>Remember to remove internal reports before sending to speakers.</span></button>' +
+      '<button type="button" class="link" id="wordBack">Back</button>';
+  }
   function closeExport() { var dlg = $('exportDlg'); if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
 
 
@@ -750,7 +765,12 @@
   /* ---------- scorecards ---------- */
 
   // Session Leader and Advisory Panel reports on a scorecard (internal: never sent to speakers as is)
-  function leaderBlock(s, prefix) { return reportBlock(LG, leaders, s, 'Session Leader report', prefix) + reportBlock(PG, panel, s, 'Advisory Panel report', prefix); }
+  // inc = { leaders: true/false, panel: true/false } (the two tickboxes on the Scorecards tab)
+  function leaderBlock(s, prefix, inc) {
+    return (inc.leaders ? reportBlock(LG, leaders, s, 'Session Leader report', prefix) : '') +
+           (inc.panel ? reportBlock(PG, panel, s, 'Advisory Panel report', prefix) : '');
+  }
+  function included() { return { leaders: state.withLeaders, panel: state.withPanel }; }
   function reportBlock(G, all, s, heading, prefix) {
     var ls = all.filter(function (l) { return sameSession(l, s); });
     if (!ls.length) return '';
@@ -896,7 +916,7 @@
   }
 
   // One card per workshop: combined results, then how each run compared, then comments per run
-  function workshopCard(w, byRun, withLeaders) {
+  function workshopCard(w, byRun, inc) {
     var all = [];
     w.runs.forEach(function (s) { all = all.concat(byRun[s.id] || []); });
     var st = statsFor(all), multi = w.runs.length > 1;
@@ -917,8 +937,8 @@
         (PRACTICE ? '<td class="num">' + pct(st.practiceYes, st.practiceN) + '</td>' : '') + '</tr></tbody></table></div>' +
         '<p class="few">Small numbers next to a run show how it differed from the all-runs average.</p>';
     }
-    if (withLeaders) html += w.runs.map(function (s) {
-      return leaderBlock(s, multi ? 'Run ' + (w.runs.indexOf(s) + 1) + ': ' : '');
+    html += w.runs.map(function (s) {
+      return leaderBlock(s, multi ? 'Run ' + (w.runs.indexOf(s) + 1) + ': ' : '', inc);
     }).join('');
     if (!all.length) return html + '<p class="empty">No attendee feedback yet.</p></article>';
     html += '<div class="qname">' + (multi ? 'All runs together' : 'Scores') + '</div><div class="row">' + RATINGS.map(function (q, i) {
@@ -956,7 +976,7 @@
   function scorecardData() {
     var list = fRows(), byRun = {};
     list.forEach(function (r) { if (!r.typed) (byRun[r.id] = byRun[r.id] || []).push(r); });
-    var withLeader = {}; leaders.concat(panel).forEach(function (l) { withLeader[baseId(l.id)] = 1; });
+    var withLeader = {}; (state.withLeaders ? leaders : []).concat(state.withPanel ? panel : []).forEach(function (l) { withLeader[baseId(l.id)] = 1; });
     var ws = workshopsOf(fSessions()).filter(function (w) { return w.runs.some(function (s) { return byRun[s.id] || withLeader[s.id]; }); });
     return { byRun: byRun, ws: ws };
   }
@@ -975,10 +995,11 @@
     var html = '<div class="controls no-print export-bar">' +
       '<span><strong>' + show.length + '</strong> ' + (show.length === 1 ? 'session' : 'sessions') + ' shown' +
       (picked.length ? ' · <button type="button" class="link" id="pickNone">Show all ' + ws.length + '</button>' : ' (repeat runs combined)') + '</span>' +
-      '<label class="toggle"><input type="checkbox" id="withLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader and Advisory Panel reports</label>' +
+      '<label class="toggle"><input type="checkbox" id="withLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader reports</label>' +
+      '<label class="toggle"><input type="checkbox" id="withPanel"' + (state.withPanel ? ' checked' : '') + '> Include Advisory Panel reports</label>' +
       onlineToggle() +
       '<button type="button" class="secondary small" id="scoreExportBtn">Export</button></div>';
-    html += show.length ? show.map(function (w) { return workshopCard(w, sd.byRun, state.withLeaders); }).join('')
+    html += show.length ? show.map(function (w) { return workshopCard(w, sd.byRun, included()); }).join('')
       : '<p class="empty">No sessions with feedback match these filters.</p>';
     $('tab-scorecards').innerHTML = html;
   }
@@ -1022,8 +1043,8 @@
     var ws = picked.length ? sd.ws.filter(function (w) { return picked.indexOf(w.key) > -1; }) : sd.ws;
     if (!ws.length) { alert('Nothing to export with these filters.'); return; }
     var many = ws.length > 1;
-    var oneDoc = !many || confirm(ws.length + ' sessions/workshops.\n\nOK = one Word document with each on its own page\nCancel = a separate Word file for each (in a zip)');
-    var btn = $('wordBtn'), label = btn.innerHTML; btn.disabled = true; btn.textContent = 'Preparing…';
+    var oneDoc = !many || !$('wZip').checked;
+    var btn = $('wordGo'), label = btn.innerHTML; btn.disabled = true; btn.textContent = 'Preparing…';
     var libs = loadScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js')
       .then(function () { return many && !oneDoc ? loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js') : null; });
     libs.then(function () {
@@ -1031,7 +1052,7 @@
       var fname = function (w) { return 'IFC2026 feedback - ' + w.title.replace(/[\\/:*?"<>|]+/g, '').slice(0, 80) + '.docx'; };
       var build = function (list) {
         var children = [];
-        list.forEach(function (w, i) { children = children.concat(docxWorkshop(D, w, sd.byRun, state.withLeaders, i > 0)); });
+        list.forEach(function (w, i) { children = children.concat(docxWorkshop(D, w, sd.byRun, included(), i > 0)); });
         return new D.Document({
           creator: 'IFC 2026 feedback dashboard', title: 'IFC 2026 session feedback',
           styles: { default: { document: { run: { font: 'Arial', size: 21 } } } },
@@ -1059,7 +1080,7 @@
   }
 
   // Plain, tidy Word content: headings, a comparison table, score summaries, comments as bullet points
-  function docxWorkshop(D, w, byRun, withLeaders, newPage) {
+  function docxWorkshop(D, w, byRun, inc, newPage) {
     var P = function (text, opt) { return new D.Paragraph(Object.assign({ children: [new D.TextRun(Object.assign({ text: String(text) }, (opt && opt.run) || {}))] }, opt && opt.para || {})); };
     var cell = function (text, bold) { return new D.TableCell({ children: [P(text, { run: { bold: !!bold } })] }); };
     var all = [];
@@ -1112,7 +1133,8 @@
       });
       if (!any) out.push(P('None.', { run: { italics: true } }));
     });
-    if (withLeaders) [[LG, leaders, 'Session Leader reports (internal)'], [PG, panel, 'Advisory Panel reports (internal)']].forEach(function (g) {
+    [[LG, leaders, 'Session Leader reports (internal)', inc.leaders], [PG, panel, 'Advisory Panel reports (internal)', inc.panel]].forEach(function (g) {
+      if (!g[3]) return;
       var G = g[0], ls = g[1].filter(function (l) { return w.runs.some(function (s) { return sameSession(l, s); }); });
       if (!ls.length) return;
       out.push(P(g[2], { para: { heading: D.HeadingLevel.HEADING_2 } }));
@@ -1463,7 +1485,13 @@
       else if (el.id === 'exportClose' || el.id === 'exportDlg') closeExport();      // the x, or a click on the dark area
       else if (el.closest('#takeawaysBtn')) exportTakeaways();
       else if (el.id === 'moreComments') { state.commentsShown += 100; renderComments(); }
-      else if (el.closest('#wordBtn')) exportWord();
+      else if (el.closest('#wordBtn')) wordConfirm();
+      else if (el.id === 'wordBack') openExport('scorecards');
+      else if (el.closest('#wordGo')) {
+        state.withLeaders = $('wLeaders').checked; state.withPanel = $('wPanel').checked;
+        renderScorecards();                                            // the page matches what was exported
+        exportWord();
+      }
       else if (el.id === 'pickNone') { state.picked = []; renderScorecards(); }
       else if (el.closest('#printBtn')) {
         closeExport();
@@ -1473,6 +1501,7 @@
     document.querySelector('#app').addEventListener('change', function (e) {
       if (e.target.id === 'combine') { state.combine = e.target.checked; renderRankings(); }
       if (e.target.id === 'withLeaders') { state.withLeaders = e.target.checked; renderScorecards(); }
+      if (e.target.id === 'withPanel') { state.withPanel = e.target.checked; renderScorecards(); }
       if (e.target.id === 'lFilter') { LG.filterVal = e.target.value; renderLeaders(); }
       if (e.target.id === 'pFilter') { PG.filterVal = e.target.value; renderPanel(); }
       if (e.target.classList.contains('m-sort-select')) {             // phones: the Sort by dropdown presses that column's button
