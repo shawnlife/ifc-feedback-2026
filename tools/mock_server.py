@@ -38,6 +38,15 @@ def load_sessions():
         return list(csv.DictReader(f))
 
 
+def load_allocations():
+    """The Session Leader allocations tab (MOCK_ALLOC=path to the CSV from tools/build_allocations.py)."""
+    p = os.environ.get("MOCK_ALLOC")
+    if not p:
+        return []
+    with (ROOT / p).open(encoding="utf-8") as f:
+        return [{"id": r["Session ID"], "leaders": r["Session Leaders"]} for r in csv.DictReader(f)]
+
+
 def to_row(item, when=None):
     """Shape a posted response the way the Apps Script stores it (one row per response)."""
     s = item["session"]
@@ -260,7 +269,7 @@ class Handler(SimpleHTTPRequestHandler):
                 for e in events:
                     if bool(e.get("test")) == bool(item.get("test")):
                         ev[e["type"]] = ev.get(e["type"], 0) + 1
-                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows, "leaders": leaders, "panel": panel,
+                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows, "leaders": leaders, "panel": panel, "allocations": load_allocations(),
                                        "events": ev, "health": {"automatic": True, "waiting": 0, "lastProcessed": None}})
             if item.get("action") == "assign":
                 if item.get("key") != DASH_KEY:

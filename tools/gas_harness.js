@@ -323,5 +323,12 @@ const pr = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ ac
 dp = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
 check(pr.ok && /^Handled/.test(dp.panel[0]['Issue status']) && !dp.leaders[0]['Issue status'], 'panel key issue marked handled in the panel tab only');
 
+console.log('19. Session Leader allocations tab: returned to the dashboard (none = empty list)');
+check(Array.isArray(dp.allocations) && dp.allocations.length === 0, 'no allocations tab: empty list, no error');
+env.ss.insertSheet('Session Leader allocations').rows = [['Session ID', 'Session', 'Room', 'Day', 'Time', 'Session Leaders'],
+  ['1WS1', 'Fundraising Benchmarks', 'Boston 11', 'Wed 21 Oct', '15:30-16:45', 'Lucy / Hollie']];
+dp = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+check(dp.allocations.length === 1 && dp.allocations[0].id === '1WS1' && dp.allocations[0].leaders === 'Lucy / Hollie', 'allocations tab read: session ID and leaders');
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);

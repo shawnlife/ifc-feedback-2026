@@ -41,6 +41,9 @@ var TEST_LEADER = 'Test Session Leader feedback';
 var PANEL = 'Advisory Panel feedback';
 var TEST_PANEL = 'Test Advisory Panel feedback';
 var PANEL_NAME_COL = 'Panel member name';
+// Who leads which session (imported by Shawn from tools/build_allocations.py). The dashboard uses it
+// to list Session Leader reports still outstanding. Optional: no tab, no list.
+var ALLOCATIONS = 'Session Leader allocations';
 var PICKS = 'Masterclass picks';                 // Session Leaders' top 3 masterclasses (from /allocations)
 var TEST_PICKS = 'Test masterclass picks';
 var PICKS_HEAD = ['Timestamp', 'ID', 'Name', '1st choice', '2nd choice', '3rd choice'];
@@ -559,6 +562,7 @@ function dashboard_(p) {
   var responses = readTab(p.test === true ? TEST_RESPONSES : RESPONSES);
   var leaders = readTab(p.test === true ? TEST_LEADER : LEADER);
   var panel = readTab(p.test === true ? TEST_PANEL : PANEL);
+  var allocations = readTab(ALLOCATIONS).map(function (r) { return { id: String(r['Session ID'] || ''), leaders: String(r['Session Leaders'] || '') }; });
   var events = {}, ev = ss.getSheetByName('Events');
   if (ev && ev.getLastRow() > 1) {
     ev.getRange(2, 1, ev.getLastRow() - 1, 3).getValues().forEach(function (r) {
@@ -569,7 +573,7 @@ function dashboard_(p) {
   var raw = ss.getSheetByName(RAW_LOG);
   var waiting = raw ? Math.max(0, raw.getLastRow() + 1 - Number(props.getProperty('RAW_NEXT_ROW') || 2)) : 0;
   return json_({
-    ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, leaders: leaders, panel: panel, events: events,
+    ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, leaders: leaders, panel: panel, allocations: allocations, events: events,
     health: { lastProcessed: props.getProperty('LAST_PROCESSED'), waiting: waiting,
               firebase: FIREBASE_PROJECT_ID ? { lastSync: props.getProperty('FS_LAST_SYNC'), error: props.getProperty('FS_LAST_ERROR') } : null,
               usage: usage_(),

@@ -75,7 +75,8 @@
   function cacheKey() { return 'ifc26-dash-cache-' + ($('showTest').checked ? 'test' : 'real'); }
   function saveCache(d) { try { localStorage.setItem(cacheKey(), JSON.stringify({ t: Date.now(), d: d })); } catch (e) { /* full or blocked: fine */ } }
   function readCache() { try { return JSON.parse(localStorage.getItem(cacheKey()) || 'null'); } catch (e) { return null; } }
-  function signature(d) { return JSON.stringify([d.sessions, d.responses, d.leaders, d.panel, d.events]); }
+  // (the half-hour bit: the Outstanding reports count also changes when a new time slot starts)
+  function signature(d) { return JSON.stringify([d.sessions, d.responses, d.leaders, d.panel, d.allocations, d.events, Math.floor(nowMin() / 30)]); }
 
   // Redraw only when the numbers changed, and never under someone's fingers (an open dropdown, a half-typed note)
   var pendingRender = false;
@@ -641,6 +642,56 @@
     done.then(function (ok) { if (ok) closeExport(); });
   }
 
+  /* ---------- outstanding Session Leader reports ---------- */
+
+  // Now in conference time, in minutes (?now=2026-10-21T16:00 in the address to test)
+  function nowMin() {
+    var o = (location.search.match(/[?&]now=([^&]+)/) || [])[1];
+    var parts = {};
+    if (o) { o = decodeURIComponent(o).split('T'); var d = o[0].split('-'), t = (o[1] || '12:00').split(':'); return Date.UTC(+d[0], +d[1] - 1, +d[2], +t[0], +t[1]) / 60000; }
+    new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+      .formatToParts(new Date()).forEach(function (x) { parts[x.type] = x.value; });
+    return Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute) / 60000;
+  }
+  function slotMin(date, start) { var d = date.split('-'), t = start.split(':'); return Date.UTC(+d[0], +d[1] - 1, +d[2], +t[0], +t[1]) / 60000; }
+  function plainName(n) { return String(n).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase(); }
+
+  // From the "Session Leader allocations" tab: for each time slot that has started, who still owes a report.
+  // Follows the Session Leader dropdown (one person) but not the other filters.
+  function outstanding() {
+    var have = {}, now = nowMin(), slots = {}, p1 = CFG.masterclassPart1 || {};
+    leaders.forEach(function (l) { have[plainName(l.name) + '|' + l.id] = 1; });
+    (state.data.allocations || []).forEach(function (a) {
+      var s = byId[a.id], part1 = /-P1$/.test(a.id);
+      if (part1 && byId[baseId(a.id)]) s = { title: byId[baseId(a.id)].title + ' (Part 1)', room: byId[baseId(a.id)].room, date: p1.date, start: p1.start };
+      if (!s || !s.date || !s.start || slotMin(s.date, s.start) > now) return;       // cancelled, or not started yet
+      var missing = a.leaders.split(/\s*\/\s*/).filter(function (n) {
+        return n && !have[plainName(n) + '|' + a.id] && (!LG.filterVal || plainName(n) === plainName(LG.filterVal));
+      });
+      if (!missing.length) return;
+      var k = s.date + ' ' + s.start;
+      (slots[k] = slots[k] || { date: s.date, start: s.start, items: [] }).items.push({ s: s, id: a.id, names: missing });
+    });
+    return Object.keys(slots).sort().reverse().map(function (k) { return slots[k]; });   // latest slot first
+  }
+
+  function showOutstanding() {
+    var list = outstanding();
+    var html = list.length ? list.map(function (sl) {
+      var n = sl.items.reduce(function (t, it) { return t + it.names.length; }, 0);
+      return '<div class="os-slot"><h3>' + esc(dayLabel(sl.date) + ', ' + sl.start) + ' <span class="count warn">' + n + '</span></h3><ul>' +
+        sl.items.sort(function (a, b) { return a.s.room.localeCompare(b.s.room); }).map(function (it) {
+          return '<li><strong>' + esc(it.names.join(', ')) + '</strong><span>' + esc(it.s.title) + ' \u00b7 ' + esc(it.s.room) + '</span></li>';
+        }).join('') + '</ul></div>';
+    }).join('') : '<p class="ex-note" style="font-size:15px;color:var(--ink)">Nothing outstanding' + (LG.filterVal ? ' for ' + esc(LG.filterVal) : '') + '. Every Session Leader has sent a report for every session that has started.</p>';
+    html += '<p class="ex-note">Time slots appear once they start. Session Leaders come from the "Session Leader allocations" tab in the Sheet' +
+      (LG.filterVal ? '. Showing ' + esc(LG.filterVal) + ' only (Session Leader dropdown).' : '.') + '</p>';
+    $('exportTitle').textContent = 'Outstanding reports';
+    $('exportBody').innerHTML = html;
+    var dlg = $('exportDlg');
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+  }
+
   // The pop-up: what = 'full' (top of the page) or 'scorecards'
   function openExport(what) {
     var opt = function (id, title, sub) { return '<button type="button" class="ex-opt" id="' + id + '"><strong>' + title + '</strong><span>' + sub + '</span></button>'; };
@@ -812,7 +863,12 @@
     list.sort(lsort); issues.sort(lsort);
     var html = '<div class="controls"><label>' + G.who + ' <select id="' + G.filter + '"><option value="">' + G.all + '</option>' +
       leaderNames.map(function (n) { return '<option' + (n === G.filterVal ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') +
-      '</select></label></div>' +
+      '</select></label>' +
+      (G === LG && (state.data.allocations || []).length ? (function () {
+        var n = outstanding().reduce(function (t, sl) { return t + sl.items.length; }, 0);
+        return '<button type="button" class="secondary small" id="outstandingBtn">Outstanding reports' + (n ? ' <span class="count warn">' + n + '</span>' : '') + '</button>';
+      })() : '') +
+      '</div>' +
       '<div class="tiles">' +
       tile(G.reports, String(list.length), Object.keys(covered).length + ' of ' + fSessions().length + ' sessions covered') +
       G.ratings.map(function (q) {
@@ -1479,6 +1535,7 @@
       else if (el.dataset.restore) assign(el, '__RESTORE__');
       else if (el.id === 'exportBtn') exportRanking(el);
       else if (el.id === 'scoreExportBtn') openExport('scorecards');
+      else if (el.closest('#outstandingBtn')) showOutstanding();
       else if (el.id === 'fullExportBtn') openExport('full');
       else if (el.closest('#exSummary')) fullExport(el.closest('#exSummary'), 'summary');
       else if (el.closest('#exFull')) fullExport(el.closest('#exFull'), 'full');

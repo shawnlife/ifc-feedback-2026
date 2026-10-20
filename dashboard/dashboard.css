@@ -250,3 +250,12 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
 /* Panel dropdowns (Session Leader, Panel member) get the same arrow as the filters. Last so nothing above resets it */
 .controls select { padding: 0 40px 0 10px; border-radius: 0;
   background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center; }
+
+/* Outstanding Session Leader reports pop-up */
+#outstandingBtn { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; }
+.os-slot h3 { margin: 4px 0 6px; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+.os-slot ul { list-style: none; margin: 0; padding: 0; }
+.os-slot li { padding: 8px 0; border-top: 1px solid var(--line); }
+.os-slot li span { display: block; font-size: 14px; color: var(--muted); }
+#exportBody { max-height: calc(100vh - 160px); overflow-y: auto; }
+@media (max-width: 640px) { #outstandingBtn { margin: 10px 0 0; } }
