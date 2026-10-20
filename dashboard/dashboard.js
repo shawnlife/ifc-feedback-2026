@@ -551,8 +551,7 @@
     html += '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + th('rank', 'Rank', 1) + th('title', 'Session') + th('when', state.combine ? 'When / runs' : 'When / room') + th('n', 'Responses', 1) +
       (hasRate ? th('rate', 'Response rate', 1) : '') +
       RATINGS.map(function (q, i) { return th('avg' + i, esc(col(q).replace(' (1-5)', '')), 1); }).join('') +
-      (PRACTICE ? th('practice', PRACTICE_SHORT, 1) : '') + (L_OVERALL ? th('leader', 'Session Leader scores', 1) : '') + '<th>Results</th></tr></thead><tbody>';
-    state.rankShown = shown;                     // the Copy / Excel buttons look their session up here
+      (PRACTICE ? th('practice', PRACTICE_SHORT, 1) : '') + (L_OVERALL ? th('leader', 'Session Leader scores', 1) : '') + '</tr></thead><tbody>';
     html += shown.map(function (d) {
       return '<tr><td class="num rank">' + (d.rank == null ? '–' : ordinal(d.rank) + (d.tied ? '<div class="t-sub">tied</div>' : '')) + '</td><td><button type="button" class="linkish" data-card="' + esc(d.s.id) + '">' + esc(d.s.title) + '</button>' +
         (d.s.speakers ? '<div class="t-sub">' + esc(d.s.speakers) + '</div>' : '') + '</td>' +
@@ -563,15 +562,18 @@
           return '<td class="num">' + fmt1(a) + (i === 0 && a != null ? '<span class="scorebar" aria-hidden="true"><i style="width:' + (a / 5 * 100) + '%"></i></span>' : '') + '</td>';
         }).join('') +
         (PRACTICE ? '<td class="num">' + pct(d.st.practiceYes, d.st.practiceN) + '</td>' : '') +
-        (L_OVERALL ? '<td class="num">' + (d.leaderAll.length ? d.leaderAll.join(' · ') : '–') + '</td>' : '') +
-        '<td class="row-actions"><button type="button" class="secondary small" data-copyai="' + shown.indexOf(d) + '" title="Copy all results as text, to paste into an AI tool">Copy for AI</button>' +
-        '<button type="button" class="secondary small" data-xlsx="' + shown.indexOf(d) + '" title="Every response for this session as an Excel file">Excel</button></td></tr>';
+        (L_OVERALL ? '<td class="num">' + (d.leaderAll.length ? d.leaderAll.join(' · ') : '–') + '</td>' : '') + '</tr>';
     }).join('') + '</tbody></table></div>';
     if (!shown.length) html += '<p class="empty">No sessions have that many responses yet. Lower the minimum above.</p>';
     $('tab-rankings').innerHTML = html;
   }
 
-  // One ranking row's responses and reports (all runs when workshops are combined)
+  // A scorecard (one session, or a workshop with all its runs) in the shape the copy/Excel code uses
+  function cardItem(i) {
+    var w = (state.cardShown || [])[+i]; if (!w) return null;
+    return { s: { title: w.title, speakers: w.speakers, track: w.runs[0].track }, runs: w.runs };
+  }
+  // One scorecard's responses and reports (all runs of a workshop)
   function rankRowData(d) {
     var ids = d.runs.map(function (s) { return s.id; });
     var inRuns = function (x) { return d.runs.some(function (s) { return sameSession(x, s); }); };
@@ -639,14 +641,14 @@
     });
   }
   function copyForAI(btn) {
-    var d = (state.rankShown || [])[+btn.dataset.copyai]; if (!d) return;
+    var d = cardItem(btn.dataset.copyai); if (!d) return;
     copyText(sessionDigest(d)).then(function () {
       btn.textContent = 'Copied!'; btn.classList.add('done');
       setTimeout(function () { btn.textContent = 'Copy for AI'; btn.classList.remove('done'); }, 2000);
     }, function () { alert(coded('Could not copy. Your browser blocked it: try again, or use Excel instead.', 'D205')); });
   }
   function sessionExcel(btn) {
-    var d = (state.rankShown || [])[+btn.dataset.xlsx]; if (!d) return;
+    var d = cardItem(btn.dataset.xlsx); if (!d) return;
     var x = rankRowData(d);
     xlsxDownload(btn, [
       { name: 'Responses', rows: rawSheet(x.responses) },
@@ -1083,7 +1085,11 @@
     var all = [];
     w.runs.forEach(function (s) { all = all.concat(byRun[s.id] || []); });
     var st = statsFor(all), multi = w.runs.length > 1;
-    var html = '<article class="card" data-workshop="' + esc(w.key) + '"><h3>' + esc(w.title) + '</h3><div class="meta">' +
+    var i = (state.cardShown || []).indexOf(w);
+    var html = '<article class="card" data-workshop="' + esc(w.key) + '"><h3>' + esc(w.title) + '</h3>' +
+      (i > -1 ? '<div class="card-actions no-print"><button type="button" class="secondary small" data-copyai="' + i + '" title="Copy all results as text, to paste into an AI tool">Copy for AI</button>' +
+        '<button type="button" class="secondary small" data-xlsx="' + i + '" title="Every response for this session as an Excel file">Excel</button></div>' : '') +
+      '<div class="meta">' +
       esc(w.speakers || '') + (w.speakers ? ' · ' : '') + (multi ? 'Ran ' + w.runs.length + ' times · ' : esc(runLabel(w.runs[0])) + ' · ') +
       '<strong>' + st.n + ' response' + (st.n === 1 ? '' : 's') + '</strong></div>';
     if (multi) {
@@ -1162,6 +1168,7 @@
       '<label class="toggle"><input type="checkbox" id="withPanel"' + (state.withPanel ? ' checked' : '') + '> Include Advisory Panel reports</label>' +
       onlineToggle() +
       '<button type="button" class="secondary small" id="scoreExportBtn">Export</button></div>';
+    state.cardShown = show;                     // the Copy for AI / Excel buttons on each card look it up here
     html += show.length ? show.map(function (w) { return workshopCard(w, sd.byRun, included()); }).join('')
       : '<p class="empty">No sessions with feedback match these filters.</p>';
     $('tab-scorecards').innerHTML = html;
