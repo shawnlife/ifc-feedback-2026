@@ -240,9 +240,9 @@ window.IFC_CONFIG = {
   ],
 
   // ADVISORY PANEL FORM (at /panel). Works like the Session Leader form (name dropdown, key issues
-  // alert on the dashboard, updates replace the earlier report). These are the Session Leader questions
-  // for now: swap in the panel's own questions when they arrive. Keep 'Panel member name' as the
-  // first column name: the Sheet uses it to put these reports in the "Advisory Panel feedback" tab.
+  // alert on the dashboard, updates replace the earlier report). Same questions as the Session Leaders
+  // (the panel agreed, 20 Oct). Keep 'Panel member name' as the first column name: the Sheet uses it
+  // to put these reports in the "Advisory Panel feedback" tab.
   panelQuestions: [
     {
       column: 'Panel member name',
