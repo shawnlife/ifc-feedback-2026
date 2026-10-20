@@ -38,7 +38,7 @@
     o.ratings = ratings; o.texts = texts;
     o.issues = texts[0] ? col(texts[0]) : null;                  // "Key issues"
     o.overall = ratings[0] ? col(ratings[0]) : null;
-    o.sortBy = 'when'; o.sortDir = 1; o.filterVal = '';
+    o.sortBy = 'sent'; o.sortDir = -1; o.filterVal = '';          // newest report first
     return o;
   }
   var LG = reportGroup(LQ, { tab: 'leaders', kind: 'leader', count: 'issueCount', filter: 'lFilter',
@@ -952,6 +952,7 @@
     var lval = function (l) {
       var k = G.sortBy;
       if (k === 'when') return l.date + l.start + l.room;
+      if (k === 'sent') return String(l.when);                            // when the report came in
       if (k === 'title') return l.title.toLowerCase();
       if (k === 'name') return String(l.name).toLowerCase();
       if (k === 'issue') return G.issues && String(l.raw[G.issues] || '').trim() ? 1 : 0;
@@ -981,6 +982,7 @@
       return '<tr' + (issues.indexOf(l) > -1 ? ' class="has-issue"' : '') + '><td><button type="button" class="linkish" data-card="' + esc(l.id) + '">' + esc(l.title) + '</button></td>' +
         '<td>' + esc(dayLabel(l.date) + ', ' + l.start) + '<div class="t-sub">' + esc(l.room) + '</div></td>' +
         '<td>' + esc(l.name) + (l.versions > 1 ? '<div class="t-sub">Updated report</div>' : '') + '</td>' +
+        '<td>' + esc(localTime(l.when)) + '</td>' +
         G.ratings.map(function (q) { return '<td class="num">' + (num(l.raw[col(q)]) || '–') + '</td>'; }).join('') +
         '<td>' + G.texts.map(function (q) {
           var v = l.raw[col(q)];
@@ -992,13 +994,13 @@
           ' <button type="button" class="link" data-reopen="' + l.row + '" data-ts="' + esc(l.when) + '" data-kind="' + G.kind + '">Reopen</button></p>' : '') +
         '</td></tr>';
     };
-    var L_SORTABLE = ['title', 'when', G.overall];                       // sort by session, when, overall rating only
+    var L_SORTABLE = ['title', 'when', 'sent', G.overall];               // sort by session, when, sent, overall rating only
     var lth = function (k, label, numCol) {
       if (L_SORTABLE.indexOf(k) === -1) return '<th class="' + (numCol ? 'num' : '') + '">' + esc(label) + '</th>';
       var sorted = G.sortBy === k ? ' aria-sort="' + (G.sortDir > 0 ? 'ascending' : 'descending') + '"' : '';
       return '<th class="' + (numCol ? 'num' : '') + '"><button type="button" data-lsort="' + esc(k) + '"' + sorted + '>' + esc(label) + '</button></th>';
     };
-    var head = '<thead><tr>' + lth('title', 'Session') + lth('when', 'When') + lth('name', G.who) +
+    var head = '<thead><tr>' + lth('title', 'Session') + lth('when', 'When') + lth('name', G.who) + lth('sent', 'Sent') +
       G.ratings.map(function (q) { return lth(col(q), q.label, 1); }).join('') + lth('issue', 'Comments') + '</tr></thead>';
     if (G.solvedOnly) {
       var solved = list.filter(function (l) { return hasIssue(l) && l.handled; });
