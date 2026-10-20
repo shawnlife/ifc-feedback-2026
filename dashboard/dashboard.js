@@ -211,6 +211,10 @@
     fillFilters();
   }
 
+  // Masterclass part 1 (Tuesday) reports carry the masterclass ID plus "-P1" (Session Leader and panel forms only)
+  function baseId(id) { return String(id).replace(/-P1$/, ''); }
+  function sameSession(l, s) { return baseId(l.id) === s.id; }
+
   // Session Leader or Advisory Panel reports from the Sheet, latest version of each
   function reportsFrom(raw, nameCol) {
     var list = (raw || []).map(function (r) {
@@ -467,7 +471,7 @@
         var g = [], lr = [];
         w.runs.forEach(function (s) {
           g = g.concat(groups[s.id] || []);
-          leaders.forEach(function (l) { if (l.id === s.id && num(l.raw[L_OVERALL]) != null) lr.push(num(l.raw[L_OVERALL])); });
+          leaders.forEach(function (l) { if (sameSession(l, s) && num(l.raw[L_OVERALL]) != null) lr.push(num(l.raw[L_OVERALL])); });
         });
         var first = w.runs[0];
         var s = { id: first.id, title: w.title, speakers: w.speakers, date: first.date, start: first.start, track: first.track,
@@ -477,7 +481,7 @@
     }
     return fSessions().map(function (s) {
       var g = groups[s.id] || [], st = statsFor(g);
-      var lr = leaders.filter(function (l) { return l.id === s.id; }).map(function (l) { return num(l.raw[L_OVERALL]); })
+      var lr = leaders.filter(function (l) { return sameSession(l, s); }).map(function (l) { return num(l.raw[L_OVERALL]); })
         .filter(function (v) { return v != null; });
       // each leader's own score (never averaged, so disagreement stays visible); sorting uses the highest
       return { s: s, st: st, rate: s.attendance ? st.n / s.attendance : null, leader: lr.length ? Math.max.apply(null, lr) : null, leaderAll: lr };
@@ -746,11 +750,12 @@
   /* ---------- scorecards ---------- */
 
   function leaderBlock(s) {
-    var ls = leaders.filter(function (l) { return l.id === s.id; });
+    var ls = leaders.filter(function (l) { return sameSession(l, s); });
     if (!ls.length) return '';
     return '<div class="leader-box"><div class="qname">Session Leader report' + (ls.length > 1 ? 's (' + ls.length + ')' : '') + '</div>' +
       ls.map(function (l) {
-        return '<div class="leader-one"><strong>' + esc(l.name || 'Session Leader') + '</strong> · ' +
+        var part = /-P1$/.test(l.id) ? ' (part 1)' : (s.track === 'Masterclasses' ? ' (part 2)' : '');
+        return '<div class="leader-one"><strong>' + esc(l.name || 'Session Leader') + '</strong>' + part + ' · ' +
           L_RATINGS.map(function (q) { return esc(q.label) + ' <strong>' + (num(l.raw[col(q)]) || '–') + '</strong>/5'; }).join(' · ') +
           L_TEXTS.map(function (q) {
             var v = l.raw[col(q)];
@@ -771,7 +776,7 @@
     var issues = list.filter(function (l) { return hasIssue(l) && !l.handled; });
     var handledN = list.filter(function (l) { return hasIssue(l) && l.handled; }).length;
     $(G.count).textContent = all.filter(function (l) { return hasIssue(l) && !l.handled; }).length || '';
-    var covered = {}; list.forEach(function (l) { covered[l.id] = 1; });
+    var covered = {}; list.forEach(function (l) { covered[baseId(l.id)] = 1; });
     // sort by the chosen column (click a heading); ties keep day/time order
     var lval = function (l) {
       var k = G.sortBy;
@@ -950,7 +955,7 @@
   function scorecardData() {
     var list = fRows(), byRun = {};
     list.forEach(function (r) { if (!r.typed) (byRun[r.id] = byRun[r.id] || []).push(r); });
-    var withLeader = {}; leaders.forEach(function (l) { withLeader[l.id] = 1; });
+    var withLeader = {}; leaders.forEach(function (l) { withLeader[baseId(l.id)] = 1; });
     var ws = workshopsOf(fSessions()).filter(function (w) { return w.runs.some(function (s) { return byRun[s.id] || withLeader[s.id]; }); });
     return { byRun: byRun, ws: ws };
   }
@@ -1107,7 +1112,7 @@
       if (!any) out.push(P('None.', { run: { italics: true } }));
     });
     if (withLeaders) {
-      var ls = leaders.filter(function (l) { return w.runs.some(function (s) { return s.id === l.id; }); });
+      var ls = leaders.filter(function (l) { return w.runs.some(function (s) { return sameSession(l, s); }); });
       if (ls.length) {
         out.push(P('Session Leader reports (internal)', { para: { heading: D.HeadingLevel.HEADING_2 } }));
         ls.forEach(function (l) {

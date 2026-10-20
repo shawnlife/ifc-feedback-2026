@@ -150,7 +150,8 @@ for row in out:
 
 # Crossed out in James's sheet (strikethrough doesn't survive the CSV export, so listed here): (date, start, room)
 CANCELLED = {("2026-10-22", "15:00", "Erasmus 7"),     # 3rd run of The Inner Work of Trust-Based Philanthropy (17 Oct)
-             ("2026-10-21", "17:00", "Boston 13")}     # Open Discussion: Can We Disagree Without Disconnecting? (18 Oct)
+             ("2026-10-21", "17:00", "Boston 13"),     # Open Discussion: Can We Disagree Without Disconnecting? (18 Oct)
+             ("2026-10-21", "09:00", "Erasmus 5")}     # Masterclass: Power, Wealth, Philanthropy... and Justice? (20 Oct)
 out = [r for r in out if (r["Date"], r["Start"], r["Room"]) not in CANCELLED]
 
 # Speakers from James's session sheet for Shawn (17 Oct) that the facilities sheet doesn't have yet

@@ -265,7 +265,24 @@
       .filter(function (d, i, a) { return a.indexOf(d) === i; }).sort();
     dayNumbers = {};
     dates.forEach(function (d, i) { dayNumbers[d] = i + 1; });
+    if (LEADER) addMasterclassPart1();
     sessions.forEach(buildIndex);
+  }
+
+  // Session Leaders and the Advisory Panel review masterclasses twice: part 1 (Tuesday) and part 2
+  // (Wednesday, the one in the Sessions tab, which delegates review). Part 1 exists only on these forms.
+  function addMasterclassPart1() {
+    var p1 = CFG.masterclassPart1;
+    if (!p1) return;
+    var mc = sessions.filter(function (s) { return s.track === p1.track && s.date !== p1.date && !/-P1$/.test(s.id); });
+    mc.forEach(function (s) {
+      var c = {};
+      Object.keys(s).forEach(function (k) { c[k] = s[k]; });
+      c.id = s.id + '-P1'; c.title = s.title + ' (Part 1)';
+      c.date = p1.date; c.start = p1.start; c.end = p1.end;
+      s.title = s.title + ' (Part 2)';
+      sessions.push(c);
+    });
   }
 
   function fetchSessions() {

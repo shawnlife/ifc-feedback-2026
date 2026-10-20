@@ -106,7 +106,7 @@ window.IFC_CONFIG = {
   // thank-you screen asks them to fill in the overall IFC 2026 feedback form. Paste its link in url;
   // while url is empty nothing is shown.
   overallSurvey: {
-    url: '',
+    url: 'https://form.typeform.com/to/tN1YFt0k',
     sessions: ['KEY-CLOSE'],
     heading: 'One last thing: how was IFC 2026 overall?',
     text: 'Tell us about the whole congress in our short overall feedback form.',
@@ -176,6 +176,11 @@ window.IFC_CONFIG = {
         url: 'https://www.resource-alliance.org/session/artificial-intelligence-mc/' }
     ]
   },
+
+  // MASTERCLASS PART 1 (Tue 20 Oct, 14:00-17:00): only on the Session Leader and Advisory Panel forms.
+  // Each masterclass in the Sessions tab (Wed 21 Oct, which is part 2) gets a "(Part 1)" copy on these
+  // two forms, with the same room and the ID plus "-P1". Delegates still only see part 2, on Wednesday.
+  masterclassPart1: { track: 'Masterclasses', date: '2026-10-20', start: '14:00', end: '17:00' },
 
   // SESSION LEADER FORM (at /sessionleader). Same rules as above.
   // type 'name' = a one-line answer (remembered on the Session Leader's phone for next time).
