@@ -102,11 +102,12 @@ window.IFC_CONFIG = {
     help: 'Optional. Only the IFC team sees your name and email.'
   },
 
-  // OVERALL IFC 2026 SURVEY: after someone rates one of these sessions (the closing keynote), the
-  // thank-you screen asks them to fill in the overall IFC 2026 feedback form. Paste its link in url;
-  // while url is empty nothing is shown.
+  // OVERALL IFC 2026 SURVEY: from 'from' (conference time) every thank-you screen, for any session,
+  // asks people to fill in the overall IFC 2026 feedback form. Before then, only after rating one of
+  // 'sessions' (the closing keynote). Not on the Session Leader or Advisory Panel forms. Empty url = off.
   overallSurvey: {
     url: 'https://form.typeform.com/to/tN1YFt0k',
+    from: '2026-10-23T00:01',             // Friday 23 Oct, 12:01am
     sessions: ['KEY-CLOSE'],
     heading: 'One last thing: how was IFC 2026 overall?',
     text: 'Tell us about the whole congress in our short overall feedback form.',

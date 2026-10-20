@@ -1048,9 +1048,12 @@
       demo: 'Demo mode: nothing was saved. Connect the Google Sheet in config.js to go live.'
     }[state];
     $('doneTitle').textContent = state === 'rejected' ? 'Not sent' : 'Thank you!';
-    // After the closing keynote: point people to the overall IFC 2026 feedback form
+    // From Friday 12:01am (or after the closing keynote): point people to the overall IFC 2026 feedback form
     var ov = CFG.overallSurvey || {};
-    var showOverall = !!(ov.url && !LEADER && state !== 'rejected' && lastRatedId && (ov.sessions || []).indexOf(lastRatedId) > -1);
+    var ovFrom = ov.from ? toMinutes(ov.from.split('T')[0], ov.from.split('T')[1] || '00:00') : NaN;
+    var ovTime = !isNaN(ovFrom) && nowMinutes() >= ovFrom;
+    var ovSession = !!lastRatedId && (ov.sessions || []).indexOf(lastRatedId) > -1;
+    var showOverall = !!(ov.url && !LEADER && state !== 'rejected' && (ovTime || ovSession));
     $('overallBox').hidden = !showOverall;
     if (showOverall) {
       $('overallHeading').textContent = ov.heading || 'How was IFC 2026 overall?';
