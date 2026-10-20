@@ -749,17 +749,19 @@
 
   /* ---------- scorecards ---------- */
 
-  function leaderBlock(s) {
-    var ls = leaders.filter(function (l) { return sameSession(l, s); });
+  // Session Leader and Advisory Panel reports on a scorecard (internal: never sent to speakers as is)
+  function leaderBlock(s, prefix) { return reportBlock(LG, leaders, s, 'Session Leader report', prefix) + reportBlock(PG, panel, s, 'Advisory Panel report', prefix); }
+  function reportBlock(G, all, s, heading, prefix) {
+    var ls = all.filter(function (l) { return sameSession(l, s); });
     if (!ls.length) return '';
-    return '<div class="leader-box"><div class="qname">Session Leader report' + (ls.length > 1 ? 's (' + ls.length + ')' : '') + '</div>' +
+    return '<div class="leader-box"><div class="qname">' + (prefix || '') + heading + (ls.length > 1 ? 's (' + ls.length + ')' : '') + '</div>' +
       ls.map(function (l) {
         var part = /-P1$/.test(l.id) ? ' (part 1)' : (s.track === 'Masterclasses' ? ' (part 2)' : '');
-        return '<div class="leader-one"><strong>' + esc(l.name || 'Session Leader') + '</strong>' + part + ' · ' +
-          L_RATINGS.map(function (q) { return esc(q.label) + ' <strong>' + (num(l.raw[col(q)]) || '–') + '</strong>/5'; }).join(' · ') +
-          L_TEXTS.map(function (q) {
+        return '<div class="leader-one"><strong>' + esc(l.name || G.who) + '</strong>' + part + ' · ' +
+          G.ratings.map(function (q) { return esc(q.label) + ' <strong>' + (num(l.raw[col(q)]) || '–') + '</strong>/5'; }).join(' · ') +
+          G.texts.map(function (q) {
             var v = l.raw[col(q)];
-            return v ? '<p class="' + (col(q) === L_ISSUES ? 'issue' : '') + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' : '';
+            return v ? '<p class="' + (col(q) === G.issues ? 'issue' : '') + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' : '';
           }).join('') + '</div>';
       }).join('') + '</div>';
   }
@@ -916,8 +918,7 @@
         '<p class="few">Small numbers next to a run show how it differed from the all-runs average.</p>';
     }
     if (withLeaders) html += w.runs.map(function (s) {
-      var b = leaderBlock(s);
-      return b && multi ? b.replace('Session Leader report', 'Run ' + (w.runs.indexOf(s) + 1) + ': Session Leader report') : b;
+      return leaderBlock(s, multi ? 'Run ' + (w.runs.indexOf(s) + 1) + ': ' : '');
     }).join('');
     if (!all.length) return html + '<p class="empty">No attendee feedback yet.</p></article>';
     html += '<div class="qname">' + (multi ? 'All runs together' : 'Scores') + '</div><div class="row">' + RATINGS.map(function (q, i) {
@@ -955,7 +956,7 @@
   function scorecardData() {
     var list = fRows(), byRun = {};
     list.forEach(function (r) { if (!r.typed) (byRun[r.id] = byRun[r.id] || []).push(r); });
-    var withLeader = {}; leaders.forEach(function (l) { withLeader[baseId(l.id)] = 1; });
+    var withLeader = {}; leaders.concat(panel).forEach(function (l) { withLeader[baseId(l.id)] = 1; });
     var ws = workshopsOf(fSessions()).filter(function (w) { return w.runs.some(function (s) { return byRun[s.id] || withLeader[s.id]; }); });
     return { byRun: byRun, ws: ws };
   }
@@ -974,7 +975,7 @@
     var html = '<div class="controls no-print export-bar">' +
       '<span><strong>' + show.length + '</strong> ' + (show.length === 1 ? 'session' : 'sessions') + ' shown' +
       (picked.length ? ' · <button type="button" class="link" id="pickNone">Show all ' + ws.length + '</button>' : ' (repeat runs combined)') + '</span>' +
-      '<label class="toggle"><input type="checkbox" id="withLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader reports</label>' +
+      '<label class="toggle"><input type="checkbox" id="withLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader and Advisory Panel reports</label>' +
       onlineToggle() +
       '<button type="button" class="secondary small" id="scoreExportBtn">Export</button></div>';
     html += show.length ? show.map(function (w) { return workshopCard(w, sd.byRun, state.withLeaders); }).join('')
@@ -1111,18 +1112,17 @@
       });
       if (!any) out.push(P('None.', { run: { italics: true } }));
     });
-    if (withLeaders) {
-      var ls = leaders.filter(function (l) { return w.runs.some(function (s) { return sameSession(l, s); }); });
-      if (ls.length) {
-        out.push(P('Session Leader reports (internal)', { para: { heading: D.HeadingLevel.HEADING_2 } }));
-        ls.forEach(function (l) {
-          var s = byId[l.id];
-          out.push(P((l.name || 'Session Leader') + (s ? ' · ' + runLabel(s) : ''), { run: { bold: true } }));
-          out.push(P(L_RATINGS.map(function (q) { return q.label + ': ' + (num(l.raw[col(q)]) || '–') + '/5'; }).join(' · ')));
-          L_TEXTS.forEach(function (q) { if (l.raw[col(q)]) out.push(P(q.label + ': ' + l.raw[col(q)])); });
-        });
-      }
-    }
+    if (withLeaders) [[LG, leaders, 'Session Leader reports (internal)'], [PG, panel, 'Advisory Panel reports (internal)']].forEach(function (g) {
+      var G = g[0], ls = g[1].filter(function (l) { return w.runs.some(function (s) { return sameSession(l, s); }); });
+      if (!ls.length) return;
+      out.push(P(g[2], { para: { heading: D.HeadingLevel.HEADING_2 } }));
+      ls.forEach(function (l) {
+        var s = byId[l.id];
+        out.push(P((l.name || G.who) + (s ? ' · ' + runLabel(s) : /-P1$/.test(l.id) ? ' · Part 1' : ''), { run: { bold: true } }));
+        out.push(P(G.ratings.map(function (q) { return q.label + ': ' + (num(l.raw[col(q)]) || '–') + '/5'; }).join(' · ')));
+        G.texts.forEach(function (q) { if (l.raw[col(q)]) out.push(P(q.label + ': ' + l.raw[col(q)])); });
+      });
+    });
     out.push(P(''));
     out.push(P('Feedback was given anonymously by IFC 2026 attendees.', { run: { italics: true, color: '545454', size: 18 } }));
     return out;
