@@ -612,8 +612,8 @@
     try { return fn(); } finally { ids.forEach(function (id, i) { $(id).value = keep[i]; }); state.withOnline = on; }
   }
 
-  // Every answer, one row each, all the columns from the Sheet. Names and emails stay out (Comments tab only).
-  var NOT_EXPORTED = ['_row', 'Contact name', 'Contact email', 'Contact status', 'Contact note'];
+  // Every answer, one row each, all the columns from the Sheet (including names and emails of people open to contact)
+  var NOT_EXPORTED = ['_row'];
   function rawSheet(list) {
     var cols = [];
     list.forEach(function (x) { Object.keys(x.raw).forEach(function (k) { if (cols.indexOf(k) === -1 && NOT_EXPORTED.indexOf(k) === -1) cols.push(k); }); });
@@ -644,8 +644,8 @@
     if (what === 'full') {
       html = '<label class="toggle"><input type="checkbox" id="exOnline" checked> Include IFC Online responses</label>' +
         opt('exSummary', 'Summary (Excel)', 'The session ranking: one row per session, best to worst, with average scores.') +
-        opt('exFull', 'Every response (Excel)', 'All answers, one row each, plus Session Leader and Advisory Panel reports on their own sheets.') +
-        '<p class="ex-note">Exports everything, whatever filters are set above. Names and emails are left out (they stay on the Comments tab).</p>';
+        opt('exFull', 'Every response (Excel)', 'All answers, one row each (with contact details), plus Session Leader and Advisory Panel reports on their own sheets.') +
+        '<p class="ex-note">Exports everything, whatever filters are set above. Includes names and emails of people open to being contacted.</p>';
     } else {
       html = opt('wordBtn', 'Word (for editing)', 'The scorecards shown, ready to edit before sending to speakers.') +
         (L_TAKEAWAY ? opt('takeawaysBtn', 'Key takeaways (Excel)', 'Every Session Leader\'s key takeaway, by day and time.') : '') +
@@ -677,7 +677,7 @@
   }
 
   function renderComments() {
-    // Names and emails show only here (people who ticked "open to being contacted"), never in scorecards or exports
+    // Names and emails show only here (people who ticked "open to being contacted"), never on scorecards (the full Excel export includes them)
     var all = rows.filter(function (r) {
       return (state.withOnline || !r.online) && (commentText(r).trim() || r.contact) && matches(r, commentText(r) + ' ' + r.contactName + ' ' + r.contactEmail);
     }).sort(function (a, b) { return String(b.when).localeCompare(String(a.when)); });
