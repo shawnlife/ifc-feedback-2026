@@ -367,7 +367,11 @@ function fromFs_(v) {
 function processQueue(e) {
   var t0 = Date.now();
   if (e && quietHours_()) return 0;            // overnight: back to sleep straight away
-  try { return processQueue_(); }
+  try {
+    var n = processQueue_();
+    if (e) { try { translateNew_(t0 + 25000); } catch (err) { /* next run */ } }   // English translations, at most ~25 s a run
+    return n;
+  }
   finally {
     if (e) { meter_('runSeconds', (Date.now() - t0) / 1000); checkAlerts_(); }   // e = called by the trigger
     flushSP_();
@@ -720,6 +724,55 @@ function resolve_(p) {
   }
 }
 
+/* ---------- English translations of written answers ---------- */
+
+// Written answers that get an English translation, next to them in a "<column> (English)" column.
+var TRANSLATE_COLUMNS = ['Anything else', 'Session Leader: Key issues', 'Session Leader: Key takeaway', 'Session Leader: Final comments',
+                         'Panel: Key issues', 'Panel: Key takeaway', 'Panel: Final comments'];
+var EN_WORDS_ = ('the a an and or but to of in on for with was were is are it this that i we you they very more less ' +
+  'great good really loved love liked like nice interesting useful helpful thanks thank session speaker speakers talk ' +
+  'too not no yes would could should so much many some all be have had has my our their time well best excellent ' +
+  'amazing awesome insightful inspiring fantastic brilliant ok okay fine boring long short slides question questions').split(' ');
+// Likely not English: no common English words, or letters outside the Latin alphabets (Arabic, Cyrillic, Chinese...)
+function looksForeign_(t) {
+  t = String(t || '').toLowerCase();
+  if (/[^\u0000-\u024f\s\d.,!?;:'"()\-\u2018-\u201d\u2026&%\/+*@#]/.test(t)) return true;
+  var w = t.split(/[^a-z\u00c0-\u024f']+/).filter(String);
+  return w.length > 0 && !w.some(function (x) { return EN_WORDS_.indexOf(x) > -1; });
+}
+
+// Runs after each automatic processing run: goes through new rows of the answer tabs and translates answers
+// that don't look English (Google's built-in translator, free). Stops at the deadline and carries on next run.
+function translateNew_(deadline) {
+  var props = SP_();
+  [RESPONSES, LEADER, PANEL, TEST_RESPONSES, TEST_LEADER, TEST_PANEL].forEach(function (name) {
+    if (Date.now() > deadline) return;
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
+    if (!sh) return;
+    var key = 'TR_NEXT_' + name, last = sh.getLastRow(), from = Number(props.getProperty(key) || 2);
+    if (from > last + 1) from = 2;                       // rows were cleared (Clear test responses): start again
+    if (last < from) return;
+    var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+    var cols = TRANSLATE_COLUMNS.filter(function (c) { return head.indexOf(c) > -1; });
+    if (!cols.length) { props.setProperty(key, String(last + 1)); return; }
+    var vals = sh.getRange(from, 1, last - from + 1, head.length).getValues();
+    for (var i = 0; i < vals.length; i++) {
+      if (Date.now() > deadline) { props.setProperty(key, String(from + i)); return; }
+      cols.forEach(function (c) {
+        var text = String(vals[i][head.indexOf(c)] || '').replace(/^'/, '').trim(), out = c + ' (English)';
+        if (!text || !looksForeign_(text)) return;
+        if (head.indexOf(out) > -1 && String(vals[i][head.indexOf(out)] || '').trim()) return;     // done already
+        var en = '';
+        try { en = LanguageApp.translate(text.slice(0, 4000), '', 'en'); } catch (err) { return; }   // try again another time? no: keep moving
+        if (!en || en.trim().toLowerCase() === text.toLowerCase()) return;                          // it was English after all
+        if (head.indexOf(out) === -1) { head.push(out); sh.getRange(1, head.length).setValue(out).setFontWeight('bold'); }
+        sh.getRange(from + i, head.indexOf(out) + 1).setValue(safe_(en));
+      });
+    }
+    props.setProperty(key, String(last + 1));
+  });
+}
+
 // Dashboard "Clear" on an outstanding Session Leader report: p.items = [{ id, name }], p.undo = true to put them back.
 // One row per cleared report in the "Outstanding cleared" tab (made on first use).
 function clearOutstanding_(p) {
@@ -855,6 +908,7 @@ function clearTestResponses() {
   var ui = SpreadsheetApp.getUi();
   if (ui.alert('Clear test responses?', 'Deletes every row in the "Test responses", "Test Session Leader feedback" and "Test Advisory Panel feedback" tabs (the real tabs are not touched).', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
   [TEST_RESPONSES, TEST_LEADER, TEST_PANEL, TEST_PICKS].forEach(function (name) {
+    PropertiesService.getScriptProperties().deleteProperty('TR_NEXT_' + name);   // translations start again from the top
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
     if (sh && sh.getLastRow() > 1) {
       var last = sh.getLastRow();

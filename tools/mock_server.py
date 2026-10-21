@@ -143,6 +143,9 @@ def fake_leaders():
 
 
 FAKE = fake_rows(int(os.environ.get("MOCK_FAKE", "0"))) if os.environ.get("MOCK_FAKE") else []
+if FAKE:   # two answers in other languages, already translated (as the script does every few minutes)
+    FAKE[0].update({"Anything else": "Muy buena sesion, aprendi mucho", "Anything else (English)": "Very good session, I learned a lot"})
+    FAKE[1].update({"Anything else": "Tres interessant", "Anything else (English)": "Very interesting"})
 FAKE_LEADERS = fake_leaders() if os.environ.get("MOCK_FAKE") else []
 
 

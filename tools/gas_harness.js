@@ -383,5 +383,20 @@ const vw = (id) => JSON.parse(env.ctx.doPost({ postData: { contents: JSON.string
 vw('tabA'); vw('tabB');
 check(vw('tabA') === 2, 'two tabs, one refreshing twice: 2 viewing');
 
+console.log('26. Answers in other languages get an English translation after processing');
+env = makeEnv();
+env.ctx.LanguageApp = { translate: (t) => ({ 'Muy buena sesion, aprendi mucho': 'Very good session, I learned a lot', 'Tres interessant': 'Very interesting' }[t] || t) };
+[['es1', 'Muy buena sesion, aprendi mucho'], ['en1', 'Great session, loved the examples'], ['fr1', 'Tres interessant']].forEach(([rid, txt]) => {
+  env.ctx.doPost({ postData: { contents: JSON.stringify({ rid, test: false, session: { id: '1WS1', title: 'X' }, answers: { 'Overall (1-5)': 4, 'Anything else': txt } }) } });
+});
+env.ctx.processQueue({});
+dp = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+const tr = {}; dp.responses.forEach((r) => { tr[r['Anything else']] = r['Anything else (English)'] || ''; });
+check(tr['Muy buena sesion, aprendi mucho'] === 'Very good session, I learned a lot' && tr['Tres interessant'] === 'Very interesting', 'Spanish and French answers translated');
+check(tr['Great session, loved the examples'] === '', 'English answer left alone');
+let calls = 0; env.ctx.LanguageApp = { translate: (t) => { calls++; return t; } };
+env.ctx.processQueue({});
+check(calls === 0, 'next run does not translate the same rows again');
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);

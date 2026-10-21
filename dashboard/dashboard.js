@@ -705,7 +705,10 @@
         return col(q).replace(' (1-5)', '') + ' ' + v + det;
       }).concat(CHOICES.map(function (q) { return r.raw[col(q)] ? col(q) + ': ' + r.raw[col(q)] : ''; })).filter(Boolean);
       line((i + 1) + '. ' + parts.join('; ') + (r.online ? ' [online viewer]' : '') + (d.runs.length > 1 ? ' [' + runLabel(byId[r.id] || d.s) + ']' : ''));
-      TEXTS.forEach(function (q) { var t = String(r.raw[col(q)] || '').trim(); if (t) line('   ' + col(q) + ': "' + t.replace(/^'/, '') + '"'); });
+      TEXTS.forEach(function (q) {
+        var t = String(r.raw[col(q)] || '').trim(), en = String(r.raw[col(q) + ' (English)'] || '').trim();
+        if (t) line('   ' + col(q) + ': "' + t.replace(/^'/, '') + '"' + (en ? ' (English: "' + en.replace(/^'/, '') + '")' : ''));
+      });
     });
     [[LG, x.leaders, 'SESSION LEADER REPORTS (internal: from the Session Leader who hosted the session)'],
      [PG, x.panel, 'ADVISORY PANEL REPORTS (internal)']].forEach(function (g) {
@@ -714,7 +717,10 @@
       g[1].forEach(function (l) {
         line('- ' + (l.name || g[0].who) + (/-P1$/.test(l.id) ? ' (part 1)' : '') + ': ' +
           g[0].ratings.map(function (q) { return q.label + ' ' + (num(l.raw[col(q)]) || 'n/a') + '/5'; }).join('; '));
-        g[0].texts.forEach(function (q) { var t = String(l.raw[col(q)] || '').trim(); if (t) line('   ' + q.label + ': "' + t.replace(/^'/, '') + '"'); });
+        g[0].texts.forEach(function (q) {
+          var t = String(l.raw[col(q)] || '').trim(), en = String(l.raw[col(q) + ' (English)'] || '').trim();
+          if (t) line('   ' + q.label + ': "' + t.replace(/^'/, '') + '"' + (en ? ' (English: "' + en.replace(/^'/, '') + '")' : ''));
+        });
       });
     });
     return L.join('\n');
@@ -1042,6 +1048,14 @@
     $('tab-comments').innerHTML = html;
   }
 
+  /* ---------- English translations of written answers ---------- */
+
+  // The Sheet adds "<column> (English)" for answers written in another language (done automatically by the script)
+  function trLine(x, column) {
+    var en = x.raw[column + ' (English)'];
+    return en ? '<p class="tr-en"><span class="k">English:</span> ' + esc(String(en).replace(/^'/, '')) + '</p>' : '';
+  }
+
   function commentCard(r) {
         return '<article class="comment"><div class="meta"><button type="button" class="linkish who" data-card="' + esc(r.id) + '">' + esc(r.title) + '</button> · ' +
           (r.online ? '<strong>Online</strong>' : esc(r.room)) + ' · ' + esc(dayLabel(r.date)) + ' ' + esc(r.start) +
@@ -1050,7 +1064,7 @@
           answersLine(r) +
           TEXTS.map(function (q) {
             var v = r.raw[col(q)];
-            return v ? '<p><span class="k">' + esc(col(q)) + ':</span> ' + esc(v) + '</p>' : '';
+            return v ? '<p><span class="k">' + esc(col(q)) + ':</span> ' + esc(v) + '</p>' + trLine(r, col(q)) : '';
           }).join('') +
           (r.contact ? '<p class="contact-line"><span class="k">Open to being contacted:</span> ' + esc(r.contactName) + ' · <a href="mailto:' +
             encodeURIComponent(r.contactEmail).replace(/%40/g, '@') + '?subject=' + encodeURIComponent('Your feedback on "' + r.title + '" at IFC 2026') + '">' +
@@ -1111,7 +1125,7 @@
           G.ratings.map(function (q) { return esc(q.label) + ' <strong>' + (num(l.raw[col(q)]) || '–') + '</strong>/5'; }).join(' · ') +
           G.texts.map(function (q) {
             var v = l.raw[col(q)];
-            return v ? '<p class="' + (col(q) === G.issues ? 'issue' : '') + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' : '';
+            return v ? '<p class="' + (col(q) === G.issues ? 'issue' : '') + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' + trLine(l, col(q)) : '';
           }).join('') + '</div>';
       }).join('') + '</div>';
   }
@@ -1168,7 +1182,7 @@
         '<td>' + G.texts.map(function (q) {
           var v = l.raw[col(q)];
           var cls = col(q) === G.issues ? (l.handled ? 'issue handled' : 'issue') : '';
-          return v ? '<p class="' + cls + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' : '';
+          return v ? '<p class="' + cls + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' + trLine(l, col(q)) : '';
         }).join('') +
         (hasIssue(l) && !l.handled ? '<div class="issue-actions">' +
           '<span class="owner-tag' + (l.owner ? '' : ' none') + '" title="' + (l.owner ? 'Assigned to ' + esc(l.owner) : 'Not assigned yet') + '">' + (l.owner ? esc(l.owner) : 'Unassigned') + '</span>' +
@@ -1330,11 +1344,11 @@
     html += TEXTS.map(function (q) {
       var total = 0;
       var parts = w.runs.map(function (s, i) {
-        var vals = (byRun[s.id] || []).map(function (r) { return String(r.raw[col(q)] || '').trim(); }).filter(Boolean);
-        total += vals.length;
-        if (!vals.length) return '';
+        var rs = (byRun[s.id] || []).filter(function (r) { return String(r.raw[col(q)] || '').trim(); });
+        total += rs.length;
+        if (!rs.length) return '';
         return (multi ? '<div class="runhead">Run ' + (i + 1) + ': ' + esc(runLabel(s)) + '</div>' : '') +
-          '<ul>' + vals.map(function (v) { return '<li>' + esc(v) + '</li>'; }).join('') + '</ul>';
+          '<ul>' + rs.map(function (r) { return '<li>' + esc(String(r.raw[col(q)]).trim()) + trLine(r, col(q)) + '</li>'; }).join('') + '</ul>';
       }).join('');
       return '<div class="qname">' + esc(q.label) + ' <span class="few">(' + total + ')</span></div>' + (total ? parts : '<p class="few">None.</p>');
     }).join('');
@@ -1494,7 +1508,11 @@
       out.push(P(q.label, { para: { heading: D.HeadingLevel.HEADING_2 } }));
       var any = false;
       w.runs.forEach(function (s, i) {
-        var vals = (byRun[s.id] || []).map(function (r) { return String(r.raw[col(q)] || '').trim(); }).filter(Boolean);
+        // with the English translation in brackets when the answer was in another language
+        var vals = (byRun[s.id] || []).map(function (r) {
+          var t = String(r.raw[col(q)] || '').trim(), en = String(r.raw[col(q) + ' (English)'] || '').replace(/^'/, '').trim();
+          return t && en ? t + ' (English: ' + en + ')' : t;
+        }).filter(Boolean);
         if (!vals.length) return;
         any = true;
         if (multi) out.push(P('Run ' + (i + 1) + ': ' + runLabel(s), { run: { bold: true, size: 19 } }));

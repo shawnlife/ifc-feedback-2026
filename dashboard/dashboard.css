@@ -322,3 +322,7 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
 /* Responses tab: new responses wait behind this button instead of pushing the list down */
 .new-resp { position: sticky; top: 8px; z-index: 5; display: block; margin: 0 auto 12px; padding: 8px 18px; border: 2px solid var(--ink); border-radius: 20px;
   background: var(--accent); color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; box-shadow: -2px 3px 0 var(--ink); }
+
+/* English translation under an answer written in another language */
+.tr-en { margin: 2px 0 6px; padding-left: 10px; border-left: 3px solid var(--line); color: var(--ink); font-style: italic; }
+.tr-en .k { font-style: normal; }
