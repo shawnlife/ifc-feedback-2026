@@ -434,6 +434,13 @@
       ['QR code', 'NFC tag', 'Event app', 'Session Leader badge', 'Link', 'Home screen'].map(function (k) {
         return tile(k, String(src[k] || 0), pct(src[k] || 0, list.length) + ' of responses');
       }).join('') + '</div>' +
+      // Optional contact details ("open to the IFC team following up"): who left a name
+      (function () {
+        var named = list.filter(function (r) { return String(r.contactName || '').trim(); }).length;
+        return '<h2 class="section">Contact details</h2><p class="sub">People who ticked that they\'re open to the IFC team following up and left their name. Per response, with the filters above applied.</p><div class="tiles">' +
+          tile('Left their name', String(named), pct(named, list.length) + ' of responses') +
+          tile('Didn\u2019t leave a name', String(list.length - named), pct(list.length - named, list.length) + ' of responses') + '</div>';
+      })() +
       '<h2 class="section">Clicks and installs</h2><p class="sub">Anonymous counts (not filtered). Installs can only be counted on Android; ' +
       'iPhones show up as "Home screen" responses instead.</p><div class="tiles">' +
       tile('Opened from the event app', String(ev['open-eventapp'] || 0), 'Every open of the event app link, whether or not they sent feedback') +
