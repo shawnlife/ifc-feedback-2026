@@ -1009,18 +1009,21 @@
 
   function renderComments() {
     // Names and emails show only here (people who ticked "open to being contacted"), never on scorecards (the full Excel export includes them)
+    // Responses tab: every response, written comment or not (21 Oct), newest first
     var all = rows.filter(function (r) {
-      return (state.withOnline || !r.online) && (commentText(r).trim() || r.contact) && matches(r, commentText(r) + ' ' + r.contactName + ' ' + r.contactEmail);
+      return (state.withOnline || !r.online) && matches(r, commentText(r) + ' ' + r.contactName + ' ' + r.contactEmail);
     }).sort(function (a, b) { return String(b.when).localeCompare(String(a.when)); });
     var nContact = all.filter(function (r) { return r.contact; }).length;
-    var list = state.onlyContact ? all.filter(function (r) { return r.contact; }) : all;
+    var nWritten = all.filter(function (r) { return commentText(r).trim(); }).length;
+    var list = all.filter(function (r) { return (!state.onlyContact || r.contact) && (!state.onlyWritten || commentText(r).trim()); });
     var shown = list.slice(0, state.commentsShown);
-    var html = '<div class="controls"><span>' + all.length + ' responses with a written comment or contact details, newest first.</span>' +
+    var html = '<div class="controls"><span>' + all.length + ' responses, newest first.</span>' +
+      '<label class="toggle"><input type="checkbox" id="onlyWritten"' + (state.onlyWritten ? ' checked' : '') + '> Only with a written comment (' + nWritten + ')</label>' +
       '<label class="toggle"><input type="checkbox" id="onlyContact"' + (state.onlyContact ? ' checked' : '') + '> Only people open to being contacted (' + nContact + ')</label></div>' +
       '<div class="comments">' +
       shown.map(commentCard).join('') + '</div>';
     if (list.length > shown.length) html += '<p><button type="button" class="secondary small" id="moreComments">Show more</button></p>';
-    if (!list.length) html = '<p class="empty">No written comments match these filters yet.</p>';
+    if (!list.length) html = '<p class="empty">No responses match these filters yet.</p>';
     $('tab-comments').innerHTML = html;
   }
 
@@ -1926,6 +1929,7 @@
         if (tb) tb.click();
       }
       if (e.target.id === 'onlyContact') { state.onlyContact = e.target.checked; renderComments(); }
+      if (e.target.id === 'onlyWritten') { state.onlyWritten = e.target.checked; state.commentsShown = 100; renderComments(); }
       if (e.target.classList.contains('withOnline')) { state.withOnline = e.target.checked; renderAll(); }
     });
 
