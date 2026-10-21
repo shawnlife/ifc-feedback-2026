@@ -77,7 +77,7 @@
   function saveCache(d) { try { localStorage.setItem(cacheKey(), JSON.stringify({ t: Date.now(), d: d })); } catch (e) { /* full or blocked: fine */ } }
   function readCache() { try { return JSON.parse(localStorage.getItem(cacheKey()) || 'null'); } catch (e) { return null; } }
   // (the half-hour bit: the Outstanding reports count also changes when a new time slot starts)
-  function signature(d) { return JSON.stringify([d.sessions, d.responses, d.leaders, d.panel, d.allocations, d.events, Math.floor(nowMin() / 30)]); }
+  function signature(d) { return JSON.stringify([d.sessions, d.responses, d.leaders, d.panel, d.allocations, d.cleared, d.events, Math.floor(nowMin() / 30)]); }
 
   // Redraw only when the numbers changed, and never under someone's fingers (an open dropdown, a half-typed note)
   var pendingRender = false;
@@ -761,6 +761,7 @@
   function outstanding() {
     var have = {}, now = nowMin(), slots = {}, p1 = CFG.masterclassPart1 || {};
     leaders.forEach(function (l) { have[plainName(l.name) + '|' + l.id] = 1; });
+    (state.data.cleared || []).forEach(function (c) { have[plainName(c.name) + '|' + c.id] = 1; });   // cleared by the team
     (state.data.allocations || []).forEach(function (a) {
       var s = byId[a.id], part1 = /-P1$/.test(a.id);
       if (part1 && byId[baseId(a.id)]) s = { title: byId[baseId(a.id)].title + ' (Part 1)', room: byId[baseId(a.id)].room, date: p1.date, start: p1.start };
@@ -775,21 +776,67 @@
     return Object.keys(slots).sort().reverse().map(function (k) { return slots[k]; });   // latest slot first
   }
 
+  // A session as the pop-up shows it (part 1 masterclasses aren't in the session list)
+  function allocSession(id) {
+    var p1 = CFG.masterclassPart1 || {}, b = byId[baseId(id)];
+    if (/-P1$/.test(id)) return b ? { title: b.title + ' (Part 1)', room: b.room, date: p1.date, start: p1.start } : null;
+    return byId[id] || null;
+  }
+
   function showOutstanding() {
     var list = outstanding();
+    var clr = function (id, name, undo) {
+      return '<button type="button" class="link os-clear" data-clearid="' + esc(id) + '" data-clearname="' + esc(name) + '"' + (undo ? ' data-undo="1"' : '') + '>' +
+        (undo ? 'Undo' : 'Clear') + '</button>';
+    };
+    var people = [];
+    list.forEach(function (sl) { sl.items.forEach(function (it) { it.names.forEach(function (n) { if (people.indexOf(n) === -1) people.push(n); }); }); });
+    people.sort(function (a, b) { return a.localeCompare(b); });
     var html = list.length ? list.map(function (sl) {
       var n = sl.items.reduce(function (t, it) { return t + it.names.length; }, 0);
       return '<div class="os-slot"><h3>' + esc(dayLabel(sl.date) + ', ' + sl.start) + ' <span class="count warn">' + n + '</span></h3><ul>' +
         sl.items.sort(function (a, b) { return a.s.room.localeCompare(b.s.room); }).map(function (it) {
-          return '<li><strong>' + esc(it.names.join(', ')) + '</strong><span>' + esc(it.s.title) + ' \u00b7 ' + esc(it.s.room) + '</span></li>';
+          return '<li>' + it.names.map(function (nm) { return '<span class="os-name"><strong>' + esc(nm) + '</strong> ' + clr(it.id, nm) + '</span>'; }).join('') +
+            '<span>' + esc(it.s.title) + ' \u00b7 ' + esc(it.s.room) + '</span></li>';
         }).join('') + '</ul></div>';
     }).join('') : '<p class="ex-note" style="font-size:15px;color:var(--ink)">Nothing outstanding' + (LG.filterVal ? ' for ' + esc(LG.filterVal) : '') + '. Every Session Leader has sent a report for every session that has started.</p>';
+    // Clear everything for one person (e.g. they had to leave)
+    if (people.length) html = '<div class="os-all"><label>Clear all for <select id="clearWho"><option value="">Choose a Session Leader\u2026</option>' +
+      people.map(function (n) { return '<option>' + esc(n) + '</option>'; }).join('') + '</select></label>' +
+      '<button type="button" class="secondary small" id="clearAllBtn">Clear all</button></div>' + html;
+    var cl = (state.data.cleared || []).filter(function (c) { return !LG.filterVal || plainName(c.name) === plainName(LG.filterVal); });
+    if (cl.length) html += '<details class="os-cleared"><summary>Cleared by the team (' + cl.length + ')</summary><ul>' + cl.map(function (c) {
+      var s = allocSession(c.id);
+      return '<li><span class="os-name"><strong>' + esc(c.name) + '</strong> ' + clr(c.id, c.name, true) + '</span><span>' +
+        esc(s ? s.title + ' \u00b7 ' + dayLabel(s.date) + ', ' + s.start : c.id) + '</span></li>';
+    }).join('') + '</ul></details>';
     html += '<p class="ex-note">Time slots appear once they start. Session Leaders come from the "Session Leader allocations" tab in the Sheet' +
-      (LG.filterVal ? '. Showing ' + esc(LG.filterVal) + ' only (Session Leader dropdown).' : '.') + '</p>';
+      (LG.filterVal ? '. Showing ' + esc(LG.filterVal) + ' only (Session Leader dropdown).' : '.') +
+      ' Clear removes a report from this list for everyone (for example, if they reported in person); Undo brings it back.</p>';
     $('exportTitle').textContent = 'Outstanding reports';
     $('exportBody').innerHTML = html;
     var dlg = $('exportDlg');
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+  }
+
+  // Clear (or undo) outstanding reports: items = [{ id, name }]
+  function clearOutstanding(items, undo, btn) {
+    if (!items.length) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving\u2026'; }
+    fetch(API, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'clearOutstanding', key: state.key, items: items, undo: !!undo })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.ok) { var err = new Error(j.error || 'not saved'); err.code = j.code; err.answered = true; throw err; }
+      var k = function (c) { return c.id + '|' + plainName(c.name); }, keys = items.map(k);
+      var cur = (state.data.cleared || []).filter(function (c) { return keys.indexOf(k(c)) === -1; });
+      state.data.cleared = undo ? cur : cur.concat(items);                    // show it now; the next refresh confirms it
+      renderLeaders(); showOutstanding();
+    }).catch(function (e) {
+      if (btn) { btn.disabled = false; btn.textContent = undo ? 'Undo' : 'Clear'; }
+      alert(e.answered ? coded('Not saved: ' + e.message + '. Please try again.', 'D201', e.code)
+                       : coded('Could not reach the database. Please try again.', 'D202'));
+    });
   }
 
   /* ---------- assign a key issue ---------- */
@@ -1001,7 +1048,7 @@
       leaderNames.map(function (n) { return '<option' + (n === G.filterVal ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') +
       '</select></label>' +
       (G === LG && (state.data.allocations || []).length ? (function () {
-        var n = outstanding().reduce(function (t, sl) { return t + sl.items.length; }, 0);
+        var n = outstanding().reduce(function (t, sl) { return t + sl.items.reduce(function (u, it) { return u + it.names.length; }, 0); }, 0);   // one per missing report
         return '<button type="button" class="secondary small" id="outstandingBtn">Outstanding reports' + (n ? ' <span class="count warn">' + n + '</span>' : '') + '</button>';
       })() : '') +
       // On/off filter: show only the key issues already marked as handled
@@ -1732,6 +1779,14 @@
       else if (el.id === 'scoreExportBtn') openExport('scorecards');
       else if (el.closest('#outstandingBtn')) showOutstanding();
       else if (el.dataset.assignissue) showAssign(el);
+      else if (el.dataset.clearid) clearOutstanding([{ id: el.dataset.clearid, name: el.dataset.clearname }], !!el.dataset.undo, el);
+      else if (el.id === 'clearAllBtn') {
+        var who = $('clearWho').value;
+        if (!who) { $('clearWho').focus(); return; }
+        var mine = [];
+        outstanding().forEach(function (sl) { sl.items.forEach(function (it) { if (it.names.indexOf(who) > -1) mine.push({ id: it.id, name: who }); }); });
+        if (confirm('Clear all ' + mine.length + ' outstanding report' + (mine.length === 1 ? '' : 's') + ' for ' + who + '?')) clearOutstanding(mine, false, el);
+      }
       else if (el.closest('[data-setowner]')) saveOwner(el.closest('[data-setowner]').dataset.setowner, el.closest('[data-setowner]'));
       else if (el.closest('[data-ownerfilter]')) {
         var OB = el.closest('[data-ownerfilter]'), OG = OB.dataset.g === 'panel' ? PG : LG;

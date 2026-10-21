@@ -28,6 +28,7 @@ PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 received, state, events, assigned, notes, resolved = [], {"fail": False, "fsfail": False}, [], {}, {}, {}
 contacted = {}
 owners = {}         # (kind, row) -> who a key issue is assigned to
+cleared = []        # outstanding Session Leader reports cleared on the dashboard
 picks = []
 FIREBASE = os.environ.get("MOCK_FIREBASE", "1") == "1"     # pretend Firebase is set up (the normal case)
 via = {"firebase": 0, "sheet": 0}
@@ -275,7 +276,7 @@ class Handler(SimpleHTTPRequestHandler):
                 for e in events:
                     if bool(e.get("test")) == bool(item.get("test")):
                         ev[e["type"]] = ev.get(e["type"], 0) + 1
-                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows, "leaders": leaders, "panel": panel, "allocations": load_allocations(),
+                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows, "leaders": leaders, "panel": panel, "allocations": load_allocations(), "cleared": cleared,
                                        "events": ev, "health": {"automatic": True, "waiting": 0, "lastProcessed": None}})
             if item.get("action") == "assign":
                 if item.get("key") != DASH_KEY:
@@ -287,6 +288,15 @@ class Handler(SimpleHTTPRequestHandler):
                 if not s:
                     return self.send_json({"ok": False, "error": "session not found"})
                 assigned[(item.get("kind") or "attendee", item["row"])] = s
+                return self.send_json({"ok": True})
+            if item.get("action") == "clearOutstanding":
+                if item.get("key") != DASH_KEY:
+                    return self.send_json({"ok": False, "error": "wrong password", "code": "S111"})
+                k = lambda c: (c["id"], c["name"].strip().lower())
+                drop = {k(c) for c in item.get("items", [])}
+                cleared[:] = [c for c in cleared if k(c) not in drop]
+                if not item.get("undo"):
+                    cleared.extend({"id": c["id"], "name": c["name"]} for c in item.get("items", []))
                 return self.send_json({"ok": True})
             if item.get("action") == "resolve":
                 if item.get("key") != DASH_KEY:

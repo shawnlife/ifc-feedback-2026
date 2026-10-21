@@ -46,6 +46,8 @@ var PANEL_NAME_COL = 'Panel member name';
 var ALLOCATIONS = 'Session Leader allocations';
 // Who a key issue is assigned to on the dashboard ('' = unassigned). Keep in step with config.js issueOwners.
 var ISSUE_OWNERS = ['Shawn', 'Advisory Panel', 'RA'];
+// Outstanding Session Leader reports the team has cleared on the dashboard (didn't attend, reported in person...)
+var CLEARED = 'Outstanding cleared';
 var PICKS = 'Masterclass picks';                 // Session Leaders' top 3 masterclasses (from /allocations)
 var TEST_PICKS = 'Test masterclass picks';
 var PICKS_HEAD = ['Timestamp', 'ID', 'Name', '1st choice', '2nd choice', '3rd choice'];
@@ -191,6 +193,7 @@ function doPost(e) {
     if (p.action === 'dashboard') return dashboard_(p);
     if (p.action === 'assign') return assign_(p);
     if (p.action === 'resolve') return resolve_(p);
+    if (p.action === 'clearOutstanding') return clearOutstanding_(p);
     if (p.action === 'picks') return json_(picks_(p));
     if (p.action === 'event') {
       var type = String(p.type || '');
@@ -565,6 +568,7 @@ function dashboard_(p) {
   var leaders = readTab(p.test === true ? TEST_LEADER : LEADER);
   var panel = readTab(p.test === true ? TEST_PANEL : PANEL);
   var allocations = readTab(ALLOCATIONS).map(function (r) { return { id: String(r['Session ID'] || ''), leaders: String(r['Session Leaders'] || '') }; });
+  var cleared = readTab(CLEARED).map(function (r) { return { id: String(r['Session ID'] || ''), name: String(r['Session Leader'] || '') }; });
   var events = {}, ev = ss.getSheetByName('Events');
   if (ev && ev.getLastRow() > 1) {
     ev.getRange(2, 1, ev.getLastRow() - 1, 3).getValues().forEach(function (r) {
@@ -575,7 +579,7 @@ function dashboard_(p) {
   var raw = ss.getSheetByName(RAW_LOG);
   var waiting = raw ? Math.max(0, raw.getLastRow() + 1 - Number(props.getProperty('RAW_NEXT_ROW') || 2)) : 0;
   return json_({
-    ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, leaders: leaders, panel: panel, allocations: allocations, events: events,
+    ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, leaders: leaders, panel: panel, allocations: allocations, cleared: cleared, events: events,
     health: { lastProcessed: props.getProperty('LAST_PROCESSED'), waiting: waiting,
               firebase: FIREBASE_PROJECT_ID ? { lastSync: props.getProperty('FS_LAST_SYNC'), error: props.getProperty('FS_LAST_ERROR') } : null,
               usage: usage_(),
@@ -693,6 +697,44 @@ function resolve_(p) {
     var stamp = Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'EEE d MMM HH:mm');
     sh.getRange(row, head.indexOf('Issue status') + 1).setValue(reopen ? '' : 'Handled ' + stamp);
     sh.getRange(row, head.indexOf('Issue note') + 1).setValue(reopen ? '' : note);
+    return json_({ ok: true });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Dashboard "Clear" on an outstanding Session Leader report: p.items = [{ id, name }], p.undo = true to put them back.
+// One row per cleared report in the "Outstanding cleared" tab (made on first use).
+function clearOutstanding_(p) {
+  var denied = auth_(p);
+  if (denied) return json_(denied);
+  var items = (p.items || []).filter(function (it) { return it && it.id && it.name; }).slice(0, 200);
+  if (!items.length) return json_({ ok: false, error: 'nothing to clear', code: 'S128' });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(CLEARED);
+    if (!sh) {
+      sh = ss.insertSheet(CLEARED);
+      sh.getRange(1, 1, 1, 3).setValues([['Session ID', 'Session Leader', 'Cleared']]).setFontWeight('bold');
+      sh.setFrozenRows(1);
+    }
+    var key = function (id, name) { return String(id) + '|' + String(name).trim().toLowerCase(); };
+    var last = sh.getLastRow();
+    var have = last > 1 ? sh.getRange(2, 1, last - 1, 2).getValues().map(function (r) { return key(r[0], r[1]); }) : [];
+    if (p.undo === true) {
+      // rewrite what's left (Sheets won't delete the last data row under a frozen header)
+      var drop = items.map(function (it) { return key(it.id, it.name); });
+      var rowsNow = last > 1 ? sh.getRange(2, 1, last - 1, 3).getValues() : [];
+      var keep = rowsNow.filter(function (r) { return drop.indexOf(key(r[0], r[1])) === -1; });
+      if (rowsNow.length) sh.getRange(2, 1, rowsNow.length, 3).clearContent();
+      if (keep.length) sh.getRange(2, 1, keep.length, 3).setValues(keep);
+    } else {
+      var stamp = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'EEE d MMM HH:mm');
+      var add = items.filter(function (it) { return have.indexOf(key(it.id, it.name)) === -1; })
+        .map(function (it) { return [safe_(String(it.id).slice(0, 60)), safe_(String(it.name).slice(0, 60)), stamp]; });
+      if (add.length) sh.getRange(sh.getLastRow() + 1, 1, add.length, 3).setValues(add);
+    }
     return json_({ ok: true });
   } finally {
     lock.releaseLock();

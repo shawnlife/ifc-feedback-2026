@@ -359,5 +359,20 @@ const h1 = hd('First person'), h2 = hd('Second person');
 d2 = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
 check(h1.ok && !h2.ok && h2.code === 'S127' && d2.leaders[0]['Issue note'] === 'First person', 'second Handled? refused (S127), first note kept');
 
+console.log('23. Clear outstanding Session Leader reports, and undo');
+const co = (items, undo) => JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'clearOutstanding', key: 'pw12345678', items: items, undo: undo }) } }).text);
+const c1 = co([{ id: '1WS1', name: 'Lucy' }, { id: '2WS1', name: 'Hollie' }]);
+co([{ id: '1WS1', name: 'Lucy' }]);                                        // twice: still one row
+d2 = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+check(c1.ok && d2.cleared.length === 2 && d2.cleared[0].id === '1WS1' && d2.cleared[0].name === 'Lucy', 'two cleared, no duplicates');
+co([{ id: '1WS1', name: 'lucy' }], true);
+d2 = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+check(d2.cleared.length === 1 && d2.cleared[0].name === 'Hollie', 'undo puts one back');
+co([{ id: '2WS1', name: 'Hollie' }], true);
+d2 = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+check(d2.cleared.length === 0, 'undo the last one: list empty');
+const c3 = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'clearOutstanding', key: 'wrong', items: [{ id: 'x', name: 'y' }] }) } }).text);
+check(!c3.ok, 'wrong password refused');
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);
