@@ -94,9 +94,12 @@
     if (busyTyping()) { pendingRender = true; return; }
     renderAll();
   }
+  // Saved results older than this aren't shown (they'd look like real numbers but be well out of date,
+  // e.g. all zeros from before the day started): "Loading the latest results" shows instead
+  var CACHE_MAX_AGE = 10 * 60 * 1000;
   function showCached() {
     var c = readCache();
-    if (!c || !c.d) return false;
+    if (!c || !c.d || Date.now() - c.t > CACHE_MAX_AGE) { loadingPanels(); return false; }
     state.cachedAt = c.t;
     show(c.d);
     return true;
@@ -1676,6 +1679,13 @@
     $('app').hidden = true; $('login').hidden = false;
     $('loginError').textContent = msg || '';
     $('pw').value = ''; $('pw').focus();
+  }
+
+  function loadingPanels() {
+    if (state.data) return;                                        // something is already on screen
+    ['overview', 'scorecards', 'rankings', 'leaders', 'panel', 'online', 'comments', 'typed', 'analytics'].forEach(function (t) {
+      $('tab-' + t).innerHTML = '<p class="empty loading-note">Loading the latest results\u2026 This can take up to 10 seconds.</p>';
+    });
   }
 
   var timer = null;

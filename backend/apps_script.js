@@ -544,8 +544,13 @@ function auth_(p) {
 function dashboard_(p) {
   var denied = auth_(p);
   if (denied) return json_(denied);
-  try { processQueue_(); } catch (err) { /* the minute trigger will catch up */ }
-  try { flushSP_(); } catch (err) { /* next run */ }
+  // Bring in new responses first, unless that happened in the last 45 seconds (several dashboards open at
+  // once): the dashboard answers faster and Firebase isn't read again for nothing
+  var lastRun = Date.parse(SP_().getProperty('LAST_PROCESSED') || '') || 0;
+  if (Date.now() - lastRun > 45000) {
+    try { processQueue_(); } catch (err) { /* the minute trigger will catch up */ }
+    try { flushSP_(); } catch (err) { /* next run */ }
+  }
   var ss = SpreadsheetApp.getActiveSpreadsheet(), tz = ss.getSpreadsheetTimeZone();
   var readTab = function (name) {
     var sh = ss.getSheetByName(name), list = [];
