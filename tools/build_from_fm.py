@@ -151,8 +151,15 @@ for row in out:
 # Crossed out in James's sheet (strikethrough doesn't survive the CSV export, so listed here): (date, start, room)
 CANCELLED = {("2026-10-22", "15:00", "Erasmus 7"),     # 3rd run of The Inner Work of Trust-Based Philanthropy (17 Oct)
              ("2026-10-21", "17:00", "Boston 13"),     # Open Discussion: Can We Disagree Without Disconnecting? (18 Oct)
-             ("2026-10-21", "09:00", "Erasmus 5")}     # Masterclass: Power, Wealth, Philanthropy... and Justice? (20 Oct)
+             ("2026-10-21", "09:00", "Erasmus 5"),     # Masterclass: Power, Wealth, Philanthropy... and Justice? (20 Oct)
+             ("2026-10-22", "15:00", "Oxford 18")}     # Power, Wealth, Philanthropy... and Justice? workshop (21 Oct)
 out = [r for r in out if (r["Date"], r["Start"], r["Room"]) not in CANCELLED]
+
+# Room changes not yet in James's sheet: (date, start, old room) -> new room
+ROOM_MOVES = {("2026-10-22", "16:30", "Boston 9"): "Cambridge 32",      # Fix Your Broken Funding Model (21 Oct)
+              ("2026-10-22", "16:30", "Cambridge 30"): "Boston 9"}      # Scaling Personalisation with AI Personas, now the IFC Online room (21 Oct)
+for r in out:
+    r["Room"] = ROOM_MOVES.get((r["Date"], r["Start"], r["Room"]), r["Room"])
 
 # Speakers from James's session sheet for Shawn (17 Oct) that the facilities sheet doesn't have yet
 EXTRA_SPEAKERS = {

@@ -89,7 +89,7 @@ def fake_rows(n):
                                                if rnd.random() < (0.25 if o <= 2 else 0.02) else {})}},
                                start.isoformat()))
     # IFC Online form responses (Format: Online) for the livestreamed sessions
-    online_ids = ["KEY-OPEN", "1WS11", "2WS6", "3WS10", "4WS3", "5WS14", "6WS7", "7WS12", "KEY-CLOSE"]
+    online_ids = ["KEY-OPEN", "1WS11", "2WS6", "3WS10", "4WS3", "5WS14", "6WS13", "7WS12", "KEY-CLOSE"]
     for s in [x for x in sess if x["ID"] in online_ids]:
         for _ in range(rnd.randint(3, 12)):
             o = max(1, min(5, round(rnd.gauss(3.9, 0.8))))

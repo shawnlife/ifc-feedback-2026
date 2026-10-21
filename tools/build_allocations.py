@@ -59,7 +59,7 @@ for c in range(1, len(times)):
         out.append({
             "Session ID": s["ID"] + ("-P1" if part1 else ""),
             "Session": str(title).strip() + (" (Part 1)" if part1 else (" (Part 2)" if s["Track"] == "Masterclasses" else "")),
-            "Room": room,
+            "Room": s["Room"],
             "Day": {"2026-10-20": "Tue 20 Oct", "2026-10-21": "Wed 21 Oct", "2026-10-22": "Thu 22 Oct", "2026-10-23": "Fri 23 Oct"}[day],
             "Time": t.replace(" - ", "–").replace("-", "–"),
             "Session Leaders": " / ".join(names),

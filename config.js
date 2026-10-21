@@ -120,7 +120,7 @@ window.IFC_CONFIG = {
   // show on the dashboard's IFC Online tab, separate from in-person feedback.
   online: {
     title: 'IFC Online feedback',
-    sessions: ['KEY-OPEN', '1WS11', '2WS6', '3WS10', '4WS3', '5WS14', '6WS7', '7WS12', 'KEY-CLOSE']
+    sessions: ['KEY-OPEN', '1WS11', '2WS6', '3WS10', '4WS3', '5WS14', '6WS13', '7WS12', 'KEY-CLOSE']   // Thu 16:30 is now 6WS13 Scaling Personalisation (21 Oct)
   },
 
   // MASTERCLASS PICKS (at /allocations): Session Leaders choose their top 3 masterclasses
