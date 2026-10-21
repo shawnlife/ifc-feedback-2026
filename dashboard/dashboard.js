@@ -431,7 +431,7 @@
     list.forEach(function (r) { src[r.source] = (src[r.source] || 0) + 1; });
     var ev = state.data.events || {}, u = (state.data.health || {}).usage || {};
     var html = '<h2 class="section">How people got to the form</h2><p class="sub">Per response, with the filters above applied.</p><div class="tiles">' +
-      ['QR code', 'NFC tag', 'Event app', 'Session Leader badge', 'Link', 'Home screen'].map(function (k) {
+      ['QR code', 'NFC tag', 'Event app', 'Link', 'Home screen'].map(function (k) {
         return tile(k, String(src[k] || 0), pct(src[k] || 0, list.length) + ' of responses');
       }).join('') + '</div>' +
       // Optional contact details ("open to the IFC team following up"): who left a name

@@ -63,7 +63,7 @@ gimg = cv2.imread(str(OUT / "general-qr.png"))
 if not (reads(gimg, 1.0, general) and reads(gimg, 0.25, general)):
     sys.exit("QR CHECK FAILED for the general code. Do not print.")
 rows.append({"Room": "(general, any room)", "NFC tag link": BASE + "?nfc", "QR link": general, "QR file": "general-qr.png / .svg"})
-# Session Leader badge tags dropped 8 Oct (James: two NFC posters per room instead). The ?badge link still works.
+# Session Leader badge tags dropped 8 Oct (James: two NFC posters per room instead); ?badge removed from the form 21 Oct.
 print("  General code: QR checked")
 
 with (OUT / "room-links.csv").open("w", newline="", encoding="utf-8") as f:

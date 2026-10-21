@@ -44,14 +44,14 @@
   var OPENED_FROM_EVENT_APP = false;   // counted once per open (the address is tidied, so a reload doesn't count again)
   var SOURCE = (function () {
     // ?eventapp = the link in the IFC event app (each open is also counted, see below)
-    var src = params.has('eventapp') ? 'Event app' : params.has('badge') ? 'Session Leader badge' : params.has('nfc') ? 'NFC tag' : params.has('qr') ? 'QR code' : params.has('app') ? 'Home screen' : null;
+    var src = params.has('eventapp') ? 'Event app' : params.has('nfc') ? 'NFC tag' : params.has('qr') ? 'QR code' : params.has('app') ? 'Home screen' : null;
     try {
       if (src) sessionStorage.setItem('ifc26-src', src);
       else src = sessionStorage.getItem('ifc26-src');
     } catch (e) { /* private browsing: fine */ }
-    if (params.has('qr') || params.has('app') || params.has('nfc') || params.has('room') || params.has('badge') || params.has('eventapp')) {
+    if (params.has('qr') || params.has('app') || params.has('nfc') || params.has('room') || params.has('eventapp')) {
       if (params.has('eventapp')) OPENED_FROM_EVENT_APP = true;
-      params.delete('qr'); params.delete('app'); params.delete('nfc'); params.delete('room'); params.delete('badge'); params.delete('eventapp');
+      params.delete('qr'); params.delete('app'); params.delete('nfc'); params.delete('room'); params.delete('eventapp');
       var qs = params.toString();
       history.replaceState(null, '', location.pathname + (qs ? '?' + qs.replace(/=(?=&|$)/g, '') : '') + location.hash);
     }
