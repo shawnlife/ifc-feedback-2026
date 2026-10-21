@@ -86,6 +86,7 @@
   var dayNumbers = {};   // '2026-10-14' -> 2
   var lastFetch = 0;
   var selected = null;   // the chosen session, or {manual:true}
+  var foundVia = '';     // how they found it: Room sign, Just finished list, In progress list, Search, Browse, Typed in
   var browsing = false, showRecentAll = false, liveOpen = false, liveTouched = false;
 
 
@@ -102,6 +103,14 @@
       localStorage.setItem(key, JSON.stringify(val));
     } catch (e) { return null; }
   }
+  // An anonymous random code kept on this phone, sent with each response, so the dashboard can count
+  // how many people gave feedback (not who). Nothing about the phone itself.
+  function deviceCode() {
+    var k = 'ifc26-device', v = store(k);
+    if (!v) { v = Math.random().toString(36).slice(2, 10); store(k, v); }
+    return v;
+  }
+
   function uid() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
@@ -586,7 +595,7 @@
       '<div class="room-btns"><button type="button" class="primary" id="roomYes">Yes, rate this session</button>' +
       '<button type="button" class="link" id="roomNo">No, find my session</button></div>';
     box.hidden = false;
-    $('roomYes').addEventListener('click', function () { box.hidden = true; choose(s); });
+    $('roomYes').addEventListener('click', function () { box.hidden = true; choose(s, ONLINE ? 'Suggested (online)' : 'Room sign'); });
     $('roomNo').addEventListener('click', function () { box.hidden = true; els.q.focus(); });
   }
 
@@ -788,8 +797,10 @@
     window.scrollTo(0, 0);
   }
 
-  function choose(s) {
+  function choose(s, via) {
     selected = s;
+    foundVia = via || '';
+    if (!LEADER) track('chose');
     els.stepForm.reset();
     fillSpeakers(s.manual ? null : s);
     prefillName();
@@ -1009,7 +1020,8 @@
         ? { id: 'NOT LISTED', title: c.manualName }
         : { id: s.id, title: s.title, speakers: s.speakers, room: s.room, date: s.date, start: s.start, end: s.end, track: s.track },
       form: LEADER ? 'leader' : 'attendee',
-      answers: Object.assign({}, c.answers, { 'Came from': SOURCE }, ONLINE ? { 'Format': 'Online' } : {})
+      answers: Object.assign({}, c.answers, { 'Came from': SOURCE }, ONLINE ? { 'Format': 'Online' } : {},
+        foundVia ? { 'Found via': foundVia } : {}, LEADER ? {} : { 'Device': deviceCode() })
     };
     QUESTIONS.forEach(function (q) { if (q.type === 'name' && c.answers[q.column || q.label]) store(NAME_KEY, c.answers[q.column || q.label]); });
 
@@ -1065,6 +1077,7 @@
       $('overallText').textContent = ov.text || '';
       $('overallBtn').textContent = ov.button || 'Give feedback on IFC 2026';
       $('overallBtn').href = ov.url;
+      if (!$('overallBtn').dataset.tracked) { $('overallBtn').dataset.tracked = '1'; $('overallBtn').addEventListener('click', function () { track('overall-click'); }); }
     }
     if (state !== 'rejected' && !LEADER && !ONLINE && !showOverall) showHomeTip();
     else $('homeTip').hidden = true;                 // after the closing keynote the week is over: no home-screen tip
@@ -1123,6 +1136,19 @@
   }
   window.addEventListener('appinstalled', function () { track('installed'); });
   if (OPENED_FROM_EVENT_APP) track('open-eventapp');
+  // One "opened the form" count per visit (not per reload), attendee and IFC Online forms only.
+  // Sent after a random short wait, so a whole room opening it at once doesn't arrive in one burst.
+  (function () {
+    if (LEADER) return;
+    try { if (sessionStorage.getItem('ifc26-open-counted')) return; } catch (e) { /* fine */ }
+    var sent = false, send = function () {
+      if (sent) return; sent = true;
+      try { sessionStorage.setItem('ifc26-open-counted', '1'); } catch (e) { /* fine */ }
+      track('open');
+    };
+    setTimeout(send, Math.random() * 10000);
+    window.addEventListener('pagehide', send);          // leaving before the wait is up: send it now
+  })();
 
   // "Add to home screen" tip on the thank-you screen
   var installPrompt = null;
@@ -1206,14 +1232,16 @@
       els.q.value = ''; browsing = true; render();
       els.status.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
-    els.manualBtn.addEventListener('click', function () { choose({ manual: true }); });
+    els.manualBtn.addEventListener('click', function () { choose({ manual: true }, 'Typed in'); });
     var pickResult = function (e) {
       if (e.target.id === 'moreBtn') { showAll = true; render(); return; }
       if (e.target.id === 'recentMore') { showRecentAll = true; render(); return; }
       var b = e.target.closest('.result');
       if (!b) return;
       var s = sessions.filter(function (x) { return x.id === b.dataset.id; })[0];
-      if (s) choose(s);
+      var via = e.currentTarget === els.recent ? (b.closest('#liveGroup') ? 'In progress list' : 'Just finished list')
+              : browsing ? 'Browse' : 'Search';
+      if (s) choose(s, via);
     };
     els.results.addEventListener('click', pickResult);
     els.recent.addEventListener('click', pickResult);

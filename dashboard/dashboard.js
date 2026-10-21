@@ -424,6 +424,11 @@
       }).join('') + '</div>';
   }
 
+  // Visits, picks, how sessions were found and the per-phone code started being counted at this moment
+  var STATS_FROM = '2026-10-21T14:19:00.000Z';          // UTC
+  function statsFromLabel() { return 'Wed 21 Oct, 16:19'; }
+  var FOUND_VIA = ['Room sign', 'Just finished list', 'In progress list', 'Search', 'Browse', 'Typed in', 'Suggested (online)'];
+
   // Analytics: how people use the tool (for Shawn)
   function renderAnalytics() {
     if (!ANALYTICS) return;
@@ -432,8 +437,43 @@
     var ev = state.data.events || {}, u = (state.data.health || {}).usage || {};
     var html = '<h2 class="section">How people got to the form</h2><p class="sub">Per response, with the filters above applied.</p><div class="tiles">' +
       ['QR code', 'NFC tag', 'Event app', 'Link', 'Home screen'].map(function (k) {
-        return tile(k, String(src[k] || 0), pct(src[k] || 0, list.length) + ' of responses');
+        return tile(k, String(src[k] || 0), pct(src[k] || 0, list.length) + ' of responses' +
+          (k === 'Event app' ? ' \u00b7 link opened ' + (ev['open-eventapp'] || 0) + ' times' : ''));
       }).join('') + '</div>' +
+      // Opened -> picked a session -> sent (all responses, not filtered: the open and pick counts can't be)
+      (function () {
+        var since = rows.filter(function (r) { return String(r.when) >= STATS_FROM; }).length;
+        var picks = ev.chose || 0, gaveUp = Math.max(0, picks - since);
+        return '<h2 class="section">From opening the form to sending</h2><p class="sub">Counted since ' + esc(statsFromLabel()) +
+          '. Not filtered. A visit is one person opening the form (a reload doesn\'t count again); one visit can rate several sessions.</p><div class="tiles">' +
+          tile('Visits', String(ev.open || 0), 'Times the form was opened') +
+          tile('Picked a session', String(picks), 'Opened a session\'s questions') +
+          tile('Sent', String(since), pct(since, picks) + ' of sessions picked') +
+          tile('Picked but didn\u2019t send', String(gaveUp), pct(gaveUp, picks) + ' of sessions picked (includes going back to pick another)') + '</div>';
+      })() +
+      // How people found their session (responses since STATS_FROM carry "Found via")
+      (function () {
+        var withVia = list.filter(function (r) { return r.raw['Found via']; }), c = {};
+        withVia.forEach(function (r) { c[r.raw['Found via']] = (c[r.raw['Found via']] || 0) + 1; });
+        return '<h2 class="section">How people found their session</h2><p class="sub">Responses since ' + esc(statsFromLabel()) + ' (' + withVia.length +
+          '), with the filters above applied.</p><div class="tiles">' +
+          FOUND_VIA.filter(function (k) { return k !== 'Suggested (online)' || c[k]; }).map(function (k) {
+            return tile(k, String(c[k] || 0), pct(c[k] || 0, withVia.length));
+          }).join('') + '</div>';
+      })() +
+      // How many different people (an anonymous random code per phone), and written comments
+      (function () {
+        var withDev = list.filter(function (r) { return r.raw.Device; }), per = {};
+        withDev.forEach(function (r) { per[r.raw.Device] = (per[r.raw.Device] || 0) + 1; });
+        var people = Object.keys(per).length, most = people ? Math.max.apply(null, Object.keys(per).map(function (k) { return per[k]; })) : 0;
+        var commented = list.filter(function (r) { return commentText(r).trim(); }).length;
+        return '<h2 class="section">People and comments</h2><p class="sub">People are counted from an anonymous code on each phone, for responses since ' +
+          esc(statsFromLabel()) + ' (' + withDev.length + '). With the filters above applied.</p><div class="tiles">' +
+          tile('People who gave feedback', String(people), withDev.length + ' responses between them') +
+          tile('Sessions per person', people ? (withDev.length / people).toFixed(1) : '\u2013', 'Average') +
+          tile('Most by one person', String(most), most === 1 ? 'session' : 'sessions') +
+          tile('Left a written comment', String(commented), pct(commented, list.length) + ' of all responses') + '</div>';
+      })() +
       // Optional contact details ("open to the IFC team following up"): who left a name
       (function () {
         var named = list.filter(function (r) { return String(r.contactName || '').trim(); }).length;
@@ -443,7 +483,7 @@
       })() +
       '<h2 class="section">Clicks and installs</h2><p class="sub">Anonymous counts (not filtered). Installs can only be counted on Android; ' +
       'iPhones show up as "Home screen" responses instead.</p><div class="tiles">' +
-      tile('Opened from the event app', String(ev['open-eventapp'] || 0), 'Every open of the event app link, whether or not they sent feedback') +
+      tile('End-of-conference form clicks', String(ev['overall-click'] || 0), 'Taps on \u201cGive feedback on IFC 2026\u201d (from Friday)') +
       tile('“Contact us” clicks', String(ev.help || 0), 'People who tapped the help link') +
       tile('ShawnLife clicks', String(ev.shawnlife || 0), 'Footer credit link') +
       tile('Saw the home-screen tip', String(ev['tip-shown'] || 0), 'Shown on the thank-you screen') +
@@ -1231,7 +1271,8 @@
         '<button type="button" class="secondary small" data-xlsx="' + i + '" title="Every response for this session as an Excel file">Excel</button></div>' : '') +
       '<div class="meta">' +
       esc(w.speakers || '') + (w.speakers ? ' · ' : '') + (multi ? 'Ran ' + w.runs.length + ' times · ' : esc(runLabel(w.runs[0])) + ' · ') +
-      '<strong>' + st.n + ' response' + (st.n === 1 ? '' : 's') + '</strong></div>';
+      '<strong>' + st.n + ' response' + (st.n === 1 ? '' : 's') + '</strong>' +
+      (st.n ? ' \u00b7 ' + pct(all.filter(function (r) { return commentText(r).trim(); }).length, st.n) + ' left a comment' : '') + '</div>';
     if (multi) {
       html += '<div class="qname">How each run compared</div><div class="tbl-wrap compare"><table class="tbl"><thead><tr><th>Run</th><th class="num">Responses</th>' +
         RATINGS.map(function (q) { return '<th class="num">' + esc(col(q).replace(' (1-5)', '')) + '</th>'; }).join('') +
