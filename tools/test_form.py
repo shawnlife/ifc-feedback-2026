@@ -89,10 +89,18 @@ with sync_playwright() as p:
     check(heads == ["just finished"], f"11:00 Wed (between blocks): only the 09:30 block, nothing in progress ({heads})")
     page.goto(BASE + "?now=2026-10-14T11:20"); page.wait_for_selector(".result")
     check(page.locator("#liveGroup").count() == 1 and not page.locator("#liveGroup").get_attribute("open") is not None,
-          "'In progress now' is folded away by default")
+          "'In progress now' is folded away when there are just-finished sessions")
     page.click("#liveGroup > summary")
     first_two = [c.inner_text() for c in page.locator(".result").all()[:1]] + [page.locator(".result").nth(15).inner_text()]
     check("09:30" in first_two[0] and "11:15" in first_two[1], "11:20 Wed: 09:30 block still 'Just finished', 11:15 block 'In progress now'")
+    # Nothing just finished (more than 2.5 hours since the last slot ended): In progress now opens by itself
+    lp2 = page.context.new_page()
+    lp2.goto(BASE + "?now=2026-10-14T09:45"); lp2.wait_for_timeout(800)
+    check(lp2.locator("#liveGroup").count() == 1 and lp2.locator("#liveGroup").get_attribute("open") is not None
+          and "just finished" not in lp2.inner_text("#recent").lower(), "first slot of the day (nothing just finished): 'In progress now' is open")
+    lp2.locator("#liveGroup > summary").click(); lp2.wait_for_timeout(100)
+    check(lp2.locator("#liveGroup").get_attribute("open") is None, "and can be folded away")
+    lp2.close()
 
     print("Not started yet = can't be chosen")
     page.goto(BASE + "?now=2026-10-14T12:40"); page.wait_for_selector(".result")
