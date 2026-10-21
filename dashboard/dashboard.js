@@ -142,12 +142,19 @@
   // Every request gets a number; only the answer to the newest one is used. Otherwise a
   // slow "real data" refresh arriving after a "test data" one would overwrite it.
   var reqSeq = 0;
+  // A random id for this browser tab, so the server can count how many dashboards are open (anonymous)
+  function viewerId() {
+    var v = store('session', 'ifc26-viewer');
+    if (!v) { v = Math.random().toString(36).slice(2, 12); store('session', 'ifc26-viewer', v); }
+    return v;
+  }
+
   function fetchData() {
     var mine = ++reqSeq, wantTest = $('showTest').checked;
     return fetch(API, {
       method: 'POST', cache: 'no-store',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'dashboard', key: state.key, test: wantTest })
+      body: JSON.stringify({ action: 'dashboard', key: state.key, test: wantTest, viewer: viewerId() })
     }).then(function (r) { return r.json(); }).then(function (d) {
       if (mine !== reqSeq || wantTest !== $('showTest').checked) { d = { ok: true, stale: true }; }
       return d;
@@ -1669,6 +1676,7 @@
     $('liveDot').classList.toggle('stale', !fresh);
     $('updated').textContent = state.lastOk
       ? (fresh ? 'Live · ' : 'Not updating · ') + 'updated ' + ago(Date.now() - state.lastOk) +
+        (fresh && state.data && state.data.viewers ? ' · ' + state.data.viewers + ' viewing' + (state.data.viewers > 1 ? ' (including you)' : ' (just you)') : '') +
         ($('showTest').checked ? ' · showing TEST responses' : '')
       : state.cachedAt ? 'Showing results from ' + ago(Date.now() - state.cachedAt) + ' · updating…' : 'Loading…';
 

@@ -583,7 +583,19 @@ function dashboard_(p) {
   var props = SP_();
   var raw = ss.getSheetByName(RAW_LOG);
   var waiting = raw ? Math.max(0, raw.getLastRow() + 1 - Number(props.getProperty('RAW_NEXT_ROW') || 2)) : 0;
+  // How many dashboards are open: each open tab refreshes every minute with its own random id;
+  // count the ids seen in the last 2.5 minutes (anonymous, kept 10 minutes in the script cache)
+  var viewers = 0;
+  try {
+    var vc = CacheService.getScriptCache(), seen = JSON.parse(vc.get('viewers') || '{}'), nowMs = Date.now();
+    var vid = String(p.viewer || '').replace(/[^a-z0-9]/gi, '').slice(0, 20);
+    if (vid) seen[vid] = nowMs;
+    Object.keys(seen).forEach(function (k) { if (nowMs - seen[k] > 150000) delete seen[k]; });
+    vc.put('viewers', JSON.stringify(seen), 600);
+    viewers = Object.keys(seen).length;
+  } catch (err) { /* just no count */ }
   return json_({
+    viewers: viewers,
     ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, leaders: leaders, panel: panel, allocations: allocations, cleared: cleared, events: events,
     health: { lastProcessed: props.getProperty('LAST_PROCESSED'), waiting: waiting,
               firebase: FIREBASE_PROJECT_ID ? { lastSync: props.getProperty('FS_LAST_SYNC'), error: props.getProperty('FS_LAST_ERROR') } : null,

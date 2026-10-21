@@ -29,6 +29,7 @@ received, state, events, assigned, notes, resolved = [], {"fail": False, "fsfail
 contacted = {}
 owners = {}         # (kind, row) -> who a key issue is assigned to
 cleared = []        # outstanding Session Leader reports cleared on the dashboard
+viewers = {}        # dashboard tab id -> last refresh time
 picks = []
 FIREBASE = os.environ.get("MOCK_FIREBASE", "1") == "1"     # pretend Firebase is set up (the normal case)
 via = {"firebase": 0, "sheet": 0}
@@ -38,6 +39,16 @@ DASH_KEY = "test-password"
 def load_sessions():
     with (ROOT / os.environ.get("MOCK_SESSIONS", "tools/sample-data/sessions-sample.csv")).open(encoding="utf-8") as f:
         return list(csv.DictReader(f))
+
+
+def count_viewers(vid):
+    import time as _t
+    now = _t.time()
+    if vid:
+        viewers[vid] = now
+    for k in [k for k, t in viewers.items() if now - t > 150]:
+        del viewers[k]
+    return len(viewers)
 
 
 def load_allocations():
@@ -276,7 +287,7 @@ class Handler(SimpleHTTPRequestHandler):
                 for e in events:
                     if bool(e.get("test")) == bool(item.get("test")):
                         ev[e["type"]] = ev.get(e["type"], 0) + 1
-                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows, "leaders": leaders, "panel": panel, "allocations": load_allocations(), "cleared": cleared,
+                return self.send_json({"ok": True, "generated": "now", "sessions": load_sessions(), "responses": rows, "leaders": leaders, "panel": panel, "allocations": load_allocations(), "cleared": cleared, "viewers": count_viewers(item.get("viewer")),
                                        "events": ev, "health": {"automatic": True, "waiting": 0, "lastProcessed": None}})
             if item.get("action") == "assign":
                 if item.get("key") != DASH_KEY:

@@ -378,5 +378,10 @@ console.log('24. Event app opens are counted');
 const ea = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'event', type: 'open-eventapp', test: false }) } }).text);
 check(ea.ok, 'open-eventapp event accepted');
 
+console.log('25. Dashboards viewing: counted by tab id');
+const vw = (id) => JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678', viewer: id }) } }).text).viewers;
+vw('tabA'); vw('tabB');
+check(vw('tabA') === 2, 'two tabs, one refreshing twice: 2 viewing');
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);
