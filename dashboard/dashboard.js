@@ -1023,8 +1023,16 @@
     var nContact = all.filter(function (r) { return r.contact; }).length;
     var nWritten = all.filter(function (r) { return commentText(r).trim(); }).length;
     var list = all.filter(function (r) { return (!state.onlyContact || r.contact) && (!state.onlyWritten || commentText(r).trim()); });
+    // New responses don't appear by themselves while someone is reading this tab: they wait behind
+    // a "Show N new responses" button. When the tab isn't open, it just keeps up to date.
+    var newest = rows.reduce(function (m, r) { return String(r.when) > m ? String(r.when) : m; }, '');
+    if (state.respPinned == null || state.tab !== 'comments') state.respPinned = newest;
+    var waitingNew = list.filter(function (r) { return String(r.when) > state.respPinned; });
+    list = list.filter(function (r) { return String(r.when) <= state.respPinned; });
     var shown = list.slice(0, state.commentsShown);
-    var html = '<div class="controls"><span>' + all.length + ' responses, newest first.</span>' +
+    var html = (waitingNew.length ? '<button type="button" class="new-resp" id="showNewResp">Show ' + waitingNew.length + ' new response' +
+        (waitingNew.length === 1 ? '' : 's') + '</button>' : '') +
+      '<div class="controls"><span>' + all.length + ' responses, newest first.</span>' +
       '<label class="toggle"><input type="checkbox" id="onlyWritten"' + (state.onlyWritten ? ' checked' : '') + '> Only with a written comment (' + nWritten + ')</label>' +
       '<label class="toggle"><input type="checkbox" id="onlyContact"' + (state.onlyContact ? ' checked' : '') + '> Only people open to being contacted (' + nContact + ')</label></div>' +
       '<div class="comments">' +
@@ -1913,6 +1921,7 @@
       else if (el.id === 'exportClose' || el.id === 'exportDlg') closeExport();      // the x, or a click on the dark area
       else if (el.closest('#takeawaysBtn')) exportTakeaways();
       else if (el.id === 'moreComments') { state.commentsShown += 100; renderComments(); }
+      else if (el.id === 'showNewResp') { state.respPinned = null; renderComments(); }
       else if (el.closest('#wordBtn')) wordConfirm();
       else if (el.id === 'wordBack') openExport('scorecards');
       else if (el.closest('#wordGo')) {
