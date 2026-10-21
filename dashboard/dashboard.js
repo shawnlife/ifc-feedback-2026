@@ -335,11 +335,39 @@
     });
     list.forEach(function (r) { var k = r.date + ' ' + r.start; if (blocks[k]) blocks[k].n++; });
     order.sort();
-    html += '<h2 class="section">Responses per time block</h2><p class="sub">Each bar is one time slot.<span class="desk-only"> Hover for details.</span></p>' +
+    // Two columns on a computer: responses per time block | open key issues (stacked on phones)
+    html += '<div class="ov-cols"><div class="ov-main">' +
+      '<h2 class="section">Responses per time block</h2><p class="sub">Each bar is one time slot.<span class="desk-only"> Hover for details.</span></p>' +
       columnChart(order.map(function (k) { return blocks[k]; })) + barList(order.map(function (k) { return blocks[k]; })) +
       '<button type="button" class="link table-toggle" data-toggle="blockTable">Show as a table</button>' +
-      '<div id="blockTable" hidden>' + blockTable(order.map(function (k) { return blocks[k]; })) + '</div>';
+      '<div id="blockTable" hidden>' + blockTable(order.map(function (k) { return blocks[k]; })) + '</div></div>' +
+      '<aside class="ov-issues">' + issuesSummary() + '</aside></div>';
     $('tab-overview').innerHTML = html;
+  }
+
+  // Overview: how many open key issues each owner has, Session Leaders and Advisory Panel. Each number opens that
+  // tab filtered to those issues. Follows the filters above.
+  function issuesSummary() {
+    var groups = [[LG, leaders, 'leaders', 'Session Leaders'], [PG, panel, 'panel', 'Advisory Panel']].map(function (g) {
+      var open = g[1].filter(function (l) {
+        return g[0].issues && !l.handled && String(l.raw[g[0].issues] || '').trim() && matches(l, l.name + ' ' + l.raw[g[0].issues]);
+      });
+      return { tab: g[2], label: g[3], open: open };
+    });
+    var n = function (g, o) { return g.open.filter(function (l) { return o === '' ? true : o === '-' ? !l.owner : l.owner === o; }).length; };
+    var cell = function (g, o) {
+      var c = n(g, o);
+      return '<td class="num">' + (c ? '<button type="button" class="ov-num" data-ovtab="' + g.tab + '" data-ovowner="' + esc(o) + '" title="Show these key issues">' + c + '</button>'
+                                     : '<span class="ov-zero">0</span>') + '</td>';
+    };
+    var total = groups.reduce(function (t, g) { return t + g.open.length; }, 0);
+    var rowsHtml = [['-', 'Unassigned']].concat(OWNERS.map(function (o) { return [o, o]; })).concat([['', 'All open']]).map(function (o) {
+      return '<tr' + (o[0] === '' ? ' class="ov-total"' : '') + '><th scope="row">' + esc(o[1]) + '</th>' + groups.map(function (g) { return cell(g, o[0]); }).join('') + '</tr>';
+    }).join('');
+    return '<h2 class="section">Open key issues <span class="count' + (total ? ' warn' : ' zero') + '">' + total + '</span></h2>' +
+      '<p class="sub">By who they\'re assigned to. Click a number to see those key issues.</p>' +
+      '<table class="ov-table"><thead><tr><th></th>' + groups.map(function (g) { return '<th class="num">' + esc(g.label) + '</th>'; }).join('') + '</tr></thead>' +
+      '<tbody>' + rowsHtml + '</tbody></table>';
   }
 
   // Minutes between a session's end (conference local time) and when the response arrived.
@@ -433,7 +461,7 @@
     if (!data.length) return '<p class="empty">No sessions match these filters.</p>';
     var max = Math.max(1, Math.max.apply(null, data.map(function (d) { return d.n; })));
     var step = Math.ceil(max / 4 / 5) * 5 || 1, top = step * 4;
-    var slot = 54, left = 40, h = 220, bottom = 44, w = left + data.length * slot;
+    var slot = 44, left = 40, h = 220, bottom = 44, w = left + data.length * slot;
     var y = function (v) { return 22 + (h - 22) * (1 - v / top); };   // room above the tallest bar for its label
     // drawn at its natural size (never stretched), scrolls sideways on small screens
     var svg = '<svg width="' + w + '" height="' + (h + bottom) + '" viewBox="0 0 ' + w + ' ' + (h + bottom) + '" role="img" aria-label="Responses per time block">';
@@ -1790,6 +1818,14 @@
       else if (el.id === 'scoreExportBtn') openExport('scorecards');
       else if (el.closest('#outstandingBtn')) showOutstanding();
       else if (el.dataset.assignissue) showAssign(el);
+      else if (el.closest('[data-ovtab]')) {                          // Overview number: that tab, filtered to that owner's open issues
+        var OV = el.closest('[data-ovtab]'), OVG = OV.dataset.ovtab === 'panel' ? PG : LG;
+        OVG.ownerFilter = OV.dataset.ovowner || ''; OVG.solvedOnly = false;
+        if (OVG === PG) renderPanel(); else renderLeaders();
+        showTab(OV.dataset.ovtab);
+        var kh = [].slice.call(document.querySelectorAll('#tab-' + OV.dataset.ovtab + ' h2.section')).filter(function (h) { return /key issues/i.test(h.textContent); })[0];
+        if (kh) kh.scrollIntoView({ block: 'start' }); else window.scrollTo(0, 0);
+      }
       else if (el.dataset.clearid) clearOutstanding([{ id: el.dataset.clearid, name: el.dataset.clearname }], !!el.dataset.undo, el);
       else if (el.id === 'clearAllBtn') {
         var who = $('clearWho').value;

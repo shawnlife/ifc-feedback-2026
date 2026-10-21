@@ -295,3 +295,17 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
 .os-cleared ul { list-style: none; margin: 0; padding: 0; }
 .os-cleared li { padding: 6px 0; border-top: 1px solid var(--line); }
 .os-cleared li > span:last-child { display: block; font-size: 14px; color: var(--muted); }
+
+/* Overview: responses per time block (left) and open key issues by owner (right); stacked on phones */
+.ov-cols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 28px; align-items: start; }
+.ov-issues { border-left: 5px solid var(--danger); padding: 0 0 4px 18px; }
+.ov-issues h2.section { display: flex; align-items: center; gap: 8px; }
+.ov-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.ov-table th, .ov-table td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+.ov-table thead th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.ov-table .num { text-align: right; }
+.ov-table .ov-total th, .ov-table .ov-total td { border-top: 2px solid var(--ink); border-bottom: 0; font-weight: 700; }
+.ov-num { min-width: 34px; height: 30px; padding: 0 8px; border: 0; border-radius: 15px; background: var(--danger); color: #fff; font: inherit; font-weight: 700; cursor: pointer; box-shadow: none; }
+.ov-num:hover, .ov-num:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ov-zero { color: var(--muted); display: inline-block; min-width: 34px; text-align: center; }
+@media (max-width: 900px) { .ov-cols { grid-template-columns: 1fr; } .ov-issues { border-left: 0; border-top: 5px solid var(--danger); padding: 0; } }
