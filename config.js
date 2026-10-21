@@ -224,7 +224,7 @@ window.IFC_CONFIG = {
       column: 'Session Leader: Key issues',
       type: 'text',
       label: 'Key issues',
-      help: 'Any key issues that need to be addressed about this session, the speakers, the topics, etc.'
+      help: 'Any key issues that need to be addressed about this session, the speakers, the topics, etc. LEAVE THIS BLANK IF THERE ARE NO ISSUES.'
     },
     {
       column: 'Session Leader: Key takeaway',
@@ -282,7 +282,7 @@ window.IFC_CONFIG = {
       column: 'Panel: Key issues',
       type: 'text',
       label: 'Key issues',
-      help: 'Any key issues that need to be addressed about this session, the speakers, the topics, etc.'
+      help: 'Any key issues that need to be addressed about this session, the speakers, the topics, etc. LEAVE THIS BLANK IF THERE ARE NO ISSUES.'
     },
     {
       column: 'Panel: Key takeaway',
