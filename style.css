@@ -289,3 +289,10 @@ body.online .r-room { display: none; }
 .overall-box h3 { margin: 0 0 6px; font-size: 19px; }
 .overall-box p { margin: 0 0 14px !important; color: var(--ink) !important; }
 .overall-btn { display: flex; align-items: center; justify-content: center; text-decoration: none; }
+
+/* EVERY dropdown gets the same arrow, set in from the right edge (browsers put theirs hard against the border).
+   Last in the file and !important on purpose, so any dropdown added later gets it too. */
+select:not([multiple]) { -webkit-appearance: none !important; appearance: none !important; border-radius: 0;
+  color: var(--ink); -webkit-text-fill-color: var(--ink); cursor: pointer; padding-left: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important; background-position: right 12px center !important; padding-right: 36px !important; }
