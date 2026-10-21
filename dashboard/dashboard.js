@@ -1106,7 +1106,7 @@
           return v ? '<p class="' + cls + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' : '';
         }).join('') +
         (hasIssue(l) && !l.handled ? '<div class="issue-actions">' +
-          '<span class="owner-tag' + (l.owner ? '' : ' none') + '">' + (l.owner ? 'Assigned to ' + esc(l.owner) : 'Unassigned') + '</span>' +
+          '<span class="owner-tag' + (l.owner ? '' : ' none') + '" title="' + (l.owner ? 'Assigned to ' + esc(l.owner) : 'Not assigned yet') + '">' + (l.owner ? esc(l.owner) : 'Unassigned') + '</span>' +
           '<button type="button" class="secondary small" data-assignissue="' + l.row + '" data-ts="' + esc(l.when) + '" data-kind="' + G.kind + '" data-owner="' + esc(l.owner) + '">Assign</button>' +
           '<button type="button" class="secondary small" data-resolve="' + l.row + '" data-ts="' + esc(l.when) + '" data-kind="' + G.kind + '">Handled?</button></div>' : '') +
         (l.handled ? '<p class="handled-note">Handled ' + esc(l.handledWhen) + (l.handledNote ? ': ' + esc(l.handledNote) : '') +

@@ -309,3 +309,12 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
 .ov-num:hover, .ov-num:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .ov-zero { color: var(--muted); display: inline-block; min-width: 34px; text-align: center; }
 @media (max-width: 900px) { .ov-cols { grid-template-columns: 1fr; } .ov-issues { border-left: 0; border-top: 5px solid var(--danger); padding: 0; } }
+/* Key issue owner + Assign + Handled? on one line on a computer: the Comments column gets the room */
+@media (min-width: 1180px) {
+  .issue-actions { flex-wrap: nowrap; }
+  .issue-actions > * { flex: none; }
+  #tab-leaders .tbl td:last-child, #tab-panel .tbl td:last-child { min-width: 300px; }
+}
+/* the owner is a label, not a button: rounded, light, no shadow */
+.issue-actions .owner-tag { border: 1px solid var(--ink); border-radius: 12px; padding: 2px 10px; background: #fff3e0; font-weight: 700; }
+.issue-actions .owner-tag.none { background: transparent; border-style: dashed; border-color: var(--muted); font-weight: 400; }
