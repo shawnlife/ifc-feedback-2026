@@ -400,11 +400,12 @@
     list.forEach(function (r) { src[r.source] = (src[r.source] || 0) + 1; });
     var ev = state.data.events || {}, u = (state.data.health || {}).usage || {};
     var html = '<h2 class="section">How people got to the form</h2><p class="sub">Per response, with the filters above applied.</p><div class="tiles">' +
-      ['QR code', 'NFC tag', 'Session Leader badge', 'Link', 'Home screen'].map(function (k) {
+      ['QR code', 'NFC tag', 'Event app', 'Session Leader badge', 'Link', 'Home screen'].map(function (k) {
         return tile(k, String(src[k] || 0), pct(src[k] || 0, list.length) + ' of responses');
       }).join('') + '</div>' +
       '<h2 class="section">Clicks and installs</h2><p class="sub">Anonymous counts (not filtered). Installs can only be counted on Android; ' +
       'iPhones show up as "Home screen" responses instead.</p><div class="tiles">' +
+      tile('Opened from the event app', String(ev['open-eventapp'] || 0), 'Every open of the event app link, whether or not they sent feedback') +
       tile('“Contact us” clicks', String(ev.help || 0), 'People who tapped the help link') +
       tile('ShawnLife clicks', String(ev.shawnlife || 0), 'Footer credit link') +
       tile('Saw the home-screen tip', String(ev['tip-shown'] || 0), 'Shown on the thank-you screen') +

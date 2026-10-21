@@ -41,14 +41,17 @@
   // Room signs (NFC tag or per-room QR) add ?room=Erasmus%203 so the form can ask
   // "Is this your session?" straight away. Read once, then tidied out of the address bar.
   var ROOM = (params.get('room') || '').trim();
+  var OPENED_FROM_EVENT_APP = false;   // counted once per open (the address is tidied, so a reload doesn't count again)
   var SOURCE = (function () {
-    var src = params.has('badge') ? 'Session Leader badge' : params.has('nfc') ? 'NFC tag' : params.has('qr') ? 'QR code' : params.has('app') ? 'Home screen' : null;
+    // ?eventapp = the link in the IFC event app (each open is also counted, see below)
+    var src = params.has('eventapp') ? 'Event app' : params.has('badge') ? 'Session Leader badge' : params.has('nfc') ? 'NFC tag' : params.has('qr') ? 'QR code' : params.has('app') ? 'Home screen' : null;
     try {
       if (src) sessionStorage.setItem('ifc26-src', src);
       else src = sessionStorage.getItem('ifc26-src');
     } catch (e) { /* private browsing: fine */ }
-    if (params.has('qr') || params.has('app') || params.has('nfc') || params.has('room') || params.has('badge')) {
-      params.delete('qr'); params.delete('app'); params.delete('nfc'); params.delete('room'); params.delete('badge');
+    if (params.has('qr') || params.has('app') || params.has('nfc') || params.has('room') || params.has('badge') || params.has('eventapp')) {
+      if (params.has('eventapp')) OPENED_FROM_EVENT_APP = true;
+      params.delete('qr'); params.delete('app'); params.delete('nfc'); params.delete('room'); params.delete('badge'); params.delete('eventapp');
       var qs = params.toString();
       history.replaceState(null, '', location.pathname + (qs ? '?' + qs.replace(/=(?=&|$)/g, '') : '') + location.hash);
     }
@@ -1119,6 +1122,7 @@
     try { navigator.sendBeacon(API, JSON.stringify({ action: 'event', type: type, test: TEST })); } catch (e) { /* never matters */ }
   }
   window.addEventListener('appinstalled', function () { track('installed'); });
+  if (OPENED_FROM_EVENT_APP) track('open-eventapp');
 
   // "Add to home screen" tip on the thank-you screen
   var installPrompt = null;

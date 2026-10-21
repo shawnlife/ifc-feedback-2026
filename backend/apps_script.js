@@ -183,7 +183,7 @@ function doGet(e) {
 
 var RAW_HEAD = ['Received', 'ID', 'Kind', 'Everything sent (JSON)', 'Status'];
 var KINDS = { RESPONSE: 1, TEST: 1, EVENT: 1 };
-var EVENT_TYPES = ['help', 'shawnlife', 'installed', 'tip-shown'];
+var EVENT_TYPES = ['help', 'shawnlife', 'installed', 'tip-shown', 'open-eventapp'];   // open-eventapp: the form opened from the IFC event app link
 
 function doPost(e) {
   try {

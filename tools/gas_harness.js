@@ -374,5 +374,9 @@ check(d2.cleared.length === 0, 'undo the last one: list empty');
 const c3 = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'clearOutstanding', key: 'wrong', items: [{ id: 'x', name: 'y' }] }) } }).text);
 check(!c3.ok, 'wrong password refused');
 
+console.log('24. Event app opens are counted');
+const ea = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'event', type: 'open-eventapp', test: false }) } }).text);
+check(ea.ok, 'open-eventapp event accepted');
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);
