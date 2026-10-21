@@ -38,7 +38,7 @@
     o.ratings = ratings; o.texts = texts;
     o.issues = texts[0] ? col(texts[0]) : null;                  // "Key issues"
     o.overall = ratings[0] ? col(ratings[0]) : null;
-    o.sortBy = 'sent'; o.sortDir = -1; o.filterVal = '';          // newest report first
+    o.sortBy = 'sent'; o.sortDir = -1; o.filterVal = ''; o.ownerFilter = '';   // ownerFilter: '' all, '-' unassigned, or a name          // newest report first
     return o;
   }
   var LG = reportGroup(LQ, { tab: 'leaders', kind: 'leader', count: 'issueCount', filter: 'lFilter',
@@ -46,6 +46,7 @@
   var PG = reportGroup(CFG.panelQuestions || [], { tab: 'panel', kind: 'panel', count: 'panelCount', filter: 'pFilter',
     who: 'Panel member', all: 'Whole panel', reports: 'Advisory Panel reports', form: '/panel' });
 
+  var OWNERS = CFG.issueOwners || ['Shawn', 'Advisory Panel', 'RA'];
   var $ = function (id) { return document.getElementById(id); };
   var ANALYTICS = true;    // last tab: how people use the tool (not front and centre)
   var state = {
@@ -222,6 +223,7 @@
       var id = String(r['Session ID'] || ''), s = byId[id];
       return {
         raw: r, row: r._row, id: id, when: r.Timestamp, name: r[nameCol] || '',
+        owner: String(r['Issue owner'] || ''),
         handled: String(r['Issue status'] || '').indexOf('Handled') === 0, handledNote: r['Issue note'] || '', handledWhen: String(r['Issue status'] || '').replace('Handled ', ''),
         title: s ? s.title : r.Session || '', speakers: s ? s.speakers : r.Speakers || '',
         room: s ? s.room : r.Room || '', date: s ? s.date : String(r.Date || '').slice(0, 10),
@@ -790,6 +792,41 @@
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
   }
 
+  /* ---------- assign a key issue ---------- */
+
+  var assigning = null;          // the "Assign" button that opened the pop-up
+  function showAssign(btn) {
+    assigning = btn;
+    var cur = btn.dataset.owner || '';
+    $('exportTitle').textContent = 'Assign this key issue';
+    $('exportBody').innerHTML = OWNERS.map(function (o) {
+      return '<button type="button" class="ex-opt' + (o === cur ? ' current' : '') + '" data-setowner="' + esc(o) + '"><strong>' + esc(o) + (o === cur ? ' (now)' : '') + '</strong></button>';
+    }).join('') + (cur ? '<button type="button" class="link" data-setowner="">Remove assignment</button>' : '');
+    var dlg = $('exportDlg');
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+  }
+  function saveOwner(owner, choice) {
+    var btn = assigning; if (!btn) return;
+    choice.disabled = true; choice.textContent = 'Saving\u2026';
+    fetch(API, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'resolve', kind: btn.dataset.kind === 'panel' ? 'panel' : 'leader', key: state.key, test: $('showTest').checked,
+        row: +btn.dataset.assignissue, timestamp: btn.dataset.ts, owner: owner })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.ok) { var err = new Error(j.error || 'not saved'); err.code = j.code; err.answered = true; throw err; }
+      // show it straight away; the next refresh confirms it from the Sheet
+      var list = btn.dataset.kind === 'panel' ? panel : leaders;
+      list.forEach(function (l) { if (String(l.row) === btn.dataset.assignissue && String(l.when) === btn.dataset.ts) l.owner = owner; });
+      closeExport();
+      if (btn.dataset.kind === 'panel') renderPanel(); else renderLeaders();
+      load();
+    }).catch(function (e) {
+      closeExport();
+      alert(e.answered ? coded('Not saved: ' + e.message + '. Please try again.', 'D201', e.code)
+                       : coded('Could not reach the database. Please try again.', 'D202'));
+    });
+  }
+
   // The pop-up: what = 'full' (top of the page) or 'scorecards'
   function openExport(what) {
     var opt = function (id, title, sub) { return '<button type="button" class="ex-opt" id="' + id + '"><strong>' + title + '</strong><span>' + sub + '</span></button>'; };
@@ -989,7 +1026,10 @@
           var cls = col(q) === G.issues ? (l.handled ? 'issue handled' : 'issue') : '';
           return v ? '<p class="' + cls + '"><span class="k">' + esc(q.label) + ':</span> ' + esc(v) + '</p>' : '';
         }).join('') +
-        (hasIssue(l) && !l.handled ? '<button type="button" class="secondary small" data-resolve="' + l.row + '" data-ts="' + esc(l.when) + '" data-kind="' + G.kind + '">Mark as handled</button>' : '') +
+        (hasIssue(l) && !l.handled ? '<div class="issue-actions">' +
+          '<span class="owner-tag' + (l.owner ? '' : ' none') + '">' + (l.owner ? 'Assigned to ' + esc(l.owner) : 'Unassigned') + '</span>' +
+          '<button type="button" class="secondary small" data-assignissue="' + l.row + '" data-ts="' + esc(l.when) + '" data-kind="' + G.kind + '" data-owner="' + esc(l.owner) + '">Assign</button>' +
+          '<button type="button" class="secondary small" data-resolve="' + l.row + '" data-ts="' + esc(l.when) + '" data-kind="' + G.kind + '">Handled?</button></div>' : '') +
         (l.handled ? '<p class="handled-note">Handled ' + esc(l.handledWhen) + (l.handledNote ? ': ' + esc(l.handledNote) : '') +
           ' <button type="button" class="link" data-reopen="' + l.row + '" data-ts="' + esc(l.when) + '" data-kind="' + G.kind + '">Reopen</button></p>' : '') +
         '</td></tr>';
@@ -1010,7 +1050,19 @@
       $('tab-' + G.tab).innerHTML = html;
       return;
     }
-    if (issues.length) html += '<h2 class="section">Key issues to look at</h2><div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + issues.map(row).join('') + '</tbody></table></div>';
+    if (issues.length) {
+      // Filter the open key issues by who they're assigned to; each shows how many
+      var nOf = function (o) { return issues.filter(function (l) { return o === '-' ? !l.owner : l.owner === o; }).length; };
+      var chip = function (val, label, n) {
+        return '<button type="button" class="owner-chip" data-ownerfilter="' + esc(val) + '" data-g="' + G.kind + '" aria-pressed="' + (G.ownerFilter === val) + '">' +
+          esc(label) + (n ? ' <span class="count warn">' + n + '</span>' : ' <span class="count zero">0</span>') + '</button>';
+      };
+      var shownIssues = G.ownerFilter ? issues.filter(function (l) { return G.ownerFilter === '-' ? !l.owner : l.owner === G.ownerFilter; }) : issues;
+      html += '<h2 class="section">Key issues to look at</h2><div class="owner-chips" role="group" aria-label="Show key issues assigned to">' +
+        chip('', 'All', issues.length) + chip('-', 'Unassigned', nOf('-')) + OWNERS.map(function (o) { return chip(o, o, nOf(o)); }).join('') + '</div>' +
+        (shownIssues.length ? '<div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + shownIssues.map(row).join('') + '</tbody></table></div>'
+          : '<p class="empty">No open key issues ' + (G.ownerFilter === '-' ? 'without an owner' : 'assigned to ' + esc(G.ownerFilter)) + '.</p>');
+    }
     html += '<h2 class="section">All ' + (G === PG ? 'panel' : 'leader') + ' reports</h2>' + (list.length
       ? '<div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + list.map(row).join('') + '</tbody></table></div>'
       : '<p class="empty">No ' + G.reports + ' yet. The form is at <strong>' + G.form + '</strong>.</p>');
@@ -1445,6 +1497,7 @@
       load();
     }).catch(function (e) {
       if (tr) tr.hidden = false; cnt.textContent = before; btn.disabled = false;
+      if (e.code === 'S127') { alert(coded('Not saved: ' + e.message + '.', 'D201', e.code)); load(); return; }
       alert(e.answered ? coded('Not saved: ' + e.message + '. Please try again.', 'D201', e.code)
                        : coded('Could not reach the database. Please try again.', 'D202'));
     });
@@ -1678,6 +1731,13 @@
       else if (el.id === 'exportBtn') exportRanking(el);
       else if (el.id === 'scoreExportBtn') openExport('scorecards');
       else if (el.closest('#outstandingBtn')) showOutstanding();
+      else if (el.dataset.assignissue) showAssign(el);
+      else if (el.closest('[data-setowner]')) saveOwner(el.closest('[data-setowner]').dataset.setowner, el.closest('[data-setowner]'));
+      else if (el.closest('[data-ownerfilter]')) {
+        var OB = el.closest('[data-ownerfilter]'), OG = OB.dataset.g === 'panel' ? PG : LG;
+        OG.ownerFilter = OG.ownerFilter === OB.dataset.ownerfilter ? '' : OB.dataset.ownerfilter;   // click again: back to All
+        if (OG === PG) renderPanel(); else renderLeaders();
+      }
       else if (el.dataset.copyai) copyForAI(el);
       else if (el.dataset.xlsx) sessionExcel(el);
       else if (el.closest('[data-solved]')) {

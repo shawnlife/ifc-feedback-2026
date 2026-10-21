@@ -273,3 +273,14 @@ p.issue.handled, p.issue.handled .k { color: var(--muted); text-decoration: line
 .card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
 .card-actions .secondary.small { height: 32px; padding: 0 12px; font-size: 13px; box-shadow: -2px 2px 0 var(--ink); }
 .card-actions .done { background: var(--accent); }
+
+/* Key issues: who it's assigned to, Assign / Handled? buttons, and the filter by owner */
+.issue-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+.owner-tag { font-size: 13px; font-weight: 700; padding: 3px 8px; border: 2px solid var(--ink); background: var(--surface); }
+.owner-tag.none { color: var(--muted); border-color: var(--line); font-weight: 400; }
+.owner-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.owner-chip { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 2px solid var(--ink); background: var(--bg); color: var(--ink); font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+.owner-chip[aria-pressed="true"] { background: var(--accent); }
+.count.zero { background: var(--line); color: var(--muted); }
+.ex-opt.current { background: var(--surface); }
+.issue-actions .secondary.small { height: 32px; padding: 0 10px; font-size: 13px; box-shadow: -2px 2px 0 var(--ink); }

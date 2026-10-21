@@ -342,5 +342,22 @@ dp = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 
 check(ta.ok && dp.leaders[0]['Session ID'] === '2WS1' && /^Typed in as "the legacies one", matched/.test(dp.leaders[0].Note) && dp.leaders[0]['Session Leader name'] === 'Lucy',
   'leader report matched, note keeps what they typed, name kept');
 
+console.log('21. Key issue owner: assign, change, unassign; unknown owner refused');
+const own = (o, k) => JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'resolve', kind: k || 'leader', key: 'pw12345678', row: dp.leaders[0]._row, timestamp: dp.leaders[0].Timestamp, owner: o }) } }).text);
+const o1 = own('RA');
+let d2 = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+check(o1.ok && d2.leaders[0]['Issue owner'] === 'RA' && !d2.leaders[0]['Issue status'], 'assigned to RA, not marked handled');
+const o2 = own('Hacker');
+check(!o2.ok && o2.code === 'S126', 'unknown owner refused (S126)');
+own('');
+d2 = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+check(d2.leaders[0]['Issue owner'] === '', 'assignment removed');
+
+console.log('22. Two people press Handled? on the same issue: the second is refused, first note kept');
+const hd = (note) => JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'resolve', kind: 'leader', key: 'pw12345678', row: dp.leaders[0]._row, timestamp: dp.leaders[0].Timestamp, note: note }) } }).text);
+const h1 = hd('First person'), h2 = hd('Second person');
+d2 = JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678' }) } }).text);
+check(h1.ok && !h2.ok && h2.code === 'S127' && d2.leaders[0]['Issue note'] === 'First person', 'second Handled? refused (S127), first note kept');
+
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);

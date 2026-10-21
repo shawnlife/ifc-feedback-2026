@@ -27,6 +27,7 @@ ROOT = Path(__file__).parent.parent
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 received, state, events, assigned, notes, resolved = [], {"fail": False, "fsfail": False}, [], {}, {}, {}
 contacted = {}
+owners = {}         # (kind, row) -> who a key issue is assigned to
 picks = []
 FIREBASE = os.environ.get("MOCK_FIREBASE", "1") == "1"     # pretend Firebase is set up (the normal case)
 via = {"firebase": 0, "sheet": 0}
@@ -254,6 +255,8 @@ class Handler(SimpleHTTPRequestHandler):
                     for r in lst:
                         if resolved.get((kind, r["_row"])):
                             r["Issue status"], r["Issue note"] = "Handled Thu 22 Oct 14:05", resolved[(kind, r["_row"])]
+                        if owners.get((kind, r["_row"])):
+                            r["Issue owner"] = owners[(kind, r["_row"])]
                 rows = [dict(r, _row=i + 2) for i, r in enumerate(rows)]
                 for r in rows:
                     if contacted.get(r["_row"]):
@@ -288,6 +291,11 @@ class Handler(SimpleHTTPRequestHandler):
             if item.get("action") == "resolve":
                 if item.get("key") != DASH_KEY:
                     return self.send_json({"ok": False, "error": "wrong password", "code": "S111"})
+                if "owner" in item:
+                    if item["owner"] not in ("", "Shawn", "Advisory Panel", "RA"):
+                        return self.send_json({"ok": False, "error": "unknown owner", "code": "S126"})
+                    owners[("panel" if item.get("kind") == "panel" else "leader", item["row"])] = item["owner"]
+                    return self.send_json({"ok": True})
                 if not item.get("reopen") and not str(item.get("note", "")).strip():
                     return self.send_json({"ok": False, "error": "a short note is needed"})
                 if item.get("kind") == "contact":

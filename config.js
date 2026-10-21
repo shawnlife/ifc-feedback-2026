@@ -183,6 +183,9 @@ window.IFC_CONFIG = {
   // two forms, with the same room and the ID plus "-P1". Delegates still only see part 2, on Wednesday.
   masterclassPart1: { track: 'Masterclasses', date: '2026-10-20', start: '14:00', end: '17:00' },
 
+  // Key issues on the dashboard can be assigned to one of these. Keep in step with ISSUE_OWNERS in the Apps Script.
+  issueOwners: ['Shawn', 'Advisory Panel', 'RA'],
+
   // SESSION LEADER FORM (at /sessionleader). Same rules as above.
   // type 'name' = a one-line answer (remembered on the Session Leader's phone for next time).
   leaderQuestions: [

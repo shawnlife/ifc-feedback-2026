@@ -44,6 +44,8 @@ var PANEL_NAME_COL = 'Panel member name';
 // Who leads which session (imported by Shawn from tools/build_allocations.py). The dashboard uses it
 // to list Session Leader reports still outstanding. Optional: no tab, no list.
 var ALLOCATIONS = 'Session Leader allocations';
+// Who a key issue is assigned to on the dashboard ('' = unassigned). Keep in step with config.js issueOwners.
+var ISSUE_OWNERS = ['Shawn', 'Advisory Panel', 'RA'];
 var PICKS = 'Masterclass picks';                 // Session Leaders' top 3 masterclasses (from /allocations)
 var TEST_PICKS = 'Test masterclass picks';
 var PICKS_HEAD = ['Timestamp', 'ID', 'Name', '1st choice', '2nd choice', '3rd choice'];
@@ -670,12 +672,24 @@ function resolve_(p) {
     var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
     var ts = sh.getRange(row, head.indexOf('Timestamp') + 1).getValue();
     if (!(ts instanceof Date) || ts.toISOString() !== p.timestamp) return json_({ ok: false, error: 'row changed, refresh and try again', code: 'S122' });
+    // "Assign": who is looking after this key issue (an extra "Issue owner" column)
+    if (p.owner !== undefined) {
+      var owner = String(p.owner);
+      if (owner && ISSUE_OWNERS.indexOf(owner) === -1) return json_({ ok: false, error: 'unknown owner', code: 'S126' });
+      if (head.indexOf('Issue owner') === -1) { head.push('Issue owner'); sh.getRange(1, head.length).setValue('Issue owner').setFontWeight('bold'); }
+      sh.getRange(row, head.indexOf('Issue owner') + 1).setValue(owner);
+      return json_({ ok: true });
+    }
     ['Issue status', 'Issue note'].forEach(function (h) {
       if (head.indexOf(h) === -1) { head.push(h); sh.getRange(1, head.length).setValue(h).setFontWeight('bold'); }
     });
     var reopen = p.reopen === true;
     var note = safe_(String(p.note || '').trim().slice(0, 300));
     if (!reopen && !note) return json_({ ok: false, error: 'a short note is needed', code: 'S125' });
+    // Two people on the dashboard at once: the second "Handled?" doesn't overwrite the first one's note
+    if (!reopen && String(sh.getRange(row, head.indexOf('Issue status') + 1).getValue()).indexOf('Handled') === 0) {
+      return json_({ ok: false, error: 'someone else already marked this as handled. The page will refresh', code: 'S127' });
+    }
     var stamp = Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'EEE d MMM HH:mm');
     sh.getRange(row, head.indexOf('Issue status') + 1).setValue(reopen ? '' : 'Handled ' + stamp);
     sh.getRange(row, head.indexOf('Issue note') + 1).setValue(reopen ? '' : note);
