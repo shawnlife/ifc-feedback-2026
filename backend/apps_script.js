@@ -545,9 +545,61 @@ function auth_(p) {
   return null;
 }
 
+// The dashboard. Building the results (about 0.5 MB) takes several seconds, so it is built at most once a
+// minute and the copy is handed to every open dashboard from the script cache (in pieces: 100 KB limit per
+// item). Marking an issue handled, assigning, matching or clearing drops the copy, so changes show at once.
+var DASH_FRESH_MS = 60000, DASH_PIECE = 30000;
 function dashboard_(p) {
   var denied = auth_(p);
   if (denied) return json_(denied);
+  var mode = p.test === true ? 't' : 'r', cache = CacheService.getScriptCache();
+  var text = dashCopy_(cache, mode, DASH_FRESH_MS);
+  if (!text) {
+    var building = cache.get('dash_building_' + mode);
+    var older = building ? dashCopy_(cache, mode, 10 * 60000) : null;    // another dashboard is building it right now
+    if (older) text = older;
+    else {
+      cache.put('dash_building_' + mode, '1', 60);
+      try {
+        text = buildDashboard_(p);
+        var pieces = {}, n = Math.ceil(text.length / DASH_PIECE);
+        for (var i = 0; i < n; i++) pieces['dash_' + mode + '_' + i] = text.slice(i * DASH_PIECE, (i + 1) * DASH_PIECE);
+        pieces['dash_' + mode + '_meta'] = JSON.stringify({ t: Date.now(), n: n });
+        try { cache.putAll(pieces, 600); } catch (err) { /* too big for the cache: just not shared this time */ }
+      } finally { cache.remove('dash_building_' + mode); }
+    }
+  }
+  // "viewers" is added per request (it's different for each dashboard)
+  return ContentService.createTextOutput('{"viewers":' + countViewers_(cache, p.viewer) + ',' + text.slice(1))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+function dashCopy_(cache, mode, maxAge) {
+  try {
+    var meta = JSON.parse(cache.get('dash_' + mode + '_meta') || 'null');
+    if (!meta || Date.now() - meta.t > maxAge) return null;
+    var keys = []; for (var i = 0; i < meta.n; i++) keys.push('dash_' + mode + '_' + i);
+    var got = cache.getAll(keys), out = '';
+    for (var k = 0; k < keys.length; k++) { if (got[keys[k]] == null) return null; out += got[keys[k]]; }
+    return out;
+  } catch (err) { return null; }
+}
+function dropDashCopy_() {
+  try { CacheService.getScriptCache().removeAll(['dash_r_meta', 'dash_t_meta']); } catch (err) { /* it expires anyway */ }
+}
+// How many dashboards are open: each open tab refreshes every minute with its own random id;
+// count the ids seen in the last 2.5 minutes (anonymous, kept 10 minutes in the script cache)
+function countViewers_(cache, viewer) {
+  try {
+    var seen = JSON.parse(cache.get('viewers') || '{}'), nowMs = Date.now();
+    var vid = String(viewer || '').replace(/[^a-z0-9]/gi, '').slice(0, 20);
+    if (vid) seen[vid] = nowMs;
+    Object.keys(seen).forEach(function (k) { if (nowMs - seen[k] > 150000) delete seen[k]; });
+    cache.put('viewers', JSON.stringify(seen), 600);
+    return Object.keys(seen).length;
+  } catch (err) { return 0; }
+}
+
+function buildDashboard_(p) {
   // Bring in new responses first, unless that happened in the last 45 seconds (several dashboards open at
   // once): the dashboard answers faster and Firebase isn't read again for nothing
   var lastRun = Date.parse(SP_().getProperty('LAST_PROCESSED') || '') || 0;
@@ -587,19 +639,7 @@ function dashboard_(p) {
   var props = SP_();
   var raw = ss.getSheetByName(RAW_LOG);
   var waiting = raw ? Math.max(0, raw.getLastRow() + 1 - Number(props.getProperty('RAW_NEXT_ROW') || 2)) : 0;
-  // How many dashboards are open: each open tab refreshes every minute with its own random id;
-  // count the ids seen in the last 2.5 minutes (anonymous, kept 10 minutes in the script cache)
-  var viewers = 0;
-  try {
-    var vc = CacheService.getScriptCache(), seen = JSON.parse(vc.get('viewers') || '{}'), nowMs = Date.now();
-    var vid = String(p.viewer || '').replace(/[^a-z0-9]/gi, '').slice(0, 20);
-    if (vid) seen[vid] = nowMs;
-    Object.keys(seen).forEach(function (k) { if (nowMs - seen[k] > 150000) delete seen[k]; });
-    vc.put('viewers', JSON.stringify(seen), 600);
-    viewers = Object.keys(seen).length;
-  } catch (err) { /* just no count */ }
-  return json_({
-    viewers: viewers,
+  return JSON.stringify({
     ok: true, generated: new Date().toISOString(), sessions: readSessions_(), responses: responses, leaders: leaders, panel: panel, allocations: allocations, cleared: cleared, events: events,
     health: { lastProcessed: props.getProperty('LAST_PROCESSED'), waiting: waiting,
               firebase: FIREBASE_PROJECT_ID ? { lastSync: props.getProperty('FS_LAST_SYNC'), error: props.getProperty('FS_LAST_ERROR') } : null,
@@ -607,6 +647,7 @@ function dashboard_(p) {
               automatic: ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'processQueue'; }) }
   });
 }
+
 
 // Session Leaders' masterclass picks (ifc2026survey.com/allocations). Only about 20 people,
 // so written straight to its own tab (no Firebase, no queue). Sending again adds a new row
@@ -662,7 +703,8 @@ function assign_(p) {
       if (get('Session ID') !== 'NOT LISTED') return json_({ ok: false, error: 'not a typed-in response', code: 'S123' });
       sh.getRange(row, head.indexOf('Note') + 1).setValue(p.sessionId === '__NO_MATCH__'
         ? 'Typed in, no match (dismissed on dashboard)' : 'Typed in by attendee');
-      return json_({ ok: true });
+      dropDashCopy_();
+    return json_({ ok: true });
     }
     var s = readSessions_().filter(function (x) { return String(x.ID) === String(p.sessionId); })[0];
     if (!s) return json_({ ok: false, error: 'session not found', code: 'S124' });
@@ -676,6 +718,7 @@ function assign_(p) {
       var c = head.indexOf(h);
       if (c > -1) sh.getRange(row, c + 1).setValue(set[h]);
     });
+    dropDashCopy_();
     return json_({ ok: true });
   } finally {
     lock.releaseLock();
@@ -703,6 +746,7 @@ function resolve_(p) {
       if (owner && ISSUE_OWNERS.indexOf(owner) === -1) return json_({ ok: false, error: 'unknown owner', code: 'S126' });
       if (head.indexOf('Issue owner') === -1) { head.push('Issue owner'); sh.getRange(1, head.length).setValue('Issue owner').setFontWeight('bold'); }
       sh.getRange(row, head.indexOf('Issue owner') + 1).setValue(owner);
+      dropDashCopy_();
       return json_({ ok: true });
     }
     ['Issue status', 'Issue note'].forEach(function (h) {
@@ -718,6 +762,7 @@ function resolve_(p) {
     var stamp = Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'EEE d MMM HH:mm');
     sh.getRange(row, head.indexOf('Issue status') + 1).setValue(reopen ? '' : 'Handled ' + stamp);
     sh.getRange(row, head.indexOf('Issue note') + 1).setValue(reopen ? '' : note);
+    dropDashCopy_();
     return json_({ ok: true });
   } finally {
     lock.releaseLock();
@@ -805,6 +850,7 @@ function clearOutstanding_(p) {
         .map(function (it) { return [safe_(String(it.id).slice(0, 60)), safe_(String(it.name).slice(0, 60)), stamp]; });
       if (add.length) sh.getRange(sh.getLastRow() + 1, 1, add.length, 3).setValues(add);
     }
+    dropDashCopy_();
     return json_({ ok: true });
   } finally {
     lock.releaseLock();

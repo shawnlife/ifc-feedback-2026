@@ -151,11 +151,14 @@
 
   function fetchData() {
     var mine = ++reqSeq, wantTest = $('showTest').checked;
+    // Give up on a request Google hasn't answered in 40 s and try again (instead of waiting minutes)
+    var ctl = window.AbortController ? new AbortController() : null, giveUp = ctl ? setTimeout(function () { ctl.abort(); }, 40000) : null;
     return fetch(API, {
-      method: 'POST', cache: 'no-store',
+      method: 'POST', cache: 'no-store', signal: ctl ? ctl.signal : undefined,
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'dashboard', key: state.key, test: wantTest, viewer: viewerId() })
     }).then(function (r) { return r.json(); }).then(function (d) {
+      clearTimeout(giveUp);
       if (mine !== reqSeq || wantTest !== $('showTest').checked) { d = { ok: true, stale: true }; }
       return d;
     });

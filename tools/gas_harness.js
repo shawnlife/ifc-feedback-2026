@@ -92,7 +92,9 @@ function makeEnv() {
     SpreadsheetApp: { getActiveSpreadsheet: () => ss, flush() {}, getUi: () => ({ alert() { return 'YES'; }, ButtonSet: {}, Button: { YES: 'YES' } }) },
     LockService: (() => { const mk = () => ({ held: false, tryLock() { if (this.held) return false; this.held = true; return true; }, waitLock() { this.held = true; }, releaseLock() { this.held = false; } });
       const sl = mk(), dl = mk(); return { getScriptLock: () => sl, getDocumentLock: () => dl }; })(),
-    CacheService: (() => { const c = {}; return { getScriptCache: () => ({ get: (k) => c[k] || null, put: (k, v) => { c[k] = v; }, remove: (k) => { delete c[k]; } }) }; })(),
+    CacheService: (() => { const c = {}; return { getScriptCache: () => ({ get: (k) => c[k] || null, put: (k, v) => { c[k] = v; }, remove: (k) => { delete c[k]; },
+      putAll: (o) => { Object.assign(c, o); }, getAll: (ks) => { const o = {}; ks.forEach((k) => { if (k in c) o[k] = c[k]; }); return o; },
+      removeAll: (ks) => { ks.forEach((k) => { delete c[k]; }); } }) }; })(),
     PropertiesService: { getScriptProperties: () => ({
       getProperty: (k) => { calls.props++; return k in store ? store[k] : null; },
       setProperty: (k, v) => { calls.props++; store[k] = String(v); },
@@ -117,6 +119,7 @@ function makeEnv() {
     ['1WS1', 'Fundraising Benchmarks', 'A, B', 'Boston 11', '2026-10-21', '15:30', '16:45', 'Core'],
     ['2WS1', 'Hopeful Legacies', 'C', 'Boston 11', '2026-10-22', '09:00', '10:15', 'Core']];
   store.DASHBOARD_PASSWORD = 'pw12345678';
+  ctx.DASH_FRESH_MS = -1;                // tests read fresh results every call (test 27 checks the shared copy)
   return { ctx, ss, sheets, store, calls, clock, firestore };
 }
 
@@ -397,6 +400,21 @@ check(tr['Great session, loved the examples'] === '', 'English answer left alone
 let calls = 0; env.ctx.LanguageApp = { translate: (t) => { calls++; return t; } };
 env.ctx.processQueue({});
 check(calls === 0, 'next run does not translate the same rows again');
+
+console.log('27. Dashboard results shared between dashboards for a minute; a change drops the copy');
+env = makeEnv(); env.ctx.DASH_FRESH_MS = 60000;
+const dashV = (id) => JSON.parse(env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'dashboard', key: 'pw12345678', viewer: id }) } }).text);
+env.ctx.doPost({ postData: { contents: JSON.stringify({ rid: 'c1', test: false, form: 'leader', session: { id: '1WS1', title: 'X' }, answers: { 'Session Leader name': 'Lucy', 'Session Leader: Key issues': 'Hot room' } }) } });
+tick(env);
+const c27a = dashV('a');
+env.clock.advance(20000);
+const c27b = dashV('b');
+check(c27a.generated === c27b.generated && c27b.viewers === 2 && Array.isArray(c27b.responses), 'second dashboard 20 s later gets the shared copy, with its own viewer count');
+env.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'resolve', kind: 'leader', key: 'pw12345678', row: c27b.leaders[0]._row, timestamp: c27b.leaders[0].Timestamp, owner: 'RA' }) } });
+const c27c = dashV('a');
+check(c27c.leaders[0]['Issue owner'] === 'RA' && c27c.generated !== c27b.generated, 'after Assign: fresh results straight away');
+env.clock.advance(61000);
+check(dashV('a').generated !== c27c.generated, 'after a minute: rebuilt');
 
 console.log('\n' + (fails ? fails + ' FAILED' : 'ALL PASSED'));
 process.exit(fails ? 1 : 0);
