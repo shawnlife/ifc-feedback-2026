@@ -1391,6 +1391,24 @@
     return { byRun: byRun, ws: ws };
   }
 
+  // Scorecards order: day and time (as the programme), or by overall score like Session rankings
+  // (one decimal, then more responses first). Sessions with no scores yet go last.
+  function sortCards(list, byRun) {
+    var k = state.cardSort || 'time';
+    if (k === 'time') return list;
+    var info = list.map(function (w, i) {
+      var all = []; w.runs.forEach(function (s) { all = all.concat(byRun[s.id] || []); });
+      var st = statsFor(all);
+      return { w: w, i: i, n: st.n, avg: st.avgs[0] == null ? null : Math.round(st.avgs[0] * 10) / 10 };
+    });
+    info.sort(function (a, b) {
+      if (k === 'n') return b.n - a.n || a.i - b.i;
+      if (a.avg == null || b.avg == null) return (a.avg == null) - (b.avg == null) || a.i - b.i;
+      return (k === 'best' ? b.avg - a.avg : a.avg - b.avg) || b.n - a.n || a.i - b.i;
+    });
+    return info.map(function (x) { return x.w; });
+  }
+
   function renderScorecards() {
     var sd = scorecardData(), ws = sd.ws;
     if (state.scorecard) {                      // came from a session link elsewhere: select its workshop
@@ -1401,8 +1419,10 @@
     // Everything shown is exported (use the day / track / room filters to narrow it).
     // Clicking a session elsewhere opens just that one, with a way back to all.
     var picked = (state.picked || []).filter(function (k) { return ws.some(function (w) { return w.key === k; }); });
-    var show = picked.length ? ws.filter(function (w) { return picked.indexOf(w.key) > -1; }) : ws;
+    var show = sortCards(picked.length ? ws.filter(function (w) { return picked.indexOf(w.key) > -1; }) : ws, sd.byRun);
     var html = '<div class="controls no-print export-bar">' +
+      '<label>Sort by <select id="cardSort">' + [['time', 'Day and time'], ['best', 'Ranking (best first)'], ['worst', 'Ranking (lowest first)'], ['n', 'Most responses']]
+        .map(function (o) { return '<option value="' + o[0] + '"' + (state.cardSort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
       '<span><strong>' + show.length + '</strong> ' + (show.length === 1 ? 'session' : 'sessions') + ' shown' +
       (picked.length ? ' · <button type="button" class="link" id="pickNone">Show all ' + ws.length + '</button>' : ' (repeat runs combined)') + '</span>' +
       '<label class="toggle"><input type="checkbox" id="withLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader reports</label>' +
@@ -1451,7 +1471,7 @@
   function exportWord() {
     var sd = scorecardData();
     var picked = (state.picked || []);
-    var ws = picked.length ? sd.ws.filter(function (w) { return picked.indexOf(w.key) > -1; }) : sd.ws;
+    var ws = sortCards(picked.length ? sd.ws.filter(function (w) { return picked.indexOf(w.key) > -1; }) : sd.ws, sd.byRun);   // same order as on screen
     if (!ws.length) { alert('Nothing to export with these filters.'); return; }
     var many = ws.length > 1;
     var oneDoc = !many || !$('wZip').checked;
@@ -1985,6 +2005,7 @@
       if (e.target.id === 'combine') { state.combine = e.target.checked; renderRankings(); }
       if (e.target.id === 'withLeaders') { state.withLeaders = e.target.checked; renderScorecards(); }
       if (e.target.id === 'withPanel') { state.withPanel = e.target.checked; renderScorecards(); }
+      if (e.target.id === 'cardSort') { state.cardSort = e.target.value; renderScorecards(); }
       if (e.target.id === 'lFilter') { LG.filterVal = e.target.value; renderLeaders(); }
       if (e.target.id === 'pFilter') { PG.filterVal = e.target.value; renderPanel(); }
       if (e.target.classList.contains('m-sort-select')) {             // phones: the Sort by dropdown presses that column's button
