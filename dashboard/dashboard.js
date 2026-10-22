@@ -855,6 +855,13 @@
   function outstanding() {
     var have = {}, now = nowMin(), slots = {}, p1 = CFG.masterclassPart1 || {};
     leaders.forEach(function (l) { have[plainName(l.name) + '|' + l.id] = 1; });
+    // reports each person sent per time slot, to spot "sent one for a different session in this slot"
+    var inSlot = {};
+    leaders.forEach(function (l) {
+      if (!l.date || !l.start) return;
+      var k = plainName(l.name) + '|' + l.date + ' ' + l.start;
+      (inSlot[k] = inSlot[k] || []).push(l);
+    });
     (state.data.cleared || []).forEach(function (c) { have[plainName(c.name) + '|' + c.id] = 1; });   // cleared by the team
     (state.data.allocations || []).forEach(function (a) {
       var s = byId[a.id], part1 = /-P1$/.test(a.id);
@@ -864,8 +871,12 @@
         return n && !have[plainName(n) + '|' + a.id] && (!LG.filterVal || plainName(n) === plainName(LG.filterVal));
       });
       if (!missing.length) return;
-      var k = s.date + ' ' + s.start;
-      (slots[k] = slots[k] || { date: s.date, start: s.start, items: [] }).items.push({ s: s, id: a.id, names: missing });
+      var k = s.date + ' ' + s.start, other = {};
+      missing.forEach(function (n) {
+        var o = (inSlot[plainName(n) + '|' + k] || []).filter(function (l) { return l.id !== a.id; });
+        if (o.length) other[n] = o;
+      });
+      (slots[k] = slots[k] || { date: s.date, start: s.start, items: [] }).items.push({ s: s, id: a.id, names: missing, other: other });
     });
     return Object.keys(slots).sort().reverse().map(function (k) { return slots[k]; });   // latest slot first
   }
@@ -891,7 +902,12 @@
       return '<div class="os-slot"><h3>' + esc(dayLabel(sl.date) + ', ' + sl.start) + ' <span class="count warn">' + n + '</span></h3><ul>' +
         sl.items.sort(function (a, b) { return a.s.room.localeCompare(b.s.room); }).map(function (it) {
           return '<li>' + it.names.map(function (nm) { return '<span class="os-name"><strong>' + esc(nm) + '</strong> ' + clr(it.id, nm) + '</span>'; }).join('') +
-            '<span>' + esc(it.s.title) + ' \u00b7 ' + esc(it.s.room) + '</span></li>';
+            '<span>' + esc(it.s.title) + ' \u00b7 ' + esc(it.s.room) + '</span>' +
+            it.names.filter(function (nm) { return it.other[nm]; }).map(function (nm) {
+              return '<span class="os-other">' + esc(nm) + ' sent a report for ' + it.other[nm].map(function (l) {
+                return '\u201c' + esc(l.title) + '\u201d' + (l.room ? ' (' + esc(l.room) + ')' : '');
+              }).join(', ') + ' in this time slot instead. Wrong session picked?</span>';
+            }).join('') + '</li>';
         }).join('') + '</ul></div>';
     }).join('') : '<p class="ex-note" style="font-size:15px;color:var(--ink)">Nothing outstanding' + (LG.filterVal ? ' for ' + esc(LG.filterVal) : '') + '. Every Session Leader has sent a report for every session that has started.</p>';
     // Clear everything for one person (e.g. they had to leave)
