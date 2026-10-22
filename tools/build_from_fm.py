@@ -48,7 +48,7 @@ def clean_title(t):
 
 def clean_speakers(s):
     s = re.sub(r"\s*/\s*", " ", s.replace("\n", " ")).strip()
-    return ", ".join(p.strip() for p in re.split(r",|&", s) if p.strip())
+    return ", ".join(p.strip() for p in re.split(r",|&|\s+and\s+", s) if p.strip())    # "A and B" is two people (22 Oct)
 
 
 # ---- Cvent, indexed by (date, start, normalised title)
@@ -173,7 +173,8 @@ for r in out:
             r["Speakers"] = ", ".join(names + [extra])
 
 # One spelling per person (Shawn, 20 Oct)
-SPEAKER_ALIASES = {"Josh Leigh": "Joshua Leigh"}
+SPEAKER_ALIASES = {"Josh Leigh": "Joshua Leigh",
+                   "Zviko Tsiga": "Linda Nkomo"}      # Big Topic: Can Civil Society Fund Itself? (changed in the Sessions tab, 22 Oct)
 for r in out:
     r["Speakers"] = ", ".join(SPEAKER_ALIASES.get(n.strip(), n.strip()) for n in r["Speakers"].split(",") if n.strip())
 

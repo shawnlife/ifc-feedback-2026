@@ -1236,8 +1236,12 @@
       String(r.raw[SPEAKERQ.detailColumn] || '').split(/\s*;\s*/).forEach(function (part) {
         var m = part.match(/^(.*\S)\s*:\s*([1-5](?:\.\d)?)$/);
         if (!m) return;
-        if (!by[m[1]]) { by[m[1]] = []; order.push(m[1]); }
-        by[m[1]].push(+m[2]);
+        // "A and B" was one entry in the session list before 22 Oct: the rating counts for both people
+        m[1].split(/\s+and\s+|\s*&\s*/).forEach(function (nm) {
+          nm = nm.trim(); if (!nm) return;
+          if (!by[nm]) { by[nm] = []; order.push(nm); }
+          by[nm].push(+m[2]);
+        });
       });
     });
     return order.map(function (nm) { return { name: nm, avg: mean(by[nm]), n: by[nm].length }; });
