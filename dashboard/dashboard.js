@@ -99,7 +99,7 @@
   var CACHE_MAX_AGE = 10 * 60 * 1000;
   function showCached() {
     var c = readCache();
-    if (!c || !c.d || Date.now() - c.t > CACHE_MAX_AGE) { loadingPanels(); return false; }
+    if (!c || !c.d || !Array.isArray(c.d.responses) || Date.now() - c.t > CACHE_MAX_AGE) { loadingPanels(); return false; }
     state.cachedAt = c.t;
     show(c.d);
     return true;
@@ -168,6 +168,9 @@
     clearTimeout(quickTimer);
     return fetchData().then(function (d) {
       if (d.stale) return;                      // a newer request is on its way; ignore this answer
+      // Google sometimes answers a slow request with its "backend is running" page instead of the results.
+      // Never show that as an empty dashboard: keep what's on screen and retry like a dropped request.
+      if (d.ok && !Array.isArray(d.responses)) throw new Error('no results in the reply');
       if (!d.ok) {
         if (d.error === 'wrong password' || d.error === 'locked' || d.error === 'no password') {
           signOut(coded(d.message || 'That password did not work.', d.code));
