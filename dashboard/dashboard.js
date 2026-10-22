@@ -442,10 +442,12 @@
     var list = fRows(), src = {};
     list.forEach(function (r) { src[r.source] = (src[r.source] || 0) + 1; });
     var ev = state.data.events || {}, u = (state.data.health || {}).usage || {};
-    var html = '<h2 class="section">How people got to the form</h2><p class="sub">Per response, with the filters above applied.</p><div class="tiles">' +
+    var html = '<h2 class="section">How people got to the form</h2><p class="sub">Per response, with the filters above applied. Taps, scans and link opens are every time it happened, sent or not (not filtered; NFC taps and QR scans counted since Thu 22 Oct, 10:12).</p><div class="tiles">' +
       ['QR code', 'NFC tag', 'Event app', 'Link', 'Home screen'].map(function (k) {
         return tile(k, String(src[k] || 0), pct(src[k] || 0, list.length) + ' of responses' +
-          (k === 'Event app' ? ' \u00b7 link opened ' + (ev['open-eventapp'] || 0) + ' times' : ''));
+          (k === 'Event app' ? ' \u00b7 link opened ' + (ev['open-eventapp'] || 0) + ' times'
+            : k === 'NFC tag' ? ' \u00b7 tags tapped ' + (ev['open-nfc'] || 0) + ' times'
+            : k === 'QR code' ? ' \u00b7 scanned ' + (ev['open-qr'] || 0) + ' times' : ''));
       }).join('') + '</div>' +
       // Opened -> picked a session -> sent (all responses, not filtered: the open and pick counts can't be)
       (function () {

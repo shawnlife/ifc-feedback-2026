@@ -41,7 +41,7 @@
   // Room signs (NFC tag or per-room QR) add ?room=Erasmus%203 so the form can ask
   // "Is this your session?" straight away. Read once, then tidied out of the address bar.
   var ROOM = (params.get('room') || '').trim();
-  var OPENED_FROM_EVENT_APP = false;   // counted once per open (the address is tidied, so a reload doesn't count again)
+  var OPENED_FROM_EVENT_APP = false, OPENED_BY = '';   // counted once per open (the address is tidied, so a reload doesn't count again)
   var SOURCE = (function () {
     // ?eventapp = the link in the IFC event app (each open is also counted, see below)
     var src = params.has('eventapp') ? 'Event app' : params.has('nfc') ? 'NFC tag' : params.has('qr') ? 'QR code' : params.has('app') ? 'Home screen' : null;
@@ -51,6 +51,7 @@
     } catch (e) { /* private browsing: fine */ }
     if (params.has('qr') || params.has('app') || params.has('nfc') || params.has('room') || params.has('eventapp')) {
       if (params.has('eventapp')) OPENED_FROM_EVENT_APP = true;
+      OPENED_BY = params.has('nfc') ? 'open-nfc' : params.has('qr') ? 'open-qr' : '';   // counted once per tap / scan
       params.delete('qr'); params.delete('app'); params.delete('nfc'); params.delete('room'); params.delete('eventapp');
       var qs = params.toString();
       history.replaceState(null, '', location.pathname + (qs ? '?' + qs.replace(/=(?=&|$)/g, '') : '') + location.hash);
@@ -1136,6 +1137,7 @@
   }
   window.addEventListener('appinstalled', function () { track('installed'); });
   if (OPENED_FROM_EVENT_APP) track('open-eventapp');
+  if (OPENED_BY) track(OPENED_BY);                     // every NFC tag tap / QR code scan, sent or not
   // One "opened the form" count per visit (not per reload), attendee and IFC Online forms only.
   // Sent after a random short wait, so a whole room opening it at once doesn't arrive in one burst.
   (function () {
