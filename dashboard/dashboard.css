@@ -336,3 +336,8 @@ select:not([multiple]) { -webkit-appearance: none !important; appearance: none !
 
 /* Outstanding: sent a report for a different session in the same time slot */
 .os-slot li .os-other { display: block; margin: 4px 0 2px; padding: 4px 8px; background: #fff3e0; border-left: 3px solid var(--accent); color: var(--ink); font-size: 13px; }
+/* Scorecards: all the controls on one line on a computer */
+@media (min-width: 1200px) {
+  #tab-scorecards .export-bar { flex-wrap: nowrap; gap: 14px; white-space: nowrap; }
+  #tab-scorecards .export-bar #scoreExportBtn { margin-left: auto; }
+}

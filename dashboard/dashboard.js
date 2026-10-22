@@ -611,8 +611,8 @@
   function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 
   // One setting, shown on Session rankings and Scorecards: adds IFC Online feedback to the in-person numbers
-  function onlineToggle() {
-    return '<label class="toggle"><input type="checkbox" class="withOnline"' + (state.withOnline ? ' checked' : '') + '> Include online reviews</label>';
+  function onlineToggle(short) {
+    return '<label class="toggle"><input type="checkbox" class="withOnline"' + (state.withOnline ? ' checked' : '') + '> ' + (short ? 'Include online' : 'Include online reviews') + '</label>';
   }
 
   function renderRankings() {
@@ -871,8 +871,8 @@
     (state.data.cleared || []).forEach(function (c) { have[plainName(c.name) + '|' + c.id] = 1; });   // cleared by the team
     (state.data.allocations || []).forEach(function (a) {
       var s = byId[a.id], part1 = /-P1$/.test(a.id);
-      if (part1 && byId[baseId(a.id)]) s = { title: byId[baseId(a.id)].title + ' (Part 1)', room: byId[baseId(a.id)].room, date: p1.date, start: p1.start };
-      if (!s || !s.date || !s.start || slotMin(s.date, s.start) > now) return;       // cancelled, or not started yet
+      if (part1 && byId[baseId(a.id)]) s = { title: byId[baseId(a.id)].title + ' (Part 1)', room: byId[baseId(a.id)].room, date: p1.date, start: p1.start, end: p1.end };
+      if (!s || !s.date || !s.start || slotMin(s.date, s.end || s.start) > now) return;   // cancelled, or not finished yet
       var missing = a.leaders.split(/\s*\/\s*/).filter(function (n) {
         return n && !have[plainName(n) + '|' + a.id] && (!LG.filterVal || plainName(n) === plainName(LG.filterVal));
       });
@@ -926,7 +926,7 @@
       return '<li><span class="os-name"><strong>' + esc(c.name) + '</strong> ' + clr(c.id, c.name, true) + '</span><span>' +
         esc(s ? s.title + ' \u00b7 ' + dayLabel(s.date) + ', ' + s.start : c.id) + '</span></li>';
     }).join('') + '</ul></details>';
-    html += '<p class="ex-note">Time slots appear once they start. Session Leaders come from the "Session Leader allocations" tab in the Sheet' +
+    html += '<p class="ex-note">Time slots appear once their sessions have finished. Session Leaders come from the "Session Leader allocations" tab in the Sheet' +
       (LG.filterVal ? '. Showing ' + esc(LG.filterVal) + ' only (Session Leader dropdown).' : '.') +
       ' Clear removes a report from this list for everyone (for example, if they reported in person); Undo brings it back.</p>';
     $('exportTitle').textContent = 'Outstanding reports';
@@ -1424,10 +1424,10 @@
       '<label>Sort by <select id="cardSort">' + [['time', 'Day and time'], ['best', 'Ranking (best first)'], ['worst', 'Ranking (lowest first)'], ['n', 'Most responses']]
         .map(function (o) { return '<option value="' + o[0] + '"' + (state.cardSort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
       '<span><strong>' + show.length + '</strong> ' + (show.length === 1 ? 'session' : 'sessions') + ' shown' +
-      (picked.length ? ' · <button type="button" class="link" id="pickNone">Show all ' + ws.length + '</button>' : ' (repeat runs combined)') + '</span>' +
-      '<label class="toggle"><input type="checkbox" id="withLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader reports</label>' +
-      '<label class="toggle"><input type="checkbox" id="withPanel"' + (state.withPanel ? ' checked' : '') + '> Include Advisory Panel reports</label>' +
-      onlineToggle() +
+      (picked.length ? ' · <button type="button" class="link" id="pickNone">Show all ' + ws.length + '</button>' : ' (repeats combined)') + '</span>' +
+      '<label class="toggle" title="Session Leader reports on each scorecard"><input type="checkbox" id="withLeaders"' + (state.withLeaders ? ' checked' : '') + '> Include Session Leader</label>' +
+      '<label class="toggle" title="Advisory Panel reports on each scorecard"><input type="checkbox" id="withPanel"' + (state.withPanel ? ' checked' : '') + '> Include Advisory Panel</label>' +
+      onlineToggle(true) +
       '<button type="button" class="secondary small" id="scoreExportBtn">Export</button></div>';
     state.cardShown = show;                     // the Copy for AI / Excel buttons on each card look it up here
     html += show.length ? show.map(function (w) { return workshopCard(w, sd.byRun, included()); }).join('')
