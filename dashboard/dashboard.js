@@ -1157,6 +1157,9 @@
   // Session Leaders and Advisory Panel tabs: every report, key issues first
   function renderLeaders() { renderReports(LG, leaders); }
   function renderPanel() { renderReports(PG, panel); }
+  // Short column headings so the table fits: "Audience engagement" -> "Engagement", "Overall rating" -> "Overall"
+  function shortLabel(t) { return ({ 'Overall rating': 'Overall', 'Audience engagement': 'Engagement', 'Content clarity': 'Clarity' })[t] || t; }
+
   function renderReports(G, all) {
     var list = all.filter(function (l) {
       return (!G.filterVal || l.name === G.filterVal) && matches(l, l.name + ' ' + G.texts.map(function (q) { return l.raw[col(q)] || ''; }).join(' '));
@@ -1223,7 +1226,7 @@
       return '<th class="' + (numCol ? 'num' : '') + '"><button type="button" data-lsort="' + esc(k) + '"' + sorted + '>' + esc(label) + '</button></th>';
     };
     var head = '<thead><tr>' + lth('title', 'Session') + lth('when', 'When') + lth('name', G.who) + lth('sent', 'Sent') +
-      G.ratings.map(function (q) { return lth(col(q), q.label, 1); }).join('') + lth('issue', 'Comments') + '</tr></thead>';
+      G.ratings.map(function (q) { return lth(col(q), shortLabel(q.label), 1); }).join('') + lth('issue', 'Comments') + '</tr></thead>';
     if (G.solvedOnly) {
       var solved = list.filter(function (l) { return hasIssue(l) && l.handled; });
       html += '<h2 class="section">Solved issues</h2>' + (solved.length

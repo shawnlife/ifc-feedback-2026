@@ -341,3 +341,27 @@ select:not([multiple]) { -webkit-appearance: none !important; appearance: none !
   #tab-scorecards .export-bar { flex-wrap: nowrap; gap: 14px; white-space: nowrap; }
   #tab-scorecards .export-bar #scoreExportBtn { margin-left: auto; }
 }
+
+/* Session Leaders / Advisory Panel tables always fit the screen (no sideways scrolling): fixed column widths,
+   long words and pasted links wrap, headings wrap. Phones show these tables as cards instead. */
+@media (min-width: 641px) {
+  #tab-leaders .tbl, #tab-panel .tbl { table-layout: fixed; width: 100%; }
+  #tab-leaders .tbl th, #tab-panel .tbl th { white-space: normal; }
+  #tab-leaders .tbl td, #tab-panel .tbl td { overflow-wrap: anywhere; word-break: normal; }
+  #tab-leaders .tbl th, #tab-panel .tbl th { overflow-wrap: normal; hyphens: manual; font-size: 12px; letter-spacing: .02em; padding-left: 8px; padding-right: 8px; }
+  #tab-leaders .tbl td:last-child, #tab-panel .tbl td:last-child { min-width: 0; }
+  /* Session, When, Name, Sent, 3 ratings, Comments */
+  #tab-leaders .tbl th:nth-child(1), #tab-panel .tbl th:nth-child(1) { width: 17%; }
+  #tab-leaders .tbl th:nth-child(2), #tab-panel .tbl th:nth-child(2) { width: 10%; }
+  #tab-leaders .tbl th:nth-child(3), #tab-panel .tbl th:nth-child(3) { width: 9%; }
+  #tab-leaders .tbl th:nth-child(4), #tab-panel .tbl th:nth-child(4) { width: 7%; }
+  #tab-leaders .tbl th:nth-child(5), #tab-panel .tbl th:nth-child(5),
+  #tab-leaders .tbl th:nth-child(6), #tab-panel .tbl th:nth-child(6),
+  #tab-leaders .tbl th:nth-child(7), #tab-panel .tbl th:nth-child(7) { width: 9%; }
+  #tab-leaders .issue-actions, #tab-panel .issue-actions { flex-wrap: wrap; }
+}
+@media (min-width: 1180px) { #tab-leaders .issue-actions, #tab-panel .issue-actions { flex-wrap: nowrap; } }
+@media (max-width: 640px) { .tbl td, .tbl td * { overflow-wrap: anywhere; } .tbl-wrap { overflow-x: hidden; } }
+@media (min-width: 641px) and (max-width: 1023px) {
+  #tab-leaders .tbl th, #tab-panel .tbl th, #tab-leaders .tbl th button, #tab-panel .tbl th button { font-size: 11px; letter-spacing: 0; padding-left: 4px; padding-right: 4px; }
+}
