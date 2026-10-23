@@ -296,3 +296,10 @@ select:not([multiple]) { -webkit-appearance: none !important; appearance: none !
   color: var(--ink); -webkit-text-fill-color: var(--ink); cursor: pointer; padding-left: 10px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important; background-position: right 12px center !important; padding-right: 36px !important; }
+
+/* Friday: the overall IFC 2026 feedback banner at the top of the first page. Bold on purpose. */
+.overall-banner { margin: 0 0 22px; padding: 18px 18px 20px; background: var(--accent); color: var(--ink); border: 3px solid var(--ink); box-shadow: -5px 6px 0 var(--ink); }
+.overall-banner h2 { margin: 0 0 6px; font-size: 22px; line-height: 1.2; text-transform: uppercase; letter-spacing: .02em; }
+.overall-banner p { margin: 0 0 14px; font-size: 16px; color: var(--ink); }
+.ob-btn { display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 16px; background: var(--ink); color: #fff; font-weight: 700; font-size: 17px; text-decoration: none; border: 0; }
+.ob-btn:hover, .ob-btn:focus-visible { background: #fff; color: var(--ink); outline: 3px solid var(--ink); }

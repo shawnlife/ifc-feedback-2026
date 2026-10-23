@@ -111,7 +111,10 @@ window.IFC_CONFIG = {
     sessions: ['KEY-CLOSE'],
     heading: 'One last thing: how was IFC 2026 overall?',
     text: 'Tell us about the whole congress in our short overall feedback form.',
-    button: 'Give feedback on IFC 2026'
+    button: 'Give feedback on IFC 2026',
+    // the bold banner at the top of the form's first page, from 'from' (attendee and IFC Online forms)
+    bannerHeading: 'How was IFC 2026 overall?',
+    bannerText: 'Please fill in our short overall feedback form for the whole congress. Then rate the sessions you attended below.'
   },
 
   // IFC ONLINE FORM (at /online): the moderator posts ifc2026survey.com/online in the

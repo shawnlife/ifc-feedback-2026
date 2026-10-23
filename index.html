@@ -42,6 +42,12 @@
 
   <!-- STEP 1: find the session -->
   <section id="stepFind" aria-labelledby="findLabel">
+    <!-- From Friday: a bold banner pointing to the overall IFC 2026 feedback form (set in config.js, overallSurvey) -->
+    <div class="overall-banner" id="overallBanner" hidden>
+      <h2 id="obHeading"></h2>
+      <p id="obText"></p>
+      <a class="ob-btn" id="obBtn" href="#" target="_blank" rel="noopener"></a>
+    </div>
     <!-- Filled in when the form is opened from a room sign (NFC tag or room QR) -->
     <div class="room-ask" id="roomAsk" hidden aria-live="polite"></div>
     <h2 class="search-label" id="findLabel">Which session did you attend?</h2>

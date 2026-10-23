@@ -1183,6 +1183,20 @@
     $('homeTip').hidden = false;
   }
 
+  // From Friday (overallSurvey.from): a bold banner at the top of the first page asking for the overall
+  // IFC 2026 feedback. Attendee and IFC Online forms only. Clicks count as 'overall-click' (Analytics tab).
+  function showOverallBanner() {
+    var ov = CFG.overallSurvey || {};
+    var from = ov.from ? toMinutes(ov.from.split('T')[0], ov.from.split('T')[1] || '00:00') : NaN;
+    if (!ov.url || LEADER || isNaN(from) || nowMinutes() < from) return;
+    $('obHeading').textContent = ov.bannerHeading || 'How was IFC 2026 overall?';
+    $('obText').textContent = ov.bannerText || '';
+    $('obBtn').textContent = ov.button || 'Give feedback on IFC 2026';
+    $('obBtn').href = ov.url;
+    $('obBtn').addEventListener('click', function () { track('overall-click'); });
+    $('overallBanner').hidden = false;
+  }
+
   function init() {
     setupHelp();
     els.eventName.textContent = CFG.eventName || 'IFC 2026';
@@ -1209,6 +1223,7 @@
       els.q.placeholder = 'e.g. Nyasha, Islamic finance, Radical Right';
     }
     applyBrand();
+    showOverallBanner();
     if (DEMO) banner('Demo mode: nothing is saved.');
     else if (TEST) banner('Test mode: responses go to the "' + (PANEL ? 'Test Advisory Panel feedback' : LEADER ? 'Test Session Leader feedback' : 'Test responses') + '" tab, not the real results.');
     buildQuestions();
