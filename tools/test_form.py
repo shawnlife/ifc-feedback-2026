@@ -320,8 +320,9 @@ with sync_playwright() as p:
         ("Samsung", "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0 Mobile Safari/537.36", "In Samsung Internet"),
         ("Android Chrome", "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36", "In Chrome: tap the ⋮ menu")]:
         cx = b.new_context(user_agent=ua, viewport={"width": 390, "height": 800}); pp = cx.new_page()
-        pp.goto(BASE + "?test"); pp.wait_for_selector("#q"); pp.wait_for_timeout(400)
-        pp.fill("#q", "plenary"); pp.wait_for_timeout(200); pp.locator(".result").first.click()
+        # a date before the event: from Fri 23 Oct the thank-you screen shows the end-of-conference form instead of this tip
+        pp.goto(BASE + "?test&now=2026-10-16T12:40"); pp.wait_for_selector("#q"); pp.wait_for_timeout(400)
+        pp.fill("#q", "plenary"); pp.wait_for_timeout(200); pp.locator(".result:not(.locked)").first.click()
         pp.click("label[for=q0_4]"); fill_rest(pp); pp.click("#submitBtn"); pp.wait_for_selector("#stepDone:not([hidden])")
         txt = pp.inner_text("#tipSteps")
         check(expect in txt, f"{name}: '{txt[:70]}'")
