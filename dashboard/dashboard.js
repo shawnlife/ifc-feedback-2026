@@ -1192,6 +1192,7 @@
       // On/off filter: show only the key issues already marked as handled
       '<button type="button" class="secondary small solved-btn" data-solved="' + G.kind + '" aria-pressed="' + !!G.solvedOnly + '">' +
         (G.solvedOnly ? 'Showing solved issues \u00d7' : 'Solved issues' + (handledN ? ' <span class="count">' + handledN + '</span>' : '')) + '</button>' +
+      '<button type="button" class="secondary small report-xlsx" data-reportxlsx="' + G.kind + '">Export (Excel)</button>' +
       '</div>' +
       '<div class="tiles">' +
       tile(G.reports, String(list.length), Object.keys(covered).length + ' of ' + fSessions().length + ' sessions covered') +
@@ -1243,8 +1244,10 @@
           esc(label) + (n ? ' <span class="count warn">' + n + '</span>' : ' <span class="count zero">0</span>') + '</button>';
       };
       var shownIssues = G.ownerFilter ? issues.filter(function (l) { return G.ownerFilter === '-' ? !l.owner : l.owner === G.ownerFilter; }) : issues;
+      G.shownIssues = shownIssues;              // "Handle all" works on exactly these
       html += '<h2 class="section">Key issues to look at</h2><div class="owner-chips" role="group" aria-label="Show key issues assigned to">' +
-        chip('', 'All', issues.length) + chip('-', 'Unassigned', nOf('-')) + OWNERS.map(function (o) { return chip(o, o, nOf(o)); }).join('') + '</div>' +
+        chip('', 'All', issues.length) + chip('-', 'Unassigned', nOf('-')) + OWNERS.map(function (o) { return chip(o, o, nOf(o)); }).join('') +
+        (shownIssues.length ? '<button type="button" class="secondary small handle-all" data-handleall="' + G.kind + '">Handle all ' + shownIssues.length + '</button>' : '') + '</div>' +
         (shownIssues.length ? '<div class="tbl-wrap"><table class="tbl">' + head + '<tbody>' + shownIssues.map(row).join('') + '</tbody></table></div>'
           : '<p class="empty">No open key issues ' + (G.ownerFilter === '-' ? 'without an owner' : 'assigned to ' + esc(G.ownerFilter)) + '.</p>');
     }
@@ -1717,6 +1720,59 @@
     });
   }
 
+  // "Handle all": mark every open key issue shown (all, or one owner's) as handled with one note, e.g. after the event.
+  // One request per issue, one after another (each is checked on the server like a single "Handled?").
+  function handleAll(btn) {
+    var G = btn.dataset.handleall === 'panel' ? PG : LG, list = (G.shownIssues || []).slice();
+    if (!list.length) return;
+    var note = prompt('Mark all ' + list.length + ' open key issues as handled.\n\nNote saved on each (you can change it):', 'Closed after the event: no further action needed');
+    if (note === null) return;
+    note = note.trim();
+    if (!note) { alert('Please add a short note so the team knows what happened.'); return; }
+    btn.disabled = true;
+    var done = 0, failed = 0, i = 0;
+    var next = function () {
+      if (i >= list.length) {
+        btn.textContent = 'Done';
+        if (failed) alert(coded(failed + ' of ' + list.length + ' could not be saved. Refresh and press Handle all again for the rest.', 'D201'));
+        load();
+        return;
+      }
+      var l = list[i++];
+      btn.textContent = 'Handling ' + i + ' of ' + list.length + '\u2026';
+      fetch(API, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'resolve', kind: G.kind, key: state.key, test: $('showTest').checked, row: +l.row, timestamp: l.when, note: note })
+      }).then(function (r) { return r.json(); }).then(function (j) {
+        if (j.ok || j.code === 'S127') { done++; l.handled = true; l.handledNote = note; } else failed++;   // S127: someone else already did it
+      }).catch(function () { failed++; }).then(next);
+    };
+    next();
+  }
+
+  // Export (Excel) on the Session Leaders / Advisory Panel tab: every report shown (latest versions), one row each
+  function exportReports(btn) {
+    var G = btn.dataset.reportxlsx === 'panel' ? PG : LG, all = G === PG ? panel : leaders;
+    var list = all.filter(function (l) { return (!G.filterVal || l.name === G.filterVal) && matches(l, l.name); })
+      .sort(function (a, b) { return (a.date + a.start + a.room).localeCompare(b.date + b.start + b.room); });
+    if (!list.length) { alert('No reports to export with these filters.'); return; }
+    var head = ['Session', 'Day', 'Time', 'Room', G.who, 'Sent'].concat(G.ratings.map(function (q) { return shortLabel(q.label); }));
+    G.texts.forEach(function (q) { head.push(q.label); head.push(q.label + ' (English)'); });
+    head = head.concat(['Issue assigned to', 'Issue status', 'Issue note', 'Updated report']);
+    var rowsX = [head].concat(list.map(function (l) {
+      var s = byId[l.id] || {};
+      var r = [l.title, dayLabel(l.date), l.start + (s.end ? '\u2013' + s.end : ''), l.room, l.name, localTime(l.when)]
+        .concat(G.ratings.map(function (q) { var v = num(l.raw[col(q)]); return v == null ? '' : v; }));
+      G.texts.forEach(function (q) { r.push(String(l.raw[col(q)] || '').replace(/^'/, '')); r.push(String(l.raw[col(q) + ' (English)'] || '').replace(/^'/, '')); });
+      return r.concat([l.owner || '', l.handled ? 'Handled ' + l.handledWhen : (String(l.raw[G.issues] || '').trim() ? 'Open' : ''), l.handledNote || '', l.versions > 1 ? 'Yes' : '']);
+    }));
+    // drop the English columns if nothing was translated
+    var keep = rowsX[0].map(function (h, c) { return !/\(English\)$/.test(h) || rowsX.slice(1).some(function (r) { return r[c]; }); });
+    rowsX = rowsX.map(function (r) { return r.filter(function (v, c) { return keep[c]; }); });
+    xlsxDownload(btn, [{ name: G === PG ? 'Advisory Panel reports' : 'Session Leader reports', rows: rowsX }],
+      'IFC2026 ' + (G === PG ? 'Advisory Panel' : 'Session Leader') + ' reports');
+  }
+
   function assign(btn, special) {
     var row = btn.dataset.assign || btn.dataset.nomatch || btn.dataset.restore, sessionId = special;
     if (!special) {
@@ -1954,6 +2010,8 @@
       else if (el.id === 'scoreExportBtn') openExport('scorecards');
       else if (el.closest('#outstandingBtn')) showOutstanding();
       else if (el.dataset.assignissue) showAssign(el);
+      else if (el.dataset.handleall) handleAll(el);
+      else if (el.dataset.reportxlsx) exportReports(el);
       else if (el.closest('[data-ovtab]')) {                          // Overview number: that tab, filtered to that owner's open issues
         var OV = el.closest('[data-ovtab]'), OVG = OV.dataset.ovtab === 'panel' ? PG : LG;
         OVG.ownerFilter = OV.dataset.ovowner || ''; OVG.solvedOnly = false;

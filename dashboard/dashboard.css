@@ -365,3 +365,8 @@ select:not([multiple]) { -webkit-appearance: none !important; appearance: none !
 @media (min-width: 641px) and (max-width: 1023px) {
   #tab-leaders .tbl th, #tab-panel .tbl th, #tab-leaders .tbl th button, #tab-panel .tbl th button { font-size: 11px; letter-spacing: 0; padding-left: 4px; padding-right: 4px; }
 }
+
+/* Key issues: "Handle all" sits with the owner filter; Export (Excel) next to Solved issues */
+.owner-chips .handle-all { height: 36px; margin-left: auto; }
+.report-xlsx { margin-left: 12px; }
+@media (max-width: 640px) { .owner-chips .handle-all { margin-left: 0; } .report-xlsx { margin: 10px 0 0; } }
